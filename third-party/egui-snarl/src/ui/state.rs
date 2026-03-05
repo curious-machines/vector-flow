@@ -264,12 +264,12 @@ impl SnarlState {
 
         let Some(mut data) = SnarlStateData::load(cx, id) else {
             cx.request_discard("Initial placing");
-            return Self::initial(id, viewport, snarl, style);
+            return Self::initial(id, cx, viewport, snarl, style);
         };
 
         if fit_all {
             cx.request_discard("Fit all nodes");
-            return Self::initial(id, viewport, snarl, style);
+            return Self::initial(id, cx, viewport, snarl, style);
         }
 
         let animate_zoom = style.animate_zoom.unwrap_or(0.0);
@@ -310,11 +310,17 @@ impl SnarlState {
         }
     }
 
-    fn initial<T>(id: Id, viewport: Rect, snarl: &Snarl<T>, style: &SnarlStyle) -> Self {
+    fn initial<T>(id: Id, cx: &Context, viewport: Rect, snarl: &Snarl<T>, style: &SnarlStyle) -> Self {
         let mut bb = Rect::NOTHING;
 
-        for (_, node) in &snarl.nodes {
+        for (node_key, node) in &snarl.nodes {
             bb.extend_with(node.pos);
+            // Try to load cached node size to include the full node extent.
+            let node_id = id.with(("snarl-node", NodeId(node_key)));
+            if let Some(data) = cx.data(|d| d.get_temp::<NodeData>(node_id)) {
+                let bottom_right = node.pos + data.unscaled_size;
+                bb.extend_with(bottom_right);
+            }
         }
 
         let mut offset = Vec2::ZERO;
@@ -690,6 +696,38 @@ impl<T> Snarl<T> {
             } else {
                 d.insert_temp::<SelectedNodes>(snarl_id, SelectedNodes(nodes));
             }
+        });
+    }
+
+    /// Returns the current graph view offset and scale.
+    ///
+    /// Use `id_salt` as well as [`Id`] and [`Context`] of the [`Ui`] that were used in [`Snarl::show`] method.
+    pub fn get_view_state(id_salt: impl Hash, id: Id, cx: &Context) -> Option<(Vec2, f32)> {
+        let snarl_id = id.with(id_salt);
+        cx.data(|d| {
+            d.get_temp::<SnarlStateDataHeader>(snarl_id)
+                .map(|h| (h.offset, h.scale))
+        })
+    }
+
+    /// Set the graph view offset and scale.
+    ///
+    /// Use `id_salt` as well as [`Id`] and [`Context`] of the [`Ui`] that were used in [`Snarl::show`] method.
+    pub fn set_view_state(id_salt: impl Hash, id: Id, cx: &Context, offset: Vec2, scale: f32) {
+        let snarl_id = id.with(id_salt);
+        cx.data_mut(|d| {
+            // Update the existing header or create a new one.
+            let mut header = d.get_temp::<SnarlStateDataHeader>(snarl_id)
+                .unwrap_or(SnarlStateDataHeader {
+                    offset,
+                    scale,
+                    target_scale: scale,
+                    is_link_menu_open: false,
+                });
+            header.offset = offset;
+            header.scale = scale;
+            header.target_scale = scale;
+            d.insert_temp(snarl_id, header);
         });
     }
 
