@@ -1,0 +1,16 @@
+[package]
+name = "vector-flow-dsl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+vector-flow-core = { path = "../vector-flow-core" }
+cranelift-codegen = "0.129"
+cranelift-frontend = "0.129"
+cranelift-jit = "0.129"
+cranelift-module = "0.129"
+cranelift-native = "0.129"
+target-lexicon = "0.12"
+thiserror = "2"
+dashmap = "6"
+log = "0.4"

@@ -1,0 +1,938 @@
+{
+  "graph": {
+    "nodes": {
+      "11": {
+        "id": 11,
+        "name": "Scatter Points",
+        "op": "ScatterPoints",
+        "inputs": [
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of points",
+            "default_value": {
+              "Int": 20
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Scatter region width",
+            "default_value": {
+              "Float": 250.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Scatter region height",
+            "default_value": {
+              "Float": 250.0
+            },
+            "expression": null
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -339.1875,
+          135.0
+        ],
+        "generation": 14
+      },
+      "2": {
+        "id": 2,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          -45.78125,
+          -137.875
+        ],
+        "generation": 0
+      },
+      "7": {
+        "id": 7,
+        "name": "Scatter Points",
+        "op": "ScatterPoints",
+        "inputs": [
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of points",
+            "default_value": {
+              "Int": 100
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Scatter region width",
+            "default_value": {
+              "Float": 500.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Scatter region height",
+            "default_value": {
+              "Float": 500.0
+            },
+            "expression": null
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -284.4375,
+          132.28125
+        ],
+        "generation": 0
+      },
+      "12": {
+        "id": 12,
+        "name": "Regular Polygon",
+        "op": "RegularPolygon",
+        "inputs": [
+          {
+            "name": "sides",
+            "data_type": "Int",
+            "description": "Number of sides",
+            "default_value": {
+              "Int": 6
+            },
+            "expression": null
+          },
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Outer radius",
+            "default_value": {
+              "Float": 15.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -275.28125,
+          134.34375
+        ],
+        "generation": 7
+      },
+      "14": {
+        "id": 14,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.1384954,
+                0.2236083,
+                0.16114557,
+                0.45372912
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -79.93512,
+          -90.15085
+        ],
+        "generation": 279
+      },
+      "5": {
+        "id": 5,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.17256236,
+                0.38698238,
+                0.90107995,
+                0.45372912
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -59.546875,
+          -330.34375
+        ],
+        "generation": 143
+      },
+      "3": {
+        "id": 3,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 10.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "segments",
+            "data_type": "Int",
+            "description": "Number of segments for approximation",
+            "default_value": {
+              "Int": 64
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -73.03125,
+          -176.03125
+        ],
+        "generation": 2
+      },
+      "1": {
+        "id": 1,
+        "name": "Scatter Points",
+        "op": "ScatterPoints",
+        "inputs": [
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of points",
+            "default_value": {
+              "Int": 84
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Scatter region width",
+            "default_value": {
+              "Float": 150.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Scatter region height",
+            "default_value": {
+              "Float": 150.0
+            },
+            "expression": null
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -241.6875,
+          -236.5
+        ],
+        "generation": 175
+      },
+      "6": {
+        "id": 6,
+        "name": "Rectangle",
+        "op": "Rectangle",
+        "inputs": [
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Width",
+            "default_value": {
+              "Float": 10.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Height",
+            "default_value": {
+              "Float": 10.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -437.5,
+          -287.4375
+        ],
+        "generation": 26
+      },
+      "16": {
+        "id": 16,
+        "name": "Path Union",
+        "op": "PathUnion",
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "Path input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Path input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Path input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "d",
+            "data_type": "Any",
+            "description": "Path input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          192.84375,
+          -91.71875
+        ],
+        "generation": 2
+      },
+      "13": {
+        "id": 13,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.3311718,
+                0.140234,
+                0.122622065,
+                0.45372912
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -79.93512,
+          -90.15085
+        ],
+        "generation": 472
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 0
+        },
+        "to": {
+          "node": 6,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 11,
+          "port": 0
+        },
+        "to": {
+          "node": 12,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 6,
+          "port": 0
+        },
+        "to": {
+          "node": 13,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 12,
+          "port": 0
+        },
+        "to": {
+          "node": 14,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 5,
+          "port": 0
+        },
+        "to": {
+          "node": 16,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 13,
+          "port": 0
+        },
+        "to": {
+          "node": 16,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 14,
+          "port": 0
+        },
+        "to": {
+          "node": 16,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 16,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      }
+    ],
+    "next_id": 17,
+    "generation": 925
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "Scatter Points",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -493.29083,
+          "y": -184.80939
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 311.41858,
+          "y": -1.0504456
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -303.0183,
+          "y": -180.55807
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 13,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -101.46753,
+          "y": -24.099457
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -106.151855,
+          "y": -173.1506
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 6,
+          "display_name": "Rectangle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -295.45355,
+          "y": -26.527283
+        },
+        "open": true
+      },
+      "6": {
+        "value": {
+          "core_id": 7,
+          "display_name": "Scatter Points",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -495.2463,
+          "y": -35.509705
+        },
+        "open": true
+      },
+      "7": {
+        "value": {
+          "core_id": 12,
+          "display_name": "Regular Polygon",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -301.38916,
+          "y": 123.13049
+        },
+        "open": true
+      },
+      "8": {
+        "value": {
+          "core_id": 11,
+          "display_name": "Scatter Points",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -500.43506,
+          "y": 117.339966
+        },
+        "open": true
+      },
+      "9": {
+        "value": {
+          "core_id": 16,
+          "display_name": "Path Union",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 124.56,
+          "y": -27.79541
+        },
+        "open": true
+      },
+      "10": {
+        "value": {
+          "core_id": 14,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -111.29889,
+          "y": 122.5372
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 9,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 8,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
+          "node": 7,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 10,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 10,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 2
+        }
+      }
+    ]
+  }
+}

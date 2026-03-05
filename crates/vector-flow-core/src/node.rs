@@ -1,0 +1,618 @@
+use serde::{Deserialize, Serialize};
+
+use crate::types::{DataType, NodeId};
+
+// ---------------------------------------------------------------------------
+// Port addressing
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PortIndex(pub usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PortId {
+    pub node: NodeId,
+    pub port: PortIndex,
+}
+
+// ---------------------------------------------------------------------------
+// ParamValue — literal values storable in ports
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ParamValue {
+    Float(f64),
+    Int(i64),
+    Bool(bool),
+    String(String),
+    Vec2([f32; 2]),
+    Color([f32; 4]),
+}
+
+// ---------------------------------------------------------------------------
+// PortDef — unified port definition (param + input merged)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PortDef {
+    pub name: String,
+    pub data_type: DataType,
+    pub description: String,
+    pub default_value: Option<ParamValue>,
+    pub expression: Option<String>,
+}
+
+impl PortDef {
+    pub fn new(name: impl Into<String>, data_type: DataType) -> Self {
+        Self {
+            name: name.into(),
+            data_type,
+            description: String::new(),
+            default_value: None,
+            expression: None,
+        }
+    }
+
+    pub fn with_default(mut self, value: ParamValue) -> Self {
+        self.default_value = Some(value);
+        self
+    }
+
+    pub fn with_description(mut self, desc: impl Into<String>) -> Self {
+        self.description = desc.into();
+        self
+    }
+}
+
+// ---------------------------------------------------------------------------
+// NodeOp — all built-in operations
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum NodeOp {
+    // Generators
+    RegularPolygon,
+    PointGrid,
+    Circle,
+    Rectangle,
+    Line,
+    ScatterPoints,
+    // Transforms
+    ApplyTransform,
+    Translate,
+    Rotate,
+    Scale,
+    // Path ops
+    PathUnion,
+    PathIntersect,
+    PathDifference,
+    PathOffset,
+    PathSubdivide,
+    PathReverse,
+    ResamplePath,
+    // Styling
+    SetFill,
+    SetStroke,
+    // Utility
+    Merge,
+    Duplicate,
+    CopyToPoints,
+    // DSL
+    DslCode { source: String },
+    // Graph I/O
+    GraphInput { name: String, data_type: DataType },
+    GraphOutput { name: String, data_type: DataType },
+}
+
+// ---------------------------------------------------------------------------
+// NodeDef — a node instance in the graph
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeDef {
+    pub id: NodeId,
+    pub name: String,
+    pub op: NodeOp,
+    pub inputs: Vec<PortDef>,
+    pub outputs: Vec<PortDef>,
+    pub position: [f32; 2],
+    pub generation: u64,
+}
+
+/// Generate a port name from an index: 0→"a", 1→"b", ..., 25→"z", 26→"a1", etc.
+fn variadic_port_name(idx: usize) -> String {
+    let letter = (b'a' + (idx % 26) as u8) as char;
+    if idx < 26 {
+        letter.to_string()
+    } else {
+        format!("{}{}", letter, idx / 26)
+    }
+}
+
+impl NodeDef {
+    /// Bump the generation counter (call when params, expressions, or structure change).
+    pub fn touch(&mut self) {
+        self.generation += 1;
+    }
+
+    /// Whether this node supports a variable number of inputs.
+    pub fn is_variadic(&self) -> bool {
+        matches!(self.op, NodeOp::PathUnion)
+    }
+
+    /// Add another variadic input port. Returns the new port index.
+    pub fn add_variadic_input(&mut self) -> Option<usize> {
+        if !self.is_variadic() {
+            return None;
+        }
+        let idx = self.inputs.len();
+        let name = variadic_port_name(idx);
+        let port = PortDef::new(name, DataType::Any)
+            .with_description("Path input");
+        self.inputs.push(port);
+        self.touch();
+        Some(idx)
+    }
+
+    /// Remove the last variadic input port. Won't go below 2 inputs.
+    /// Returns true if a port was removed.
+    pub fn remove_variadic_input(&mut self) -> bool {
+        if !self.is_variadic() || self.inputs.len() <= 2 {
+            return false;
+        }
+        self.inputs.pop();
+        self.touch();
+        true
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Factory functions — create NodeDefs with correct port definitions
+// ---------------------------------------------------------------------------
+
+impl NodeDef {
+    pub fn regular_polygon(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Regular Polygon".into(),
+            op: NodeOp::RegularPolygon,
+            inputs: vec![
+                PortDef::new("sides", DataType::Int)
+                    .with_default(ParamValue::Int(6))
+                    .with_description("Number of sides"),
+                PortDef::new("radius", DataType::Scalar)
+                    .with_default(ParamValue::Float(100.0))
+                    .with_description("Outer radius"),
+                PortDef::new("center", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Center position"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn circle(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Circle".into(),
+            op: NodeOp::Circle,
+            inputs: vec![
+                PortDef::new("radius", DataType::Scalar)
+                    .with_default(ParamValue::Float(100.0))
+                    .with_description("Circle radius"),
+                PortDef::new("center", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Center position"),
+                PortDef::new("segments", DataType::Int)
+                    .with_default(ParamValue::Int(64))
+                    .with_description("Number of segments for approximation"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn rectangle(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Rectangle".into(),
+            op: NodeOp::Rectangle,
+            inputs: vec![
+                PortDef::new("width", DataType::Scalar)
+                    .with_default(ParamValue::Float(200.0))
+                    .with_description("Width"),
+                PortDef::new("height", DataType::Scalar)
+                    .with_default(ParamValue::Float(100.0))
+                    .with_description("Height"),
+                PortDef::new("center", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Center position"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn line(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Line".into(),
+            op: NodeOp::Line,
+            inputs: vec![
+                PortDef::new("from", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([-100.0, 0.0]))
+                    .with_description("Start point"),
+                PortDef::new("to", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([100.0, 0.0]))
+                    .with_description("End point"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn point_grid(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Point Grid".into(),
+            op: NodeOp::PointGrid,
+            inputs: vec![
+                PortDef::new("columns", DataType::Int)
+                    .with_default(ParamValue::Int(10))
+                    .with_description("Number of columns"),
+                PortDef::new("rows", DataType::Int)
+                    .with_default(ParamValue::Int(10))
+                    .with_description("Number of rows"),
+                PortDef::new("spacing", DataType::Scalar)
+                    .with_default(ParamValue::Float(20.0))
+                    .with_description("Distance between points"),
+            ],
+            outputs: vec![PortDef::new("points", DataType::Points)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn scatter_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Scatter Points".into(),
+            op: NodeOp::ScatterPoints,
+            inputs: vec![
+                PortDef::new("count", DataType::Int)
+                    .with_default(ParamValue::Int(100))
+                    .with_description("Number of points"),
+                PortDef::new("width", DataType::Scalar)
+                    .with_default(ParamValue::Float(500.0))
+                    .with_description("Scatter region width"),
+                PortDef::new("height", DataType::Scalar)
+                    .with_default(ParamValue::Float(500.0))
+                    .with_description("Scatter region height"),
+                PortDef::new("seed", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Random seed"),
+            ],
+            outputs: vec![PortDef::new("points", DataType::Points)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn translate(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Translate".into(),
+            op: NodeOp::Translate,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any).with_description("Input geometry"),
+                PortDef::new("offset", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Translation offset"),
+            ],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn rotate(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Rotate".into(),
+            op: NodeOp::Rotate,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any).with_description("Input geometry"),
+                PortDef::new("angle", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Rotation angle in degrees"),
+                PortDef::new("center", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Center of rotation"),
+            ],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn scale(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Scale".into(),
+            op: NodeOp::Scale,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any).with_description("Input geometry"),
+                PortDef::new("factor", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([1.0, 1.0]))
+                    .with_description("Scale factor (x, y)"),
+                PortDef::new("center", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Center of scaling"),
+            ],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn apply_transform(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Apply Transform".into(),
+            op: NodeOp::ApplyTransform,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any).with_description("Input geometry"),
+                PortDef::new("transform", DataType::Transform)
+                    .with_description("Transform to apply"),
+            ],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn set_fill(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Set Fill".into(),
+            op: NodeOp::SetFill,
+            inputs: vec![
+                PortDef::new("shape", DataType::Shape).with_description("Input shape"),
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Fill color"),
+            ],
+            outputs: vec![PortDef::new("shape", DataType::Shape)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn set_stroke(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Set Stroke".into(),
+            op: NodeOp::SetStroke,
+            inputs: vec![
+                PortDef::new("shape", DataType::Shape).with_description("Input shape"),
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([0.0, 0.0, 0.0, 1.0]))
+                    .with_description("Stroke color"),
+                PortDef::new("width", DataType::Scalar)
+                    .with_default(ParamValue::Float(2.0))
+                    .with_description("Stroke width"),
+            ],
+            outputs: vec![PortDef::new("shape", DataType::Shape)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn merge(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Merge".into(),
+            op: NodeOp::Merge,
+            inputs: vec![
+                PortDef::new("a", DataType::Any).with_description("First input"),
+                PortDef::new("b", DataType::Any).with_description("Second input"),
+            ],
+            outputs: vec![PortDef::new("merged", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn duplicate(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Duplicate".into(),
+            op: NodeOp::Duplicate,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any).with_description("Input geometry"),
+                PortDef::new("count", DataType::Int)
+                    .with_default(ParamValue::Int(5))
+                    .with_description("Number of copies"),
+                PortDef::new("transform", DataType::Transform)
+                    .with_description("Transform applied per copy (cumulative)"),
+            ],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn copy_to_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Copy to Points".into(),
+            op: NodeOp::CopyToPoints,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any).with_description("Geometry to copy"),
+                PortDef::new("points", DataType::Points).with_description("Target positions"),
+            ],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn dsl_code(id: NodeId, source: String) -> Self {
+        Self {
+            id,
+            name: "DSL Code".into(),
+            op: NodeOp::DslCode { source },
+            inputs: vec![PortDef::new("input", DataType::Any).with_description("Input data")],
+            outputs: vec![PortDef::new("output", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn graph_input(id: NodeId, name: String, data_type: DataType) -> Self {
+        Self {
+            id,
+            name: format!("Input: {}", name),
+            op: NodeOp::GraphInput {
+                name: name.clone(),
+                data_type,
+            },
+            inputs: vec![],
+            outputs: vec![PortDef::new(name, data_type)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn graph_output(id: NodeId, name: String, data_type: DataType) -> Self {
+        Self {
+            id,
+            name: format!("Output: {}", name),
+            op: NodeOp::GraphOutput {
+                name: name.clone(),
+                data_type,
+            },
+            inputs: vec![PortDef::new(name, data_type)],
+            outputs: vec![],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+}
+
+impl NodeDef {
+    pub fn path_union(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Path Union".into(),
+            op: NodeOp::PathUnion,
+            inputs: vec![
+                PortDef::new("a", DataType::Any).with_description("Path input"),
+                PortDef::new("b", DataType::Any).with_description("Path input"),
+            ],
+            outputs: vec![PortDef::new("result", DataType::Shapes)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn path_intersect(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Path Intersect".into(),
+            op: NodeOp::PathIntersect,
+            inputs: vec![
+                PortDef::new("a", DataType::Path).with_description("First path"),
+                PortDef::new("b", DataType::Path).with_description("Second path"),
+            ],
+            outputs: vec![PortDef::new("result", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn path_difference(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Path Difference".into(),
+            op: NodeOp::PathDifference,
+            inputs: vec![
+                PortDef::new("a", DataType::Path).with_description("Base path"),
+                PortDef::new("b", DataType::Path).with_description("Path to subtract"),
+            ],
+            outputs: vec![PortDef::new("result", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn path_offset(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Path Offset".into(),
+            op: NodeOp::PathOffset,
+            inputs: vec![
+                PortDef::new("path", DataType::Path).with_description("Input path"),
+                PortDef::new("distance", DataType::Scalar)
+                    .with_default(ParamValue::Float(10.0))
+                    .with_description("Offset distance"),
+            ],
+            outputs: vec![PortDef::new("result", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn path_subdivide(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Path Subdivide".into(),
+            op: NodeOp::PathSubdivide,
+            inputs: vec![
+                PortDef::new("path", DataType::Path).with_description("Input path"),
+                PortDef::new("levels", DataType::Int)
+                    .with_default(ParamValue::Int(1))
+                    .with_description("Subdivision levels"),
+            ],
+            outputs: vec![PortDef::new("result", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn path_reverse(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Path Reverse".into(),
+            op: NodeOp::PathReverse,
+            inputs: vec![
+                PortDef::new("path", DataType::Path).with_description("Input path"),
+            ],
+            outputs: vec![PortDef::new("result", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn resample_path(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Resample Path".into(),
+            op: NodeOp::ResamplePath,
+            inputs: vec![
+                PortDef::new("path", DataType::Path).with_description("Input path"),
+                PortDef::new("count", DataType::Int)
+                    .with_default(ParamValue::Int(32))
+                    .with_description("Number of samples"),
+            ],
+            outputs: vec![PortDef::new("points", DataType::Points)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+}

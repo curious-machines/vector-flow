@@ -1,0 +1,14 @@
+[package]
+name = "vector-flow-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+glam = { version = "0.29", features = ["serde"] }
+bytemuck = { version = "1", features = ["derive"] }
+thiserror = "2"
+dashmap = "6"
+rayon = "1"
+parking_lot = "0.12"
+log = "0.4"
