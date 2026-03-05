@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use crate::compute::{ComputeBackend, NodeOutputs, ResolvedInputs};
 use crate::error::ComputeError;
 use crate::graph::Graph;
-use crate::node::{ParamValue, PortIndex};
+use crate::node::{NodeOp, ParamValue, PortIndex};
 use crate::types::{NodeData, NodeId, TimeContext};
 
 // ---------------------------------------------------------------------------
@@ -77,24 +77,66 @@ impl Scheduler {
         let topo_order = graph
             .topological_sort()
             .map_err(|e| ComputeError::BackendError(e.to_string()))?;
+
+        // Build portal send label → NodeId map.
+        let portal_map = self.build_portal_map(graph);
+        let has_portals = !portal_map.is_empty();
+
         let subgraphs = graph.independent_subgraphs();
 
-        // Collect all subgraph results in parallel.
-        let subgraph_results: Vec<Result<HashMap<NodeId, Vec<NodeData>>, ComputeError>> =
-            subgraphs
-                .par_iter()
-                .map(|subgraph_nodes| {
-                    self.evaluate_subgraph(graph, subgraph_nodes, &topo_order, time_ctx)
-                })
-                .collect();
+        if has_portals {
+            // Portal receives may depend on sends in other subgraphs,
+            // so evaluate sequentially with a shared output map.
+            // Evaluate sends first (topo order puts them before receives
+            // since receives depend on nothing — we reorder below).
+            let all_nodes: Vec<NodeId> = topo_order.clone();
 
-        // Merge results.
-        let mut outputs = HashMap::new();
-        for result in subgraph_results {
-            outputs.extend(result?);
+            // Partition: non-receive nodes first, then receives.
+            let mut ordered = Vec::with_capacity(all_nodes.len());
+            let mut receives = Vec::new();
+            for &id in &all_nodes {
+                if let Some(node) = graph.node(id) {
+                    if matches!(node.op, NodeOp::PortalReceive { .. }) {
+                        receives.push(id);
+                        continue;
+                    }
+                }
+                ordered.push(id);
+            }
+            ordered.extend(receives);
+
+            let mut local_outputs: HashMap<NodeId, Vec<NodeData>> = HashMap::new();
+            for node_id in ordered {
+                self.evaluate_one(graph, node_id, &mut local_outputs, &portal_map, time_ctx)?;
+            }
+            Ok(EvalResult { outputs: local_outputs })
+        } else {
+            // No portals — use parallel subgraph evaluation.
+            let subgraph_results: Vec<Result<HashMap<NodeId, Vec<NodeData>>, ComputeError>> =
+                subgraphs
+                    .par_iter()
+                    .map(|subgraph_nodes| {
+                        self.evaluate_subgraph(graph, subgraph_nodes, &topo_order, time_ctx)
+                    })
+                    .collect();
+
+            let mut outputs = HashMap::new();
+            for result in subgraph_results {
+                outputs.extend(result?);
+            }
+            Ok(EvalResult { outputs })
         }
+    }
 
-        Ok(EvalResult { outputs })
+    /// Build a map from portal label → send NodeId.
+    fn build_portal_map(&self, graph: &Graph) -> HashMap<String, NodeId> {
+        let mut map = HashMap::new();
+        for node in graph.nodes() {
+            if let NodeOp::PortalSend { ref label } = node.op {
+                map.insert(label.clone(), node.id);
+            }
+        }
+        map
     }
 
     fn evaluate_subgraph(
@@ -107,62 +149,85 @@ impl Scheduler {
         let subgraph_set: std::collections::HashSet<NodeId> =
             subgraph_nodes.iter().copied().collect();
 
-        // Filter topo_order to only this subgraph's nodes (preserves evaluation order).
         let ordered: Vec<NodeId> = topo_order
             .iter()
             .filter(|id| subgraph_set.contains(id))
             .copied()
             .collect();
 
-        // Local result storage for this subgraph evaluation.
+        let empty_portals = HashMap::new();
         let mut local_outputs: HashMap<NodeId, Vec<NodeData>> = HashMap::new();
-
         for node_id in ordered {
-            let node = match graph.node(node_id) {
-                Some(n) => n,
-                None => continue,
-            };
+            self.evaluate_one(graph, node_id, &mut local_outputs, &empty_portals, time_ctx)?;
+        }
+        Ok(local_outputs)
+    }
 
-            // Check cache.
-            {
-                let cache = self.cache.read();
-                if let Some(cached) = cache.get(node_id, node.generation) {
-                    local_outputs.insert(node_id, cached.clone());
-                    continue;
-                }
+    /// Evaluate a single node, storing results in `local_outputs`.
+    fn evaluate_one(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        local_outputs: &mut HashMap<NodeId, Vec<NodeData>>,
+        portal_map: &HashMap<String, NodeId>,
+        time_ctx: &TimeContext,
+    ) -> Result<(), ComputeError> {
+        let node = match graph.node(node_id) {
+            Some(n) => n,
+            None => return Ok(()),
+        };
+
+        // Check cache.
+        {
+            let cache = self.cache.read();
+            if let Some(cached) = cache.get(node_id, node.generation) {
+                local_outputs.insert(node_id, cached.clone());
+                return Ok(());
             }
-
-            // Resolve inputs: connection > expression > literal.
-            let resolved = self.resolve_inputs(graph, node_id, &local_outputs, time_ctx);
-
-            // Evaluate.
-            let mut node_outputs = NodeOutputs::new(node.outputs.len());
-            self.backend
-                .evaluate_node(&node.op, &resolved, time_ctx, &mut node_outputs)
-                .map_err(|e| ComputeError::NodeEvalFailed {
-                    node: node_id,
-                    reason: e.to_string(),
-                })?;
-
-            // Collect outputs.
-            // For sink nodes (no output ports, e.g. GraphOutput), store resolved
-            // inputs so downstream consumers like collect_shapes can find the data.
-            let results: Vec<NodeData> = if node_outputs.data.is_empty() {
-                resolved.data
-            } else {
-                node_outputs.data.into_iter().flatten().collect()
-            };
-
-            // Store in cache.
-            {
-                let mut cache = self.cache.write();
-                cache.insert(node_id, node.generation, results.clone());
-            }
-
-            local_outputs.insert(node_id, results);
         }
 
-        Ok(local_outputs)
+        // Portal receives: look up the matching send's output.
+        if let NodeOp::PortalReceive { ref label } = node.op {
+            let results = if let Some(&send_id) = portal_map.get(label) {
+                local_outputs.get(&send_id).cloned().unwrap_or_else(|| {
+                    vec![NodeData::Scalar(0.0)]
+                })
+            } else {
+                vec![NodeData::Scalar(0.0)]
+            };
+            local_outputs.insert(node_id, results);
+            return Ok(());
+        }
+
+        // Resolve inputs: connection > expression > literal.
+        let resolved = self.resolve_inputs(graph, node_id, local_outputs, time_ctx);
+
+        // Evaluate.
+        let mut node_outputs = NodeOutputs::new(node.outputs.len());
+        self.backend
+            .evaluate_node(&node.op, &resolved, time_ctx, &mut node_outputs)
+            .map_err(|e| ComputeError::NodeEvalFailed {
+                node: node_id,
+                reason: e.to_string(),
+            })?;
+
+        // Collect outputs.
+        // For sink nodes (no output ports, e.g. GraphOutput), store resolved
+        // inputs so downstream consumers like collect_shapes can find the data.
+        let results: Vec<NodeData> = if node_outputs.data.is_empty() {
+            resolved.data
+        } else {
+            node_outputs.data.into_iter().flatten().collect()
+        };
+
+        // Store in cache.
+        {
+            let mut cache = self.cache.write();
+            cache.insert(node_id, node.generation, results.clone());
+        }
+
+        local_outputs.insert(node_id, results);
+        Ok(())
     }
 
     /// Resolve all input port values for a node.

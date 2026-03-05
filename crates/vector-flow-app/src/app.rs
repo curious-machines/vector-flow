@@ -958,6 +958,19 @@ impl eframe::App for VectorFlowApp {
 
                 props_changed =
                     properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core);
+
+                // Sync portal display names after properties edit.
+                if props_changed {
+                    for &sid in &selected_snarl {
+                        if let Some(ui_node) = self.snarl.get_node_mut(sid) {
+                            if let Some(core_node) = self.graph.node(ui_node.core_id) {
+                                if matches!(core_node.op, NodeOp::PortalSend { .. } | NodeOp::PortalReceive { .. }) {
+                                    ui_node.display_name = core_node.name.clone();
+                                }
+                            }
+                        }
+                    }
+                }
             });
 
         // 5. Remaining central panel: canvas preview.

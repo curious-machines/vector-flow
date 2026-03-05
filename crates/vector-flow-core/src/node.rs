@@ -93,6 +93,14 @@ pub enum NodeOp {
     // Styling
     SetFill,
     SetStroke,
+    // Constants
+    ConstScalar,
+    ConstInt,
+    ConstVec2,
+    ConstColor,
+    // Portals (named nets)
+    PortalSend { label: String },
+    PortalReceive { label: String },
     // Utility
     Merge,
     Duplicate,
@@ -596,6 +604,106 @@ impl NodeDef {
                     .with_description("Number of samples"),
             ],
             outputs: vec![PortDef::new("points", DataType::Points)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn const_scalar(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Constant Scalar".into(),
+            op: NodeOp::ConstScalar,
+            inputs: vec![
+                PortDef::new("value", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Scalar value"),
+            ],
+            outputs: vec![PortDef::new("value", DataType::Scalar)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn const_int(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Constant Int".into(),
+            op: NodeOp::ConstInt,
+            inputs: vec![
+                PortDef::new("value", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Integer value"),
+            ],
+            outputs: vec![PortDef::new("value", DataType::Int)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn const_vec2(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Constant Vec2".into(),
+            op: NodeOp::ConstVec2,
+            inputs: vec![
+                PortDef::new("x", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("X component"),
+                PortDef::new("y", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Y component"),
+            ],
+            outputs: vec![PortDef::new("value", DataType::Vec2)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn const_color(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Constant Color".into(),
+            op: NodeOp::ConstColor,
+            inputs: vec![
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Color value"),
+            ],
+            outputs: vec![PortDef::new("value", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn portal_send(id: NodeId, label: String) -> Self {
+        Self {
+            id,
+            name: format!("Send: {}", label),
+            op: NodeOp::PortalSend { label },
+            inputs: vec![
+                PortDef::new("value", DataType::Any)
+                    .with_description("Value to send"),
+            ],
+            outputs: vec![
+                PortDef::new("through", DataType::Any)
+                    .with_description("Pass-through of the input"),
+            ],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn portal_receive(id: NodeId, label: String) -> Self {
+        Self {
+            id,
+            name: format!("Receive: {}", label),
+            op: NodeOp::PortalReceive { label },
+            inputs: vec![],
+            outputs: vec![
+                PortDef::new("value", DataType::Any)
+                    .with_description("Received value"),
+            ],
             position: [0.0, 0.0],
             generation: 0,
         }

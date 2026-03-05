@@ -1,7 +1,7 @@
 use egui::Ui;
 
 use vector_flow_core::graph::Graph;
-use vector_flow_core::node::{ParamValue, PortIndex};
+use vector_flow_core::node::{NodeOp, ParamValue, PortIndex};
 use vector_flow_core::types::{DataType, NodeId as CoreNodeId};
 
 use crate::ui_node::node_op_label;
@@ -40,6 +40,13 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId) -> 
     let label = node_op_label(&node.op);
     let is_variadic = node.is_variadic();
     let input_count = node.inputs.len();
+
+    // Get portal label if this is a portal node.
+    let portal_label = match &node.op {
+        NodeOp::PortalSend { label } | NodeOp::PortalReceive { label } => Some(label.clone()),
+        _ => None,
+    };
+
     ui.heading(label);
     ui.separator();
 
@@ -52,6 +59,35 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId) -> 
         .collect();
 
     let mut changed = false;
+
+    // Portal label editor.
+    if let Some(mut plabel) = portal_label {
+        let mut label_changed = false;
+        ui.horizontal(|ui| {
+            ui.label("Label");
+            if ui.text_edit_singleline(&mut plabel).changed() {
+                label_changed = true;
+            }
+        });
+        if label_changed {
+            if let Some(node) = graph.node_mut(core_id) {
+                match &mut node.op {
+                    NodeOp::PortalSend { label } => {
+                        *label = plabel.clone();
+                        node.name = format!("Send: {plabel}");
+                    }
+                    NodeOp::PortalReceive { label } => {
+                        *label = plabel.clone();
+                        node.name = format!("Receive: {plabel}");
+                    }
+                    _ => {}
+                }
+                node.touch();
+                changed = true;
+            }
+        }
+        ui.separator();
+    }
 
     for (idx, name, data_type, default_value) in port_info {
         let Some(param) = default_value else { continue };

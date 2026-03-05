@@ -130,6 +130,24 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         // Styling
         entry!("Set Fill", Styling, NodeDef::set_fill),
         entry!("Set Stroke", Styling, NodeDef::set_stroke),
+        // Constants
+        entry!("Constant Scalar", Utility, NodeDef::const_scalar),
+        entry!("Constant Int", Utility, NodeDef::const_int),
+        entry!("Constant Vec2", Utility, NodeDef::const_vec2),
+        entry!("Constant Color", Utility, NodeDef::const_color),
+        // Portals
+        CatalogEntry {
+            label: "Portal Send",
+            category: Utility,
+            factory: |id| NodeDef::portal_send(id, "net".into()),
+            color: cat_color(Utility),
+        },
+        CatalogEntry {
+            label: "Portal Receive",
+            category: Utility,
+            factory: |id| NodeDef::portal_receive(id, "net".into()),
+            color: cat_color(Utility),
+        },
         // Utility
         entry!("Merge", Utility, NodeDef::merge),
         entry!("Duplicate", Utility, NodeDef::duplicate),
@@ -165,6 +183,12 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::ResamplePath => "Resample Path",
         NodeOp::SetFill => "Set Fill",
         NodeOp::SetStroke => "Set Stroke",
+        NodeOp::ConstScalar => "Constant Scalar",
+        NodeOp::ConstInt => "Constant Int",
+        NodeOp::ConstVec2 => "Constant Vec2",
+        NodeOp::ConstColor => "Constant Color",
+        NodeOp::PortalSend { .. } => "Portal Send",
+        NodeOp::PortalReceive { .. } => "Portal Receive",
         NodeOp::Merge => "Merge",
         NodeOp::Duplicate => "Duplicate",
         NodeOp::DslCode { .. } => "DSL Code",

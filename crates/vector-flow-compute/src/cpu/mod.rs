@@ -202,6 +202,30 @@ impl ComputeBackend for CpuBackend {
                 styling::set_stroke(&shape, color, width)
             }
 
+            // ── Constants ───────────────────────────────────────────
+            NodeOp::ConstScalar => NodeData::Scalar(get_scalar(inputs, 0)),
+            NodeOp::ConstInt => NodeData::Int(get_int(inputs, 0)),
+            NodeOp::ConstVec2 => {
+                let x = get_scalar(inputs, 0) as f32;
+                let y = get_scalar(inputs, 1) as f32;
+                NodeData::Vec2(glam::Vec2::new(x, y))
+            }
+            NodeOp::ConstColor => NodeData::Color(get_color(inputs, 0)),
+
+            // ── Portals ────────────────────────────────────────────
+            NodeOp::PortalSend { .. } => {
+                // Pass through input.
+                if !inputs.data.is_empty() {
+                    inputs.data[0].clone()
+                } else {
+                    NodeData::Scalar(0.0)
+                }
+            }
+            NodeOp::PortalReceive { .. } => {
+                // Resolved by scheduler, not compute. Shouldn't reach here.
+                NodeData::Scalar(0.0)
+            }
+
             // ── Utility ─────────────────────────────────────────────
             NodeOp::Merge => {
                 let a = get_any(inputs, 0);
