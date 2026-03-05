@@ -1,82 +1,24 @@
 {
   "graph": {
     "nodes": {
-      "2": {
-        "id": 2,
-        "name": "Output: output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any"
-          }
-        },
+      "6": {
+        "id": 6,
+        "name": "Rectangle",
+        "op": "Rectangle",
         "inputs": [
           {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [],
-        "position": [
-          -45.78125,
-          -137.875
-        ],
-        "generation": 0
-      },
-      "14": {
-        "id": 14,
-        "name": "Set Fill",
-        "op": "SetFill",
-        "inputs": [
-          {
-            "name": "shape",
-            "data_type": "Shape",
-            "description": "Input shape",
-            "default_value": null,
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Width",
+            "default_value": {
+              "Float": 10.0
+            },
             "expression": null
           },
           {
-            "name": "color",
-            "data_type": "Color",
-            "description": "Fill color",
-            "default_value": {
-              "Color": [
-                0.1384954,
-                0.2236083,
-                0.16114557,
-                0.45372912
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "shape",
-            "data_type": "Shape",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -79.93512,
-          -90.15085
-        ],
-        "generation": 279
-      },
-      "3": {
-        "id": 3,
-        "name": "Circle",
-        "op": "Circle",
-        "inputs": [
-          {
-            "name": "radius",
+            "name": "height",
             "data_type": "Scalar",
-            "description": "Circle radius",
+            "description": "Height",
             "default_value": {
               "Float": 10.0
             },
@@ -93,15 +35,6 @@
               ]
             },
             "expression": null
-          },
-          {
-            "name": "segments",
-            "data_type": "Int",
-            "description": "Number of segments for approximation",
-            "default_value": {
-              "Int": 64
-            },
-            "expression": null
           }
         ],
         "outputs": [
@@ -114,10 +47,10 @@
           }
         ],
         "position": [
-          -73.03125,
-          -176.03125
+          -437.5,
+          -287.4375
         ],
-        "generation": 2
+        "generation": 26
       },
       "5": {
         "id": 5,
@@ -137,8 +70,8 @@
             "description": "Fill color",
             "default_value": {
               "Color": [
-                0.17256236,
-                0.38698238,
+                0.17256235,
+                0.38698235,
                 0.90107995,
                 0.45372912
               ]
@@ -159,7 +92,7 @@
           -59.546875,
           -330.34375
         ],
-        "generation": 143
+        "generation": 144
       },
       "1": {
         "id": 1,
@@ -218,24 +151,226 @@
         ],
         "generation": 562
       },
-      "6": {
-        "id": 6,
-        "name": "Rectangle",
-        "op": "Rectangle",
+      "11": {
+        "id": 11,
+        "name": "Scatter Points",
+        "op": "ScatterPoints",
         "inputs": [
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of points",
+            "default_value": {
+              "Int": 20
+            },
+            "expression": null
+          },
           {
             "name": "width",
             "data_type": "Scalar",
-            "description": "Width",
+            "description": "Scatter region width",
             "default_value": {
-              "Float": 10.0
+              "Float": 250.0
             },
             "expression": null
           },
           {
             "name": "height",
             "data_type": "Scalar",
-            "description": "Height",
+            "description": "Scatter region height",
+            "default_value": {
+              "Float": 250.0
+            },
+            "expression": null
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -339.1875,
+          135.0
+        ],
+        "generation": 14
+      },
+      "18": {
+        "id": 18,
+        "name": "Send: Base Color",
+        "op": {
+          "PortalSend": {
+            "label": "Base Color"
+          }
+        },
+        "inputs": [
+          {
+            "name": "value",
+            "data_type": "Any",
+            "description": "Value to send",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "through",
+            "data_type": "Any",
+            "description": "Pass-through of the input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -144.03125,
+          -772.1875
+        ],
+        "generation": 10
+      },
+      "2": {
+        "id": 2,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          -45.78125,
+          -137.875
+        ],
+        "generation": 0
+      },
+      "21": {
+        "id": 21,
+        "name": "Receive: Base Color",
+        "op": {
+          "PortalReceive": {
+            "label": "Base Color"
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Any",
+            "description": "Received value",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -294.90588,
+          -213.12665
+        ],
+        "generation": 10
+      },
+      "16": {
+        "id": 16,
+        "name": "Path Union",
+        "op": "PathUnion",
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "Path input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Path input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Path input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "d",
+            "data_type": "Any",
+            "description": "Path input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          192.84375,
+          -91.71875
+        ],
+        "generation": 2
+      },
+      "20": {
+        "id": 20,
+        "name": "Receive: Base Color",
+        "op": {
+          "PortalReceive": {
+            "label": "Base Color"
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Any",
+            "description": "Received value",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -259.875,
+          -223.65625
+        ],
+        "generation": 10
+      },
+      "3": {
+        "id": 3,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
             "default_value": {
               "Float": 10.0
             },
@@ -252,6 +387,15 @@
               ]
             },
             "expression": null
+          },
+          {
+            "name": "segments",
+            "data_type": "Int",
+            "description": "Number of segments for approximation",
+            "default_value": {
+              "Int": 64
+            },
+            "expression": null
           }
         ],
         "outputs": [
@@ -264,10 +408,10 @@
           }
         ],
         "position": [
-          -437.5,
-          -287.4375
+          -73.03125,
+          -176.03125
         ],
-        "generation": 26
+        "generation": 2
       },
       "12": {
         "id": 12,
@@ -319,6 +463,48 @@
           134.34375
         ],
         "generation": 7
+      },
+      "13": {
+        "id": 13,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.3311718,
+                0.140234,
+                0.122622065,
+                0.45372912
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -79.93512,
+          -90.15085
+        ],
+        "generation": 472
       },
       "7": {
         "id": 7,
@@ -377,65 +563,8 @@
         ],
         "generation": 0
       },
-      "11": {
-        "id": 11,
-        "name": "Scatter Points",
-        "op": "ScatterPoints",
-        "inputs": [
-          {
-            "name": "count",
-            "data_type": "Int",
-            "description": "Number of points",
-            "default_value": {
-              "Int": 20
-            },
-            "expression": null
-          },
-          {
-            "name": "width",
-            "data_type": "Scalar",
-            "description": "Scatter region width",
-            "default_value": {
-              "Float": 250.0
-            },
-            "expression": null
-          },
-          {
-            "name": "height",
-            "data_type": "Scalar",
-            "description": "Scatter region height",
-            "default_value": {
-              "Float": 250.0
-            },
-            "expression": null
-          },
-          {
-            "name": "seed",
-            "data_type": "Int",
-            "description": "Random seed",
-            "default_value": {
-              "Int": 0
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "points",
-            "data_type": "Points",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -339.1875,
-          135.0
-        ],
-        "generation": 14
-      },
-      "13": {
-        "id": 13,
+      "14": {
+        "id": 14,
         "name": "Set Fill",
         "op": "SetFill",
         "inputs": [
@@ -452,9 +581,9 @@
             "description": "Fill color",
             "default_value": {
               "Color": [
-                0.3311718,
-                0.140234,
-                0.122622065,
+                0.1384954,
+                0.2236083,
+                0.16114557,
                 0.45372912
               ]
             },
@@ -474,56 +603,66 @@
           -79.93512,
           -90.15085
         ],
-        "generation": 472
+        "generation": 279
       },
-      "16": {
-        "id": 16,
-        "name": "Path Union",
-        "op": "PathUnion",
+      "22": {
+        "id": 22,
+        "name": "Receive: Base Color",
+        "op": {
+          "PortalReceive": {
+            "label": "Base Color"
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Any",
+            "description": "Received value",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -293.38434,
+          27.491516
+        ],
+        "generation": 10
+      },
+      "17": {
+        "id": 17,
+        "name": "Constant Color",
+        "op": "ConstColor",
         "inputs": [
           {
-            "name": "a",
-            "data_type": "Any",
-            "description": "Path input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "b",
-            "data_type": "Any",
-            "description": "Path input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "c",
-            "data_type": "Any",
-            "description": "Path input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "d",
-            "data_type": "Any",
-            "description": "Path input",
-            "default_value": null,
+            "name": "color",
+            "data_type": "Color",
+            "description": "Color value",
+            "default_value": {
+              "Color": [
+                0.0070453724,
+                0.07250582,
+                0.0724929,
+                1.0
+              ]
+            },
             "expression": null
           }
         ],
         "outputs": [
           {
-            "name": "result",
-            "data_type": "Path",
+            "name": "value",
+            "data_type": "Color",
             "description": "",
             "default_value": null,
             "expression": null
           }
         ],
         "position": [
-          192.84375,
-          -91.71875
+          -426.90625,
+          -809.90625
         ],
-        "generation": 2
+        "generation": 9
       }
     },
     "edges": [
@@ -626,10 +765,50 @@
           "node": 2,
           "port": 0
         }
+      },
+      {
+        "from": {
+          "node": 17,
+          "port": 0
+        },
+        "to": {
+          "node": 18,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 20,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 21,
+          "port": 0
+        },
+        "to": {
+          "node": 13,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 22,
+          "port": 0
+        },
+        "to": {
+          "node": 14,
+          "port": 1
+        }
       }
     ],
-    "next_id": 17,
-    "generation": 1312
+    "next_id": 23,
+    "generation": 1359
   },
   "snarl": {
     "nodes": {
@@ -646,8 +825,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -493.29083,
-          "y": -184.80939
+          "x": -491.1316,
+          "y": -392.52234
         },
         "open": true
       },
@@ -682,8 +861,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -303.0183,
-          "y": -180.55807
+          "x": -288.91455,
+          "y": -383.77234
         },
         "open": true
       },
@@ -700,8 +879,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -101.46753,
-          "y": -24.099457
+          "x": -97.00098,
+          "y": -13.424316
         },
         "open": true
       },
@@ -718,8 +897,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -103.92499,
-          "y": -180.76352
+          "x": -96.893555,
+          "y": -271.20276
         },
         "open": true
       },
@@ -736,8 +915,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -295.45355,
-          "y": -26.527283
+          "x": -279.52197,
+          "y": -125.9939
         },
         "open": true
       },
@@ -754,8 +933,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -495.2463,
-          "y": -35.509705
+          "x": -491.239,
+          "y": -134.7439
         },
         "open": true
       },
@@ -772,8 +951,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -301.38916,
-          "y": 123.13049
+          "x": -302.0219,
+          "y": 122.502625
         },
         "open": true
       },
@@ -790,8 +969,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -500.43506,
-          "y": 117.339966
+          "x": -500.19208,
+          "y": 113.752625
         },
         "open": true
       },
@@ -826,8 +1005,98 @@
           "pinned": false
         },
         "pos": {
-          "x": -111.29889,
-          "y": 122.5372
+          "x": -105.95404,
+          "y": 235.0722
+        },
+        "open": true
+      },
+      "11": {
+        "value": {
+          "core_id": 17,
+          "display_name": "Constant Color",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -484.4829,
+          "y": -627.87115
+        },
+        "open": true
+      },
+      "12": {
+        "value": {
+          "core_id": 18,
+          "display_name": "Send: Base Color",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -295.39734,
+          "y": -626.75116
+        },
+        "open": true
+      },
+      "13": {
+        "value": {
+          "core_id": 20,
+          "display_name": "Receive: Base Color",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -324.90588,
+          "y": -243.12665
+        },
+        "open": true
+      },
+      "14": {
+        "value": {
+          "core_id": 21,
+          "display_name": "Receive: Base Color",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -323.38434,
+          "y": -2.508484
+        },
+        "open": true
+      },
+      "15": {
+        "value": {
+          "core_id": 22,
+          "display_name": "Receive: Base Color",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -320.60907,
+          "y": 259.30365
         },
         "open": true
       }
@@ -835,11 +1104,91 @@
     "wires": [
       {
         "out_pin": {
+          "node": 15,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 10,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 10,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
           "node": 7,
           "output": 0
         },
         "in_pin": {
           "node": 10,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 11,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 12,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 9,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
           "input": 0
         }
       },
@@ -855,12 +1204,32 @@
       },
       {
         "out_pin": {
-          "node": 6,
+          "node": 2,
           "output": 0
         },
         "in_pin": {
-          "node": 5,
-          "input": 2
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 13,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 14,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 1
         }
       },
       {
@@ -872,73 +1241,13 @@
           "node": 7,
           "input": 2
         }
-      },
-      {
-        "out_pin": {
-          "node": 9,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 1,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 4,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 9,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 4,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 5,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 3,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 10,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 9,
-          "input": 2
-        }
-      },
-      {
-        "out_pin": {
-          "node": 3,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 9,
-          "input": 1
-        }
       }
     ]
   },
   "view_state": {
     "graph_offset": [
-      -33.317993,
-      -16.466171
+      -25.183624,
+      -164.78375
     ],
     "graph_scale": 1.0,
     "canvas_center": [

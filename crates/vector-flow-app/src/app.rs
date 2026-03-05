@@ -41,6 +41,8 @@ enum AlignMode {
 enum PendingAction {
     Close,
     Open,
+    New,
+    CloseFile,
 }
 
 pub struct VectorFlowApp {
@@ -562,6 +564,52 @@ impl VectorFlowApp {
         }
     }
 
+    /// Reset to a blank project (new file state).
+    fn reset_to_new(&mut self) {
+        self.graph = Graph::new();
+        self.snarl = Snarl::new();
+        self.id_map = IdMap::new();
+        self.last_eval = None;
+        self.last_eval_gen = u64::MAX;
+        self.last_eval_frame = u64::MAX;
+        self.prepared_scene = None;
+        self.project_path = None;
+        self.saved_gen = self.graph.generation();
+        self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
+        self.cam_state.do_reset = true;
+    }
+
+    /// Request a new file, prompting for unsaved changes if dirty.
+    fn request_new(&mut self, ctx: &egui::Context) {
+        if self.is_dirty(ctx) {
+            self.pending_action = Some(PendingAction::New);
+        } else {
+            self.reset_to_new();
+        }
+    }
+
+    /// Close the current file: reset to new, then show Open dialog.
+    /// If the user cancels the Open dialog, quit the app.
+    fn close_file(&mut self, ctx: &egui::Context) {
+        self.reset_to_new();
+        if let Some(path) = project::open_dialog() {
+            self.load_project_from(&path, ctx);
+        } else {
+            // User cancelled — quit.
+            self.close_confirmed = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+    }
+
+    /// Request a file close, prompting for unsaved changes if dirty.
+    fn request_close_file(&mut self, ctx: &egui::Context) {
+        if self.is_dirty(ctx) {
+            self.pending_action = Some(PendingAction::CloseFile);
+        } else {
+            self.close_file(ctx);
+        }
+    }
+
     /// Request an open, prompting for unsaved changes if dirty.
     fn request_open(&mut self, ctx: &egui::Context) {
         if self.is_dirty(ctx) {
@@ -667,6 +715,12 @@ impl VectorFlowApp {
                 self.close_confirmed = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
+            PendingAction::New => {
+                self.reset_to_new();
+            }
+            PendingAction::CloseFile => {
+                self.close_file(ctx);
+            }
         }
     }
 }
@@ -690,7 +744,7 @@ impl eframe::App for VectorFlowApp {
         }
 
         // 0. Keyboard shortcuts.
-        let (do_save, do_save_as, do_open, do_duplicate, do_fit_all, do_quit,
+        let (do_save, do_save_as, do_open, do_new, do_close_file, do_duplicate, do_fit_all, do_quit,
          do_align_left, do_align_right, do_align_top, do_align_bottom,
          do_dist_h, do_dist_v, nudge) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&egui::KeyboardShortcut::new(
@@ -705,6 +759,14 @@ impl eframe::App for VectorFlowApp {
             let open = i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::COMMAND,
                 egui::Key::O,
+            ));
+            let new = i.consume_shortcut(&egui::KeyboardShortcut::new(
+                egui::Modifiers::COMMAND,
+                egui::Key::N,
+            ));
+            let close_file = i.consume_shortcut(&egui::KeyboardShortcut::new(
+                egui::Modifiers::COMMAND,
+                egui::Key::W,
             ));
             let duplicate = i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::COMMAND,
@@ -742,7 +804,7 @@ impl eframe::App for VectorFlowApp {
                 nudge.y = nudge_step;
             }
 
-            (save, save_as, open, duplicate, fit_all, quit,
+            (save, save_as, open, new, close_file, duplicate, fit_all, quit,
              false, false, false, false, false, false, nudge)
         });
         if do_save {
@@ -753,6 +815,12 @@ impl eframe::App for VectorFlowApp {
         }
         if do_open {
             self.request_open(ctx);
+        }
+        if do_new {
+            self.request_new(ctx);
+        }
+        if do_close_file {
+            self.request_close_file(ctx);
         }
         if do_quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -769,16 +837,27 @@ impl eframe::App for VectorFlowApp {
         let mut menu_save = false;
         let mut menu_save_as = false;
         let mut menu_open = false;
+        let mut menu_new = false;
+        let mut menu_close_file = false;
         let mut menu_align: Option<AlignMode> = None;
         let mut menu_dist_h = false;
         let mut menu_dist_v = false;
         egui::TopBottomPanel::top("transport").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    if ui.button("New  Ctrl+N").clicked() {
+                        ui.close_menu();
+                        menu_new = true;
+                    }
                     if ui.button("Open...  Ctrl+O").clicked() {
                         ui.close_menu();
                         menu_open = true;
                     }
+                    if ui.button("Close  Ctrl+W").clicked() {
+                        ui.close_menu();
+                        menu_close_file = true;
+                    }
+                    ui.separator();
                     if ui.button("Save  Ctrl+S").clicked() {
                         ui.close_menu();
                         menu_save = true;
@@ -834,8 +913,14 @@ impl eframe::App for VectorFlowApp {
             ui.separator();
             transport_changed = transport_panel::show_transport_bar(ui, &mut self.transport);
         });
+        if menu_new {
+            self.request_new(ctx);
+        }
         if menu_open {
             self.request_open(ctx);
+        }
+        if menu_close_file {
+            self.request_close_file(ctx);
         }
         if menu_save {
             self.save_project(ctx);

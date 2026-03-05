@@ -109,10 +109,12 @@ fn midpoint(a: Point, b: Point) -> Point {
 }
 
 /// Resample a path into `count` evenly-spaced points along its length.
+/// For closed paths, points are distributed around the loop (no overlap).
+/// For open paths, points span from start to end inclusive.
 pub fn resample_path(path: &PathData, count: i64) -> NodeData {
     let n = count.max(2) as usize;
 
-    // Collect line segments (flatten curves to endpoints for simplicity)
+    // Collect line segments (subdividing curves for accuracy).
     let segments = flatten_to_segments(path);
     if segments.is_empty() {
         return NodeData::Points(Arc::new(PointBatch::new()));
@@ -141,8 +143,12 @@ pub fn resample_path(path: &PathData, count: i64) -> NodeData {
     let mut xs = Vec::with_capacity(n);
     let mut ys = Vec::with_capacity(n);
 
+    // For closed paths, divide by n (points wrap around, no overlap).
+    // For open paths, divide by n-1 (endpoints are start and end).
+    let divisor = if path.closed { n as f32 } else { (n - 1) as f32 };
+
     for i in 0..n {
-        let t = if n > 1 { i as f32 / (n - 1) as f32 } else { 0.0 };
+        let t = if n > 1 { i as f32 / divisor } else { 0.0 };
         let target_len = t * total;
 
         // Find the segment containing this distance
@@ -167,7 +173,10 @@ pub fn resample_path(path: &PathData, count: i64) -> NodeData {
     NodeData::Points(Arc::new(PointBatch { xs, ys }))
 }
 
-/// Flatten path to line segments (curves approximated by start→end).
+/// Number of line segments used to approximate each curve.
+const CURVE_FLATTEN_STEPS: usize = 16;
+
+/// Flatten path to line segments, subdividing curves for accuracy.
 fn flatten_to_segments(path: &PathData) -> Vec<(Point, Point)> {
     let mut segs = Vec::new();
     let mut last = Point { x: 0.0, y: 0.0 };
@@ -183,12 +192,12 @@ fn flatten_to_segments(path: &PathData) -> Vec<(Point, Point)> {
                 segs.push((last, p));
                 last = p;
             }
-            PathVerb::QuadTo { to, .. } => {
-                segs.push((last, to));
+            PathVerb::QuadTo { ctrl, to } => {
+                flatten_quad(last, ctrl, to, &mut segs);
                 last = to;
             }
-            PathVerb::CubicTo { to, .. } => {
-                segs.push((last, to));
+            PathVerb::CubicTo { ctrl1, ctrl2, to } => {
+                flatten_cubic(last, ctrl1, ctrl2, to, &mut segs);
                 last = to;
             }
             PathVerb::Close => {
@@ -200,6 +209,42 @@ fn flatten_to_segments(path: &PathData) -> Vec<(Point, Point)> {
         }
     }
     segs
+}
+
+fn lerp_pt(a: Point, b: Point, t: f32) -> Point {
+    Point {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+    }
+}
+
+fn flatten_quad(p0: Point, p1: Point, p2: Point, segs: &mut Vec<(Point, Point)>) {
+    let n = CURVE_FLATTEN_STEPS;
+    let mut prev = p0;
+    for i in 1..=n {
+        let t = i as f32 / n as f32;
+        let a = lerp_pt(p0, p1, t);
+        let b = lerp_pt(p1, p2, t);
+        let pt = lerp_pt(a, b, t);
+        segs.push((prev, pt));
+        prev = pt;
+    }
+}
+
+fn flatten_cubic(p0: Point, p1: Point, p2: Point, p3: Point, segs: &mut Vec<(Point, Point)>) {
+    let n = CURVE_FLATTEN_STEPS;
+    let mut prev = p0;
+    for i in 1..=n {
+        let t = i as f32 / n as f32;
+        let a = lerp_pt(p0, p1, t);
+        let b = lerp_pt(p1, p2, t);
+        let c = lerp_pt(p2, p3, t);
+        let d = lerp_pt(a, b, t);
+        let e = lerp_pt(b, c, t);
+        let pt = lerp_pt(d, e, t);
+        segs.push((prev, pt));
+        prev = pt;
+    }
 }
 
 /// Approximate path offset: move each vertex along its estimated normal.
