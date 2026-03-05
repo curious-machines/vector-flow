@@ -69,10 +69,47 @@ pub fn load_window_geometry(project_path: &Path) -> Option<WindowGeometry> {
     serde_json::from_str(&json).ok()
 }
 
+/// Saved view state for graph editor and canvas camera.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ViewState {
+    /// Graph editor offset (snarl viewport center in graph space).
+    #[serde(default)]
+    pub graph_offset: [f32; 2],
+    /// Graph editor zoom scale.
+    #[serde(default = "default_scale")]
+    pub graph_scale: f32,
+    /// Canvas camera center (world coordinates).
+    #[serde(default)]
+    pub canvas_center: [f32; 2],
+    /// Canvas camera zoom level.
+    #[serde(default = "default_scale")]
+    pub canvas_zoom: f32,
+}
+
+fn default_scale() -> f32 {
+    1.0
+}
+
+impl ViewState {
+    /// Approximate equality check for dirty tracking (tolerates small float drift).
+    pub fn approx_eq(&self, other: &Self) -> bool {
+        const EPS: f32 = 0.5;
+        const SCALE_EPS: f32 = 0.001;
+        (self.graph_offset[0] - other.graph_offset[0]).abs() < EPS
+            && (self.graph_offset[1] - other.graph_offset[1]).abs() < EPS
+            && (self.graph_scale - other.graph_scale).abs() < SCALE_EPS
+            && (self.canvas_center[0] - other.canvas_center[0]).abs() < EPS
+            && (self.canvas_center[1] - other.canvas_center[1]).abs() < EPS
+            && (self.canvas_zoom - other.canvas_zoom).abs() < SCALE_EPS
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ProjectFile {
     pub graph: Graph,
     pub snarl: Snarl<UiNode>,
+    #[serde(default)]
+    pub view_state: Option<ViewState>,
 }
 
 impl ProjectFile {

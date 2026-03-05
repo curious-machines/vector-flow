@@ -15,6 +15,10 @@ pub struct CameraState {
     pub do_show_all: bool,
     /// Content bounds from the last prepared scene, used by show_all.
     pub content_bounds: Option<(Vec2, Vec2)>,
+    /// Current camera center in world coordinates (read back after apply).
+    pub current_center: Vec2,
+    /// Current camera zoom level (read back after apply).
+    pub current_zoom: f32,
 }
 
 impl Default for CameraState {
@@ -27,6 +31,8 @@ impl Default for CameraState {
             do_reset: false,
             do_show_all: false,
             content_bounds: None,
+            current_center: Vec2::ZERO,
+            current_zoom: 1.0,
         }
     }
 }
@@ -116,5 +122,26 @@ pub fn apply_camera_commands(
         let factor = (1.0 + cam_state.zoom_delta).clamp(0.5, 2.0);
         res.camera.zoom_at(cam_state.zoom_pos, factor);
         cam_state.zoom_delta = 0.0;
+    }
+
+    // Read back current camera state for save/restore.
+    cam_state.current_center = res.camera.center;
+    cam_state.current_zoom = res.camera.zoom;
+}
+
+/// Restore canvas camera center and zoom from saved state.
+pub fn restore_camera(
+    render_state: &egui_wgpu::RenderState,
+    cam_state: &mut CameraState,
+    center: Vec2,
+    zoom: f32,
+) {
+    cam_state.current_center = center;
+    cam_state.current_zoom = zoom;
+
+    let mut resources = render_state.renderer.write();
+    if let Some(res) = resources.callback_resources.get_mut::<CanvasRenderResources>() {
+        res.camera.center = center;
+        res.camera.zoom = zoom;
     }
 }
