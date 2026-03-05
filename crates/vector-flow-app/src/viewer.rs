@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use egui::{Color32, Frame, Label, Pos2, RichText, Ui};
+use egui::{Color32, Frame, Label, Pos2, Rect, RichText, Ui};
 use egui_snarl::ui::{PinInfo, SnarlViewer};
 use egui_snarl::{InPin, InPinId, NodeId as SnarlNodeId, OutPin, OutPinId, Snarl};
 
@@ -16,6 +16,8 @@ pub struct GraphViewer<'a> {
     pub graph: &'a mut Graph,
     pub id_map: &'a mut IdMap,
     pub catalog: &'a [CatalogEntry],
+    /// Populated during `snarl.show()` via `final_node_rect` callback.
+    pub node_rects: &'a mut HashMap<SnarlNodeId, Rect>,
 }
 
 impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
@@ -224,6 +226,18 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
             frame.fill = Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), 40);
         }
         frame
+    }
+
+    fn final_node_rect(
+        &mut self,
+        node: SnarlNodeId,
+        _ui_rect: Rect,
+        graph_rect: Rect,
+        _ui: &mut Ui,
+        _scale: f32,
+        _snarl: &mut Snarl<UiNode>,
+    ) {
+        self.node_rects.insert(node, graph_rect);
     }
 
     fn has_graph_menu(&mut self, _pos: Pos2, _snarl: &mut Snarl<UiNode>) -> bool {

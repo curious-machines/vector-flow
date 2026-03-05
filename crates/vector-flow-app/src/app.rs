@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -25,6 +25,16 @@ use crate::ui_node::{node_catalog, CatalogEntry, UiNode};
 use crate::viewer::GraphViewer;
 
 const NODE_EDITOR_ID: &str = "node_editor";
+
+#[derive(Clone, Copy)]
+enum AlignMode {
+    Left,
+    Right,
+    Top,
+    Bottom,
+    CenterH,
+    CenterV,
+}
 
 /// Tracks what action triggered the "unsaved changes" dialog.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -86,6 +96,9 @@ pub struct VectorFlowApp {
 
     /// Set to true once the user confirms they want to close despite unsaved changes.
     close_confirmed: bool,
+
+    /// Cached node rects (in graph coordinates) from the last frame's `snarl.show()`.
+    node_rects: HashMap<SnarlNodeId, egui::Rect>,
 }
 
 impl VectorFlowApp {
@@ -135,6 +148,7 @@ impl VectorFlowApp {
             pending_canvas_restore: None,
             pending_action: None,
             close_confirmed: false,
+            node_rects: HashMap::new(),
         }
     }
 
@@ -341,6 +355,129 @@ impl VectorFlowApp {
                     None // Degenerate case — show all
                 } else {
                     Some(leaves)
+                }
+            }
+        }
+    }
+
+    // ── Align / Distribute helpers ──────────────────────────────────
+
+    fn align_nodes(&mut self, selected: &[SnarlNodeId], mode: AlignMode) {
+        if selected.len() < 2 {
+            return;
+        }
+
+        // Collect each node's position and size (from cached rects).
+        struct NodeGeo {
+            id: SnarlNodeId,
+            pos: egui::Pos2,
+            width: f32,
+            height: f32,
+        }
+        let nodes: Vec<NodeGeo> = selected
+            .iter()
+            .filter_map(|&id| {
+                let info = self.snarl.get_node_info(id)?;
+                let rect = self.node_rects.get(&id);
+                let (w, h) = rect.map_or((0.0, 0.0), |r| (r.width(), r.height()));
+                Some(NodeGeo { id, pos: info.pos, width: w, height: h })
+            })
+            .collect();
+        if nodes.len() < 2 {
+            return;
+        }
+
+        match mode {
+            AlignMode::Left => {
+                let target = nodes.iter().map(|n| n.pos.x).fold(f32::INFINITY, f32::min);
+                for n in &nodes {
+                    if let Some(info) = self.snarl.get_node_info_mut(n.id) {
+                        info.pos.x = target;
+                    }
+                }
+            }
+            AlignMode::Right => {
+                // Align right edges: find the max right edge, then set pos.x = target - width.
+                let target = nodes.iter().map(|n| n.pos.x + n.width).fold(f32::NEG_INFINITY, f32::max);
+                for n in &nodes {
+                    if let Some(info) = self.snarl.get_node_info_mut(n.id) {
+                        info.pos.x = target - n.width;
+                    }
+                }
+            }
+            AlignMode::Top => {
+                let target = nodes.iter().map(|n| n.pos.y).fold(f32::INFINITY, f32::min);
+                for n in &nodes {
+                    if let Some(info) = self.snarl.get_node_info_mut(n.id) {
+                        info.pos.y = target;
+                    }
+                }
+            }
+            AlignMode::Bottom => {
+                // Align bottom edges: find the max bottom edge, then set pos.y = target - height.
+                let target = nodes.iter().map(|n| n.pos.y + n.height).fold(f32::NEG_INFINITY, f32::max);
+                for n in &nodes {
+                    if let Some(info) = self.snarl.get_node_info_mut(n.id) {
+                        info.pos.y = target - n.height;
+                    }
+                }
+            }
+            AlignMode::CenterH => {
+                // Align horizontal centers to the first selected node's center.
+                let target = nodes[0].pos.x + nodes[0].width * 0.5;
+                for n in &nodes[1..] {
+                    if let Some(info) = self.snarl.get_node_info_mut(n.id) {
+                        info.pos.x = target - n.width * 0.5;
+                    }
+                }
+            }
+            AlignMode::CenterV => {
+                // Align vertical centers to the first selected node's center.
+                let target = nodes[0].pos.y + nodes[0].height * 0.5;
+                for n in &nodes[1..] {
+                    if let Some(info) = self.snarl.get_node_info_mut(n.id) {
+                        info.pos.y = target - n.height * 0.5;
+                    }
+                }
+            }
+        }
+    }
+
+    fn distribute_nodes(&mut self, selected: &[SnarlNodeId], horizontal: bool) {
+        if selected.len() < 3 {
+            return;
+        }
+        let mut items: Vec<(SnarlNodeId, egui::Pos2)> = selected
+            .iter()
+            .filter_map(|&id| {
+                self.snarl
+                    .get_node_info(id)
+                    .map(|info| (id, info.pos))
+            })
+            .collect();
+        if items.len() < 3 {
+            return;
+        }
+
+        // Sort by the relevant axis.
+        if horizontal {
+            items.sort_by(|a, b| a.1.x.partial_cmp(&b.1.x).unwrap());
+        } else {
+            items.sort_by(|a, b| a.1.y.partial_cmp(&b.1.y).unwrap());
+        }
+
+        let first = if horizontal { items.first().unwrap().1.x } else { items.first().unwrap().1.y };
+        let last = if horizontal { items.last().unwrap().1.x } else { items.last().unwrap().1.y };
+        let count = items.len() as f32;
+        let step = (last - first) / (count - 1.0);
+
+        for (i, (id, _)) in items.iter().enumerate() {
+            if let Some(info) = self.snarl.get_node_info_mut(*id) {
+                let val = first + step * i as f32;
+                if horizontal {
+                    info.pos.x = val;
+                } else {
+                    info.pos.y = val;
                 }
             }
         }
@@ -553,7 +690,9 @@ impl eframe::App for VectorFlowApp {
         }
 
         // 0. Keyboard shortcuts.
-        let (do_save, do_save_as, do_open, do_duplicate, do_fit_all, do_quit) = ctx.input_mut(|i| {
+        let (do_save, do_save_as, do_open, do_duplicate, do_fit_all, do_quit,
+         do_align_left, do_align_right, do_align_top, do_align_bottom,
+         do_dist_h, do_dist_v, nudge) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
                 egui::Key::S,
@@ -579,7 +718,32 @@ impl eframe::App for VectorFlowApp {
                 egui::Modifiers::COMMAND,
                 egui::Key::Q,
             ));
-            (save, save_as, open, duplicate, fit_all, quit)
+            // Arrow key nudge (Shift for 10x step).
+            let nudge_step = if i.modifiers.shift { 10.0 } else { 1.0 };
+            let mut nudge = egui::Vec2::ZERO;
+            if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowLeft))
+                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowLeft))
+            {
+                nudge.x = -nudge_step;
+            }
+            if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowRight))
+                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowRight))
+            {
+                nudge.x = nudge_step;
+            }
+            if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowUp))
+                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowUp))
+            {
+                nudge.y = -nudge_step;
+            }
+            if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowDown))
+                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowDown))
+            {
+                nudge.y = nudge_step;
+            }
+
+            (save, save_as, open, duplicate, fit_all, quit,
+             false, false, false, false, false, false, nudge)
         });
         if do_save {
             self.save_project(ctx);
@@ -605,6 +769,9 @@ impl eframe::App for VectorFlowApp {
         let mut menu_save = false;
         let mut menu_save_as = false;
         let mut menu_open = false;
+        let mut menu_align: Option<AlignMode> = None;
+        let mut menu_dist_h = false;
+        let mut menu_dist_v = false;
         egui::TopBottomPanel::top("transport").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -624,6 +791,43 @@ impl eframe::App for VectorFlowApp {
                     if ui.button("Quit  Ctrl+Q").clicked() {
                         ui.close_menu();
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                });
+                ui.menu_button("Arrange", |ui| {
+                    ui.label("Align");
+                    if ui.button("Align Left").clicked() {
+                        menu_align = Some(AlignMode::Left);
+                        ui.close_menu();
+                    }
+                    if ui.button("Align Right").clicked() {
+                        menu_align = Some(AlignMode::Right);
+                        ui.close_menu();
+                    }
+                    if ui.button("Align Top").clicked() {
+                        menu_align = Some(AlignMode::Top);
+                        ui.close_menu();
+                    }
+                    if ui.button("Align Bottom").clicked() {
+                        menu_align = Some(AlignMode::Bottom);
+                        ui.close_menu();
+                    }
+                    if ui.button("Align Centers Horizontally").clicked() {
+                        menu_align = Some(AlignMode::CenterH);
+                        ui.close_menu();
+                    }
+                    if ui.button("Align Centers Vertically").clicked() {
+                        menu_align = Some(AlignMode::CenterV);
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    ui.label("Distribute");
+                    if ui.button("Distribute Horizontally").clicked() {
+                        menu_dist_h = true;
+                        ui.close_menu();
+                    }
+                    if ui.button("Distribute Vertically").clicked() {
+                        menu_dist_v = true;
+                        ui.close_menu();
                     }
                 });
             });
@@ -650,10 +854,12 @@ impl eframe::App for VectorFlowApp {
                 self.node_editor_ui_id = ui.id();
                 snarl_viewport = ui.max_rect();
 
+                self.node_rects.clear();
                 let mut viewer = GraphViewer {
                     graph: &mut self.graph,
                     id_map: &mut self.id_map,
                     catalog: &self.catalog,
+                    node_rects: &mut self.node_rects,
                 };
                 self.snarl.show(&mut viewer, &self.snarl_style, NODE_EDITOR_ID, ui);
             });
@@ -702,6 +908,7 @@ impl eframe::App for VectorFlowApp {
                 graph: &mut self.graph,
                 id_map: &mut self.id_map,
                 catalog: &self.catalog,
+                node_rects: &mut self.node_rects,
             };
             let new_ids = viewer.duplicate_nodes(&selected_snarl, &mut self.snarl);
             // Select the new duplicates instead of the originals.
@@ -712,6 +919,26 @@ impl eframe::App for VectorFlowApp {
                 new_ids.clone(),
             );
             selected_snarl = new_ids;
+        }
+
+        // 3c. Align / distribute selected nodes.
+        if let Some(mode) = menu_align {
+            self.align_nodes(&selected_snarl, mode);
+        }
+        if do_align_left { self.align_nodes(&selected_snarl, AlignMode::Left); }
+        if do_align_right { self.align_nodes(&selected_snarl, AlignMode::Right); }
+        if do_align_top { self.align_nodes(&selected_snarl, AlignMode::Top); }
+        if do_align_bottom { self.align_nodes(&selected_snarl, AlignMode::Bottom); }
+        if menu_dist_h || do_dist_h { self.distribute_nodes(&selected_snarl, true); }
+        if menu_dist_v || do_dist_v { self.distribute_nodes(&selected_snarl, false); }
+
+        // 3d. Nudge selected nodes with arrow keys.
+        if nudge != egui::Vec2::ZERO && !selected_snarl.is_empty() {
+            for &sid in &selected_snarl {
+                if let Some(info) = self.snarl.get_node_info_mut(sid) {
+                    info.pos += nudge;
+                }
+            }
         }
 
         // 4. Right panel: properties inspector.
