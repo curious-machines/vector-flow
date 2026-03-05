@@ -91,19 +91,37 @@ impl Scheduler {
             // since receives depend on nothing — we reorder below).
             let all_nodes: Vec<NodeId> = topo_order.clone();
 
-            // Partition: non-receive nodes first, then receives.
+            // Collect receive node IDs.
+            let receives: Vec<NodeId> = all_nodes
+                .iter()
+                .filter(|&&id| {
+                    graph
+                        .node(id)
+                        .map_or(false, |n| matches!(n.op, NodeOp::PortalReceive { .. }))
+                })
+                .copied()
+                .collect();
+
+            // Nodes downstream of receives (via graph edges) must evaluate
+            // after receives, not before.
+            let downstream_of_receives = graph.downstream_of(&receives);
+
+            // Order: (1) nodes not downstream of receives and not receives,
+            //        (2) receives, (3) downstream-of-receives (in topo order).
             let mut ordered = Vec::with_capacity(all_nodes.len());
-            let mut receives = Vec::new();
+            let mut deferred = Vec::new();
             for &id in &all_nodes {
-                if let Some(node) = graph.node(id) {
-                    if matches!(node.op, NodeOp::PortalReceive { .. }) {
-                        receives.push(id);
-                        continue;
-                    }
+                if receives.contains(&id) {
+                    continue; // added in step 2
+                }
+                if downstream_of_receives.contains(&id) {
+                    deferred.push(id); // added in step 3
+                    continue;
                 }
                 ordered.push(id);
             }
             ordered.extend(receives);
+            ordered.extend(deferred);
 
             let mut local_outputs: HashMap<NodeId, Vec<NodeData>> = HashMap::new();
             for node_id in ordered {

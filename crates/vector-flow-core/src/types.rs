@@ -222,7 +222,7 @@ pub enum DataType {
 impl DataType {
     /// Returns true if a value of type `self` can be used where `target` is expected.
     pub fn can_promote_to(&self, target: &DataType) -> bool {
-        if *target == DataType::Any || *self == *target {
+        if *target == DataType::Any || *self == DataType::Any || *self == *target {
             return true;
         }
         matches!(

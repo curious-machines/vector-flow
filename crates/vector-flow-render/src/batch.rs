@@ -16,6 +16,29 @@ use vector_flow_core::types::{
 use crate::vertex::CanvasVertex;
 
 // ---------------------------------------------------------------------------
+// Linear → sRGB conversion
+// ---------------------------------------------------------------------------
+
+/// Convert a single linear channel to sRGB.
+fn linear_to_srgb_channel(c: f32) -> f32 {
+    if c <= 0.0031308 {
+        c * 12.92
+    } else {
+        1.055 * c.powf(1.0 / 2.4) - 0.055
+    }
+}
+
+/// Convert an RGBA color from linear to sRGB (alpha is untouched).
+fn linear_to_srgb(c: [f32; 4]) -> [f32; 4] {
+    [
+        linear_to_srgb_channel(c[0]),
+        linear_to_srgb_channel(c[1]),
+        linear_to_srgb_channel(c[2]),
+        c[3],
+    ]
+}
+
+// ---------------------------------------------------------------------------
 // Collected shapes from evaluation
 // ---------------------------------------------------------------------------
 
@@ -205,7 +228,7 @@ fn tessellate_fill(
     let mut geometry: VertexBuffers<CanvasVertex, u32> = VertexBuffers::new();
     let mut tessellator = FillTessellator::new();
 
-    let vertex_color = [color.r, color.g, color.b, color.a];
+    let vertex_color = linear_to_srgb([color.r, color.g, color.b, color.a]);
     let result = tessellator.tessellate_path(
         &lyon_path,
         &FillOptions::tolerance(tolerance),
@@ -222,7 +245,7 @@ fn tessellate_fill(
         return;
     }
 
-    push_batch(geometry, transform, tint, buf);
+    push_batch(geometry, transform, linear_to_srgb(tint), buf);
 }
 
 fn tessellate_stroke(
@@ -258,7 +281,7 @@ fn tessellate_stroke(
         LineJoin::Bevel => lyon::tessellation::LineJoin::Bevel,
     };
 
-    let vertex_color = [stroke.color.r, stroke.color.g, stroke.color.b, stroke.color.a];
+    let vertex_color = linear_to_srgb([stroke.color.r, stroke.color.g, stroke.color.b, stroke.color.a]);
     let result = tessellator.tessellate_path(
         &lyon_path,
         &options,
@@ -275,7 +298,7 @@ fn tessellate_stroke(
         return;
     }
 
-    push_batch(geometry, transform, tint, buf);
+    push_batch(geometry, transform, linear_to_srgb(tint), buf);
 }
 
 fn push_batch(
@@ -564,6 +587,8 @@ mod tests {
 
         let scene = prepare_scene(&shapes, 0.5);
         assert_eq!(scene.batches.len(), 1);
-        assert_eq!(scene.batches[0].color, [1.0, 1.0, 1.0, 1.0]);
+        for (a, b) in scene.batches[0].color.iter().zip(&[1.0f32, 1.0, 1.0, 1.0]) {
+            assert!((a - b).abs() < 1e-6, "expected ~{b}, got {a}");
+        }
     }
 }
