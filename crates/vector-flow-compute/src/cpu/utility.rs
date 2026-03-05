@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use glam::{Affine2, Vec2};
+use glam::Affine2;
 
 use vector_flow_core::compute::DslContext;
 use vector_flow_core::error::ComputeError;
-use vector_flow_core::types::{NodeData, PathData, PointBatch, Shape, TimeContext};
+use vector_flow_core::types::{NodeData, PathData, Shape, TimeContext};
 
 use vector_flow_dsl::cache::DslFunctionCache;
 use vector_flow_dsl::codegen::{DslCompiler, ExprFnPtr};
@@ -141,72 +141,6 @@ pub fn duplicate(data: &NodeData, count: i64, step_transform: &Affine2) -> NodeD
     }
 }
 
-/// Copy geometry to each position in a PointBatch.
-/// Produces a batch of paths/shapes translated to each point.
-pub fn copy_to_points(data: &NodeData, points: &PointBatch) -> NodeData {
-    let n = points.len();
-    if n == 0 {
-        return data.clone();
-    }
-
-    match data {
-        NodeData::Path(base_path) => {
-            let mut merged = PathData::new();
-            for i in 0..n {
-                let offset = Vec2::new(points.xs[i], points.ys[i]);
-                let xform = Affine2::from_translation(offset);
-                let translated = transforms::transform_path(base_path, &xform);
-                merged.verbs.extend_from_slice(&translated.verbs);
-            }
-            merged.closed = base_path.closed;
-            NodeData::Path(Arc::new(merged))
-        }
-        NodeData::Shape(base_shape) => {
-            let shapes: Vec<Shape> = (0..n)
-                .map(|i| {
-                    let offset = Vec2::new(points.xs[i], points.ys[i]);
-                    let xform = Affine2::from_translation(offset);
-                    Shape {
-                        path: base_shape.path.clone(),
-                        fill: base_shape.fill,
-                        stroke: base_shape.stroke,
-                        transform: xform * base_shape.transform,
-                    }
-                })
-                .collect();
-            NodeData::Shapes(Arc::new(shapes))
-        }
-        NodeData::Paths(base_paths) => {
-            let mut all = Vec::new();
-            for i in 0..n {
-                let offset = Vec2::new(points.xs[i], points.ys[i]);
-                let xform = Affine2::from_translation(offset);
-                for p in base_paths.iter() {
-                    all.push(transforms::transform_path(p, &xform));
-                }
-            }
-            NodeData::Paths(Arc::new(all))
-        }
-        NodeData::Shapes(base_shapes) => {
-            let mut all = Vec::new();
-            for i in 0..n {
-                let offset = Vec2::new(points.xs[i], points.ys[i]);
-                let xform = Affine2::from_translation(offset);
-                for s in base_shapes.iter() {
-                    all.push(Shape {
-                        path: s.path.clone(),
-                        fill: s.fill,
-                        stroke: s.stroke,
-                        transform: xform * s.transform,
-                    });
-                }
-            }
-            NodeData::Shapes(Arc::new(all))
-        }
-        other => other.clone(),
-    }
-}
-
 /// Compile and execute a DSL expression, returning the scalar result.
 pub fn dsl_code(
     source: &str,
@@ -223,79 +157,4 @@ pub fn dsl_code(
     let result = unsafe { func(&mut ctx) };
 
     Ok(NodeData::Scalar(result))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use vector_flow_core::types::{PathVerb, Point};
-
-    fn square_path() -> PathData {
-        PathData {
-            verbs: vec![
-                PathVerb::MoveTo(Point { x: 0.0, y: 0.0 }),
-                PathVerb::LineTo(Point { x: 10.0, y: 0.0 }),
-                PathVerb::LineTo(Point { x: 10.0, y: 10.0 }),
-                PathVerb::LineTo(Point { x: 0.0, y: 10.0 }),
-                PathVerb::Close,
-            ],
-            closed: true,
-        }
-    }
-
-    #[test]
-    fn copy_to_points_produces_multiple_subpaths() {
-        let path = Arc::new(square_path());
-        let points = PointBatch {
-            xs: vec![0.0, 100.0, 200.0],
-            ys: vec![0.0, 0.0, 0.0],
-        };
-
-        let result = copy_to_points(&NodeData::Path(path), &points);
-        if let NodeData::Path(merged) = result {
-            // 3 copies × 5 verbs each = 15 verbs
-            assert_eq!(merged.verbs.len(), 15);
-            // 3 MoveTo verbs (one per copy)
-            let move_count = merged
-                .verbs
-                .iter()
-                .filter(|v| matches!(v, PathVerb::MoveTo(_)))
-                .count();
-            assert_eq!(move_count, 3);
-            // 3 Close verbs
-            let close_count = merged
-                .verbs
-                .iter()
-                .filter(|v| matches!(v, PathVerb::Close))
-                .count();
-            assert_eq!(close_count, 3);
-            // First copy at (0,0), second at (100,0), third at (200,0)
-            match merged.verbs[0] {
-                PathVerb::MoveTo(p) => assert!((p.x - 0.0).abs() < 1e-5),
-                _ => panic!("expected MoveTo"),
-            }
-            match merged.verbs[5] {
-                PathVerb::MoveTo(p) => assert!((p.x - 100.0).abs() < 1e-5),
-                _ => panic!("expected MoveTo"),
-            }
-            match merged.verbs[10] {
-                PathVerb::MoveTo(p) => assert!((p.x - 200.0).abs() < 1e-5),
-                _ => panic!("expected MoveTo"),
-            }
-        } else {
-            panic!("expected Path, got {:?}", result.data_type());
-        }
-    }
-
-    #[test]
-    fn copy_to_points_empty_points_returns_original() {
-        let path = Arc::new(square_path());
-        let points = PointBatch::new();
-        let result = copy_to_points(&NodeData::Path(path.clone()), &points);
-        if let NodeData::Path(p) = result {
-            assert_eq!(p.verbs.len(), path.verbs.len());
-        } else {
-            panic!("expected Path");
-        }
-    }
 }

@@ -96,7 +96,7 @@ pub enum NodeOp {
     // Utility
     Merge,
     Duplicate,
-    CopyToPoints,
+
     // DSL
     DslCode { source: String },
     // Graph I/O
@@ -440,21 +440,6 @@ impl NodeDef {
                     .with_description("Number of copies"),
                 PortDef::new("transform", DataType::Transform)
                     .with_description("Transform applied per copy (cumulative)"),
-            ],
-            outputs: vec![PortDef::new("geometry", DataType::Any)],
-            position: [0.0, 0.0],
-            generation: 0,
-        }
-    }
-
-    pub fn copy_to_points(id: NodeId) -> Self {
-        Self {
-            id,
-            name: "Copy to Points".into(),
-            op: NodeOp::CopyToPoints,
-            inputs: vec![
-                PortDef::new("geometry", DataType::Any).with_description("Geometry to copy"),
-                PortDef::new("points", DataType::Points).with_description("Target positions"),
             ],
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],

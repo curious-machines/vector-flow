@@ -133,7 +133,6 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         // Utility
         entry!("Merge", Utility, NodeDef::merge),
         entry!("Duplicate", Utility, NodeDef::duplicate),
-        entry!("Copy to Points", Utility, NodeDef::copy_to_points),
         // Graph I/O
         CatalogEntry {
             label: "Graph Output",
@@ -168,7 +167,6 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::SetStroke => "Set Stroke",
         NodeOp::Merge => "Merge",
         NodeOp::Duplicate => "Duplicate",
-        NodeOp::CopyToPoints => "Copy to Points",
         NodeOp::DslCode { .. } => "DSL Code",
         NodeOp::GraphInput { .. } => "Graph Input",
         NodeOp::GraphOutput { .. } => "Graph Output",

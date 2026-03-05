@@ -214,12 +214,6 @@ impl ComputeBackend for CpuBackend {
                 let xform = get_transform(inputs, 2);
                 utility::duplicate(&geometry, count, &xform)
             }
-            NodeOp::CopyToPoints => {
-                let geometry = get_any(inputs, 0);
-                let points = get_points(inputs, 1);
-                utility::copy_to_points(&geometry, &points)
-            }
-
             // ── DSL ─────────────────────────────────────────────────
             NodeOp::DslCode { source } => {
                 let mut compiler = self.dsl_compiler.lock();
@@ -343,13 +337,6 @@ fn get_color(inputs: &ResolvedInputs, idx: usize) -> Color {
     match inputs.data.get(idx) {
         Some(NodeData::Color(c)) => *c,
         _ => Color::WHITE,
-    }
-}
-
-fn get_points(inputs: &ResolvedInputs, idx: usize) -> Arc<PointBatch> {
-    match inputs.data.get(idx) {
-        Some(NodeData::Points(p)) => Arc::clone(p),
-        _ => Arc::new(PointBatch::new()),
     }
 }
 

@@ -18,7 +18,7 @@ use vector_flow_render::{collect_shapes, prepare_scene, PreparedScene};
 
 use crate::canvas_panel::{self, CameraState};
 use crate::id_map::IdMap;
-use crate::project::{self, ProjectFile, WindowGeometry};
+use crate::project::{self, ProjectFile, ViewState, WindowGeometry};
 use crate::properties_panel;
 use crate::transport_panel::{self, TransportState};
 use crate::ui_node::{node_catalog, CatalogEntry, UiNode};
@@ -66,6 +66,21 @@ pub struct VectorFlowApp {
     /// Panel widths at last save/load, for dirty tracking.
     saved_panel_widths: Option<[f32; 2]>,
 
+    /// View state snapshot at last save/load, for dirty tracking.
+    saved_view_state: Option<ViewState>,
+
+    /// Hash of node positions at last save/load, for layout dirty tracking.
+    saved_node_pos_hash: u64,
+
+    /// The egui UI Id for the node editor panel (needed to access snarl view state).
+    node_editor_ui_id: egui::Id,
+
+    /// Pending view state to restore after the next frame establishes UI ids.
+    pending_view_restore: Option<ViewState>,
+
+    /// Pending canvas camera restore (center, zoom) — applied when render_state is available.
+    pending_canvas_restore: Option<(Vec2, f32)>,
+
     /// When set, the unsaved-changes dialog is shown for this action.
     pending_action: Option<PendingAction>,
 
@@ -94,9 +109,12 @@ impl VectorFlowApp {
                 .insert(CanvasRenderResources { renderer, camera });
         }
 
+        let snarl = Snarl::new();
+        let saved_node_pos_hash = Self::node_position_hash(&snarl);
+
         Self {
             graph: Graph::new(),
-            snarl: Snarl::new(),
+            snarl,
             id_map: IdMap::new(),
             catalog: node_catalog(),
             snarl_style: SnarlStyle::default(),
@@ -110,9 +128,26 @@ impl VectorFlowApp {
             project_path: None,
             saved_gen: 0,
             saved_panel_widths: None,
+            saved_view_state: None,
+            saved_node_pos_hash,
+            node_editor_ui_id: egui::Id::NULL,
+            pending_view_restore: None,
+            pending_canvas_restore: None,
             pending_action: None,
             close_confirmed: false,
         }
+    }
+
+    /// Compute a simple hash of all node positions in the snarl.
+    fn node_position_hash(snarl: &Snarl<UiNode>) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        for (id, pos, _) in snarl.nodes_pos_ids() {
+            id.0.hash(&mut hasher);
+            pos.x.to_bits().hash(&mut hasher);
+            pos.y.to_bits().hash(&mut hasher);
+        }
+        hasher.finish()
     }
 
     /// Returns `true` if the project has unsaved changes.
@@ -128,6 +163,17 @@ impl VectorFlowApp {
                 if (c - s).abs() > 1.0 {
                     return true;
                 }
+            }
+        }
+        // Check if node positions changed (layout drag).
+        if Self::node_position_hash(&self.snarl) != self.saved_node_pos_hash {
+            return true;
+        }
+        // Check if view state changed (pan/zoom in either view).
+        if let Some(ref saved_vs) = self.saved_view_state {
+            let current_vs = self.current_view_state(ctx);
+            if !saved_vs.approx_eq(&current_vs) {
+                return true;
             }
         }
         false
@@ -321,6 +367,23 @@ impl VectorFlowApp {
         self.last_eval_frame = self.transport.time_ctx.frame;
     }
 
+    /// Collect current view state (graph editor + canvas camera).
+    fn current_view_state(&self, ctx: &egui::Context) -> ViewState {
+        let (graph_offset, graph_scale) = Snarl::<UiNode>::get_view_state(
+            NODE_EDITOR_ID,
+            self.node_editor_ui_id,
+            ctx,
+        )
+        .unwrap_or((egui::Vec2::ZERO, 1.0));
+
+        ViewState {
+            graph_offset: [graph_offset.x, graph_offset.y],
+            graph_scale,
+            canvas_center: [self.cam_state.current_center.x, self.cam_state.current_center.y],
+            canvas_zoom: self.cam_state.current_zoom,
+        }
+    }
+
     fn save_project(&mut self, ctx: &egui::Context) {
         let path = if let Some(ref p) = self.project_path {
             Some(p.clone())
@@ -332,6 +395,7 @@ impl VectorFlowApp {
             let pf = ProjectFile {
                 graph: self.graph.clone(),
                 snarl: self.snarl.clone(),
+                view_state: Some(self.current_view_state(ctx)),
             };
             match pf.save(&path) {
                 Ok(()) => {
@@ -339,6 +403,8 @@ impl VectorFlowApp {
                     self.project_path = Some(path);
                     self.saved_gen = self.graph.generation();
                     self.saved_panel_widths = Self::current_panel_widths(ctx);
+                    self.saved_view_state = Some(self.current_view_state(ctx));
+                    self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
                     self.save_window_geometry(ctx);
                 }
                 Err(e) => log::error!("Failed to save: {e}"),
@@ -393,6 +459,12 @@ impl VectorFlowApp {
                 self.saved_gen = self.graph.generation();
                 Self::restore_window_geometry(ctx, path);
                 self.saved_panel_widths = Self::current_panel_widths(ctx);
+                self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
+                self.saved_view_state = pf.view_state.clone();
+
+                // Restore view state (graph editor + canvas camera).
+                self.pending_view_restore = pf.view_state;
+
                 log::info!("Loaded project from {}", path.display());
             }
             Err(e) => log::error!("Failed to load: {e}"),
@@ -481,7 +553,7 @@ impl eframe::App for VectorFlowApp {
         }
 
         // 0. Keyboard shortcuts.
-        let (do_save, do_save_as, do_open, do_duplicate, do_fit_all) = ctx.input_mut(|i| {
+        let (do_save, do_save_as, do_open, do_duplicate, do_fit_all, do_quit) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
                 egui::Key::S,
@@ -503,7 +575,11 @@ impl eframe::App for VectorFlowApp {
                 egui::Modifiers::NONE,
                 egui::Key::F,
             ));
-            (save, save_as, open, duplicate, fit_all)
+            let quit = i.consume_shortcut(&egui::KeyboardShortcut::new(
+                egui::Modifiers::COMMAND,
+                egui::Key::Q,
+            ));
+            (save, save_as, open, duplicate, fit_all, quit)
         });
         if do_save {
             self.save_project(ctx);
@@ -513,6 +589,9 @@ impl eframe::App for VectorFlowApp {
         }
         if do_open {
             self.request_open(ctx);
+        }
+        if do_quit {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
 
         // 1. Transport tick — advance time if playing.
@@ -541,6 +620,11 @@ impl eframe::App for VectorFlowApp {
                         ui.close_menu();
                         menu_save_as = true;
                     }
+                    ui.separator();
+                    if ui.button("Quit  Ctrl+Q").clicked() {
+                        ui.close_menu();
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
                 });
             });
             ui.separator();
@@ -558,13 +642,12 @@ impl eframe::App for VectorFlowApp {
 
         // 3. Left panel: node editor (fills full height).
         // Rendered first so snarl updates selection state before we query it.
-        let mut node_editor_ui_id = egui::Id::NULL;
         let mut snarl_viewport = egui::Rect::NOTHING;
         egui::SidePanel::left("node_editor_panel")
             .default_width(ctx.screen_rect().width() * 0.55)
             .resizable(true)
             .show(ctx, |ui| {
-                node_editor_ui_id = ui.id();
+                self.node_editor_ui_id = ui.id();
                 snarl_viewport = ui.max_rect();
 
                 let mut viewer = GraphViewer {
@@ -574,6 +657,22 @@ impl eframe::App for VectorFlowApp {
                 };
                 self.snarl.show(&mut viewer, &self.snarl_style, NODE_EDITOR_ID, ui);
             });
+
+        // Apply pending view restore (graph editor offset/scale).
+        if let Some(vs) = self.pending_view_restore.take() {
+            Snarl::<UiNode>::set_view_state(
+                NODE_EDITOR_ID,
+                self.node_editor_ui_id,
+                ctx,
+                egui::Vec2::new(vs.graph_offset[0], vs.graph_offset[1]),
+                vs.graph_scale,
+            );
+            // Canvas camera restore is deferred to step 8 where we have render_state.
+            self.pending_canvas_restore = Some((
+                Vec2::new(vs.canvas_center[0], vs.canvas_center[1]),
+                vs.canvas_zoom,
+            ));
+        }
 
         // Overlay "Show All" button on the node editor panel.
         {
@@ -589,13 +688,13 @@ impl eframe::App for VectorFlowApp {
                     }
                 });
             if fit_requested {
-                Snarl::<UiNode>::request_fit_all(NODE_EDITOR_ID, node_editor_ui_id, ctx);
+                Snarl::<UiNode>::request_fit_all(NODE_EDITOR_ID, self.node_editor_ui_id, ctx);
             }
         }
 
         // Query snarl's built-in selection (must happen after snarl.show).
         let mut selected_snarl =
-            Snarl::<UiNode>::get_selected_nodes_at(NODE_EDITOR_ID, node_editor_ui_id, ctx);
+            Snarl::<UiNode>::get_selected_nodes_at(NODE_EDITOR_ID, self.node_editor_ui_id, ctx);
 
         // 3b. Duplicate selected nodes on Ctrl+D.
         if do_duplicate && !selected_snarl.is_empty() {
@@ -608,7 +707,7 @@ impl eframe::App for VectorFlowApp {
             // Select the new duplicates instead of the originals.
             Snarl::<UiNode>::set_selected_nodes_at(
                 NODE_EDITOR_ID,
-                node_editor_ui_id,
+                self.node_editor_ui_id,
                 ctx,
                 new_ids.clone(),
             );
@@ -673,6 +772,10 @@ impl eframe::App for VectorFlowApp {
 
         // 8. Apply camera commands.
         if let Some(render_state) = frame.wgpu_render_state() {
+            // Restore canvas camera if pending from a project load.
+            if let Some((center, zoom)) = self.pending_canvas_restore.take() {
+                canvas_panel::restore_camera(render_state, &mut self.cam_state, center, zoom);
+            }
             canvas_panel::apply_camera_commands(render_state, &mut self.cam_state);
         }
     }
