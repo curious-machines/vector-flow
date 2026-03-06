@@ -1,0 +1,600 @@
+{
+  "graph": {
+    "nodes": {
+      "2": {
+        "id": 2,
+        "name": "Text to Path",
+        "op": "TextToPath",
+        "inputs": [
+          {
+            "name": "text",
+            "data_type": "Text",
+            "description": "Input text instance",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -3.4375,
+          -182.5
+        ],
+        "generation": 0
+      },
+      "3": {
+        "id": 3,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          256.4375,
+          -159.46875
+        ],
+        "generation": 0
+      },
+      "1": {
+        "id": 1,
+        "name": "Text",
+        "op": {
+          "Text": {
+            "text": "Hello World",
+            "font_family": "",
+            "font_path": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "position",
+            "data_type": "Vec2",
+            "description": "Text anchor position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "font_size",
+            "data_type": "Scalar",
+            "description": "Font size in canvas units",
+            "default_value": {
+              "Float": 42.0
+            },
+            "expression": null
+          },
+          {
+            "name": "font_weight",
+            "data_type": "Int",
+            "description": "Font weight (100-900, 400=regular, 700=bold)",
+            "default_value": {
+              "Int": 400
+            },
+            "expression": null
+          },
+          {
+            "name": "font_style",
+            "data_type": "Int",
+            "description": "Font style: 0=Normal, 1=Italic, 2=Oblique",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "letter_spacing",
+            "data_type": "Scalar",
+            "description": "Extra spacing between glyphs",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "line_height",
+            "data_type": "Scalar",
+            "description": "Line height multiplier",
+            "default_value": {
+              "Float": 1.2
+            },
+            "expression": null
+          },
+          {
+            "name": "alignment",
+            "data_type": "Int",
+            "description": "Text alignment: 0=Left, 1=Center, 2=Right",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "box_width",
+            "data_type": "Scalar",
+            "description": "Text box width (0 = unconstrained)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "box_height",
+            "data_type": "Scalar",
+            "description": "Text box height (0 = unconstrained)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "wrap",
+            "data_type": "Bool",
+            "description": "Enable word wrapping",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Text color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "opacity",
+            "data_type": "Scalar",
+            "description": "Opacity (0..1)",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "text",
+            "data_type": "Text",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -230.28125,
+          -168.34375
+        ],
+        "generation": 35
+      },
+      "7": {
+        "id": 7,
+        "name": "Translate",
+        "op": "Translate",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "offset",
+            "data_type": "Vec2",
+            "description": "Translation offset",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                25.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          34.958023,
+          -78.777985
+        ],
+        "generation": 186
+      },
+      "6": {
+        "id": 6,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.025834335,
+                0.10746459,
+                0.03966396,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          158.6875,
+          -360.03125
+        ],
+        "generation": 207
+      },
+      "5": {
+        "id": 5,
+        "name": "Merge",
+        "op": "Merge",
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          294.65625,
+          -328.71875
+        ],
+        "generation": 1
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 5,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 6,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 6,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 7,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 1
+        }
+      }
+    ],
+    "next_id": 8,
+    "generation": 522,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "Text",
+          "color": [
+            100,
+            180,
+            220,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -291.28717,
+          "y": -215.74289
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Text to Path",
+          "color": [
+            100,
+            180,
+            220,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -67.559204,
+          "y": -231.63336
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 459.73828,
+          "y": -195.23566
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 7,
+          "display_name": "Translate",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 34.958023,
+          "y": -78.777985
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 313.0923,
+          "y": -201.50714
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 6,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 121.73694,
+          "y": -274.78845
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      98.54034,
+      -89.795135
+    ],
+    "graph_scale": 0.6730484,
+    "canvas_center": [
+      85.317345,
+      -5.6138315
+    ],
+    "canvas_zoom": 3.6051655
+  },
+  "window_geometry": {
+    "x": 206.0,
+    "y": 397.0,
+    "width": 1633.5,
+    "height": 874.0,
+    "node_editor_width": 717.09375,
+    "properties_width": 295.75
+  }
+}
