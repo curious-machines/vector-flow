@@ -105,6 +105,25 @@ pub struct Shape {
 }
 
 // ---------------------------------------------------------------------------
+// Image types
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone)]
+pub struct ImageData {
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<u8>, // RGBA8, row-major, top-to-bottom
+    pub source_path: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImageInstance {
+    pub image: Arc<ImageData>,
+    pub transform: Affine2,
+    pub opacity: f32,
+}
+
+// ---------------------------------------------------------------------------
 // SoA Point Batch (SIMD-friendly)
 // ---------------------------------------------------------------------------
 
@@ -176,6 +195,7 @@ pub enum NodeData {
     Ints(Arc<Vec<i64>>),
     Paths(Arc<Vec<PathData>>),
     Shapes(Arc<Vec<Shape>>),
+    Image(Arc<ImageInstance>),
 }
 
 impl NodeData {
@@ -195,6 +215,7 @@ impl NodeData {
             NodeData::Ints(_) => DataType::Ints,
             NodeData::Paths(_) => DataType::Paths,
             NodeData::Shapes(_) => DataType::Shapes,
+            NodeData::Image(_) => DataType::Image,
         }
     }
 }
@@ -219,6 +240,7 @@ pub enum DataType {
     Scalars,
     Colors,
     Ints,
+    Image,
     Any,
 }
 
@@ -247,22 +269,26 @@ impl DataType {
 }
 
 // ---------------------------------------------------------------------------
-// TimeContext — global animation state
+// EvalContext — global evaluation context (time, project settings, etc.)
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy)]
-pub struct TimeContext {
+#[derive(Debug, Clone)]
+pub struct EvalContext {
     pub frame: u64,
     pub time_secs: f32,
     pub fps: f32,
+    /// Base directory for resolving relative file paths (e.g. project dir).
+    /// Empty string means use current working directory.
+    pub project_dir: String,
 }
 
-impl Default for TimeContext {
+impl Default for EvalContext {
     fn default() -> Self {
         Self {
             frame: 0,
             time_secs: 0.0,
             fps: 30.0,
+            project_dir: String::new(),
         }
     }
 }

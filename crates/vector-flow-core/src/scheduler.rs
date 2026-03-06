@@ -8,7 +8,7 @@ use crate::compute::{ComputeBackend, NodeOutputs, ResolvedInputs};
 use crate::error::ComputeError;
 use crate::graph::Graph;
 use crate::node::{NodeOp, ParamValue, PortIndex};
-use crate::types::{NodeData, NodeId, TimeContext};
+use crate::types::{NodeData, NodeId, EvalContext};
 
 // ---------------------------------------------------------------------------
 // EvalCache
@@ -74,7 +74,7 @@ impl Scheduler {
     pub fn evaluate(
         &self,
         graph: &mut Graph,
-        time_ctx: &TimeContext,
+        time_ctx: &EvalContext,
     ) -> Result<EvalResult, ComputeError> {
         let topo_order = graph
             .topological_sort()
@@ -169,7 +169,7 @@ impl Scheduler {
         graph: &Graph,
         subgraph_nodes: &[NodeId],
         topo_order: &[NodeId],
-        time_ctx: &TimeContext,
+        time_ctx: &EvalContext,
     ) -> Result<(HashMap<NodeId, Vec<NodeData>>, HashMap<NodeId, String>), ComputeError> {
         let subgraph_set: std::collections::HashSet<NodeId> =
             subgraph_nodes.iter().copied().collect();
@@ -197,7 +197,7 @@ impl Scheduler {
         local_outputs: &mut HashMap<NodeId, Vec<NodeData>>,
         node_errors: &mut HashMap<NodeId, String>,
         portal_map: &HashMap<String, NodeId>,
-        time_ctx: &TimeContext,
+        time_ctx: &EvalContext,
     ) -> Result<(), ComputeError> {
         let node = match graph.node(node_id) {
             Some(n) => n,
@@ -271,7 +271,7 @@ impl Scheduler {
         graph: &Graph,
         node_id: NodeId,
         local_outputs: &HashMap<NodeId, Vec<NodeData>>,
-        _time_ctx: &TimeContext,
+        _time_ctx: &EvalContext,
     ) -> ResolvedInputs {
         let node = match graph.node(node_id) {
             Some(n) => n,
@@ -355,6 +355,16 @@ fn default_for_type(dt: crate::types::DataType) -> NodeData {
         DataType::Scalars => NodeData::Scalars(Arc::new(Vec::new())),
         DataType::Colors => NodeData::Colors(Arc::new(Vec::new())),
         DataType::Ints => NodeData::Ints(Arc::new(Vec::new())),
+        DataType::Image => NodeData::Image(Arc::new(crate::types::ImageInstance {
+            image: Arc::new(crate::types::ImageData {
+                width: 0,
+                height: 0,
+                pixels: Vec::new(),
+                source_path: String::new(),
+            }),
+            transform: glam::Affine2::IDENTITY,
+            opacity: 1.0,
+        })),
     }
 }
 
@@ -378,7 +388,7 @@ mod tests {
             &self,
             _op: &NodeOp,
             inputs: &ResolvedInputs,
-            _time_ctx: &TimeContext,
+            _time_ctx: &EvalContext,
             outputs: &mut NodeOutputs,
         ) -> Result<(), ComputeError> {
             // Pass through first input as first output (if any).
@@ -435,7 +445,7 @@ mod tests {
             )
             .unwrap();
 
-        let time_ctx = TimeContext::default();
+        let time_ctx = EvalContext::default();
         let result = scheduler.evaluate(&mut graph, &time_ctx).unwrap();
 
         // Both nodes should have been evaluated.
@@ -451,7 +461,7 @@ mod tests {
         let mut graph = Graph::new();
         let a = graph.add_node(NodeDef::circle(NodeId(0)));
 
-        let time_ctx = TimeContext::default();
+        let time_ctx = EvalContext::default();
 
         // First evaluation populates cache.
         scheduler.evaluate(&mut graph, &time_ctx).unwrap();
@@ -469,7 +479,7 @@ mod tests {
         let mut graph = Graph::new();
         let a = graph.add_node(NodeDef::circle(NodeId(0)));
 
-        let time_ctx = TimeContext::default();
+        let time_ctx = EvalContext::default();
         scheduler.evaluate(&mut graph, &time_ctx).unwrap();
 
         // Bump generation to invalidate cache.
@@ -487,7 +497,7 @@ mod tests {
         let mut graph = Graph::new();
         let a = graph.add_node(NodeDef::regular_polygon(NodeId(0)));
 
-        let time_ctx = TimeContext::default();
+        let time_ctx = EvalContext::default();
         let result = scheduler.evaluate(&mut graph, &time_ctx).unwrap();
 
         // The passthrough backend should have received the default values

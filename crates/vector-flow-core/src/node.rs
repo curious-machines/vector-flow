@@ -123,6 +123,8 @@ pub enum NodeOp {
         script_inputs: Vec<(String, DataType)>,
         script_outputs: Vec<(String, DataType)>,
     },
+    // Image
+    LoadImage { path: String },
     // Graph I/O
     GraphInput { name: String, data_type: DataType },
     GraphOutput { name: String, data_type: DataType },
@@ -867,6 +869,35 @@ impl NodeDef {
             op: NodeOp::ColorParse { text },
             inputs: vec![],
             outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn load_image(id: NodeId, path: String) -> Self {
+        Self {
+            id,
+            name: "Load Image".into(),
+            op: NodeOp::LoadImage { path },
+            inputs: vec![
+                PortDef::new("position", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Center position"),
+                PortDef::new("width", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Display width (0 = native)"),
+                PortDef::new("height", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Display height (0 = native)"),
+                PortDef::new("opacity", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Image opacity (0..1)"),
+            ],
+            outputs: vec![
+                PortDef::new("image", DataType::Image),
+                PortDef::new("native_width", DataType::Scalar),
+                PortDef::new("native_height", DataType::Scalar),
+            ],
             position: [0.0, 0.0],
             generation: 0,
         }

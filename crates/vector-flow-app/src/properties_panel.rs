@@ -69,6 +69,12 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get LoadImage path if applicable.
+    let image_path = match &node.op {
+        NodeOp::LoadImage { path } => Some(path.clone()),
+        _ => None,
+    };
+
     // Get ColorParse text if applicable.
     let color_parse_text = match &node.op {
         NodeOp::ColorParse { text } => Some(text.clone()),
@@ -109,6 +115,27 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                         node.name = format!("Receive: {plabel}");
                     }
                     _ => {}
+                }
+                node.touch();
+                changed = true;
+            }
+        }
+        ui.separator();
+    }
+
+    // LoadImage path editor.
+    if let Some(mut ipath) = image_path {
+        let mut path_changed = false;
+        ui.horizontal(|ui| {
+            ui.label("Path");
+            if ui.text_edit_singleline(&mut ipath).changed() {
+                path_changed = true;
+            }
+        });
+        if path_changed {
+            if let Some(node) = graph.node_mut(core_id) {
+                if let NodeOp::LoadImage { path } = &mut node.op {
+                    *path = ipath;
                 }
                 node.touch();
                 changed = true;

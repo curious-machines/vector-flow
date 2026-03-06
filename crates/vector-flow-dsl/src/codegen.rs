@@ -897,13 +897,13 @@ fn dsl_type_to_cl(ty: DslType) -> cranelift_codegen::ir::Type {
 mod tests {
     use super::*;
     use vector_flow_core::compute::DslContext;
-    use vector_flow_core::types::TimeContext;
+    use vector_flow_core::types::EvalContext;
 
     fn eval_expr(source: &str, time: f32) -> f64 {
         let mut compiler = DslCompiler::new().unwrap();
         let ptr = compiler.compile_expression(source).unwrap();
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: time, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: time, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
         unsafe { func(&mut ctx) }
     }
@@ -975,7 +975,7 @@ mod tests {
             "fn test(x: Scalar) -> Scalar { let y = x * 2.0; y }"
         ).unwrap();
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: 0.0, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
         ctx.slots[0] = 5.0;
         let result = unsafe { func(&mut ctx) };
@@ -989,7 +989,7 @@ mod tests {
             "fn sum(n: Int) -> Scalar { let total: Scalar = 0.0; for i in 0..n { total = total + 1.0; } total }"
         ).unwrap();
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: 0.0, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
         ctx.slots[0] = 10.0; // n = 10 (loaded as f64, converted to i64)
         let result = unsafe { func(&mut ctx) };
@@ -1003,7 +1003,7 @@ mod tests {
             "fn pick(x: Scalar) -> Scalar { if x > 0.0 { x } else { -x } }"
         ).unwrap();
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: 0.0, fps: 30.0, ..Default::default() };
 
         let mut ctx = DslContext::new(&tc);
         ctx.slots[0] = 5.0;
@@ -1027,7 +1027,7 @@ mod tests {
         let mut compiler = DslCompiler::new().unwrap();
         let ptr = compiler.compile_expression("frame as Scalar").unwrap();
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 42, time_secs: 1.4, fps: 30.0 };
+        let tc = EvalContext { frame: 42, time_secs: 1.4, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
         let result = unsafe { func(&mut ctx) };
         assert!((result - 42.0).abs() < 1e-10);
@@ -1045,7 +1045,7 @@ mod tests {
         ).unwrap();
 
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: 0.0, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
         ctx.slots[0] = 5.0; // x = 5.0
 
@@ -1068,7 +1068,7 @@ mod tests {
         ).unwrap();
 
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: 0.0, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
         ctx.slots[0] = 7.0;
 
@@ -1092,7 +1092,7 @@ mod tests {
         ).unwrap();
 
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: 0.0, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
         ctx.slots[0] = 3.0;
 
@@ -1114,7 +1114,7 @@ mod tests {
         ).unwrap();
 
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: std::f32::consts::FRAC_PI_2, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: std::f32::consts::FRAC_PI_2, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
 
         unsafe { func(&mut ctx) };
@@ -1133,7 +1133,7 @@ mod tests {
         ).unwrap();
 
         let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
-        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let tc = EvalContext { frame: 0, time_secs: 0.0, fps: 30.0, ..Default::default() };
         let mut ctx = DslContext::new(&tc);
         let result = unsafe { func(&mut ctx) };
         // Returns 0.0 since no outputs, but shouldn't crash

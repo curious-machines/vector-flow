@@ -38,6 +38,7 @@ impl egui_wgpu::CallbackTrait for CanvasCallback {
         // Upload scene if we have new geometry
         if let Some(ref scene) = self.scene {
             resources.renderer.upload_scene(device, scene);
+            resources.renderer.upload_images(device, queue, &scene.image_batches);
         }
 
         Vec::new()

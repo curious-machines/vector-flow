@@ -2,7 +2,7 @@ use glam::Affine2;
 
 use crate::error::ComputeError;
 use crate::node::NodeOp;
-use crate::types::{NodeData, PathData, PointBatch, TimeContext};
+use crate::types::{NodeData, PathData, PointBatch, EvalContext};
 
 // ---------------------------------------------------------------------------
 // Resolved inputs / outputs
@@ -47,7 +47,7 @@ pub trait ComputeBackend: Send + Sync {
         &self,
         op: &NodeOp,
         inputs: &ResolvedInputs,
-        time_ctx: &TimeContext,
+        time_ctx: &EvalContext,
         outputs: &mut NodeOutputs,
     ) -> Result<(), ComputeError>;
 
@@ -98,7 +98,7 @@ unsafe impl Send for DslContext {}
 unsafe impl Sync for DslContext {}
 
 impl DslContext {
-    pub fn new(time_ctx: &TimeContext) -> Self {
+    pub fn new(time_ctx: &EvalContext) -> Self {
         Self {
             slots: [0.0; 8],
             overflow_ptr: std::ptr::null_mut(),

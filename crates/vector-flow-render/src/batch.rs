@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use glam::{Affine2, Mat4};
 use lyon::math::point;
@@ -10,10 +11,10 @@ use lyon::tessellation::{
 
 use vector_flow_core::scheduler::EvalResult;
 use vector_flow_core::types::{
-    Color, LineCap, LineJoin, NodeData, NodeId, PathData, PathVerb, Shape, StrokeStyle,
+    Color, ImageData, LineCap, LineJoin, NodeData, NodeId, PathData, PathVerb, Shape, StrokeStyle,
 };
 
-use crate::vertex::CanvasVertex;
+use crate::vertex::{CanvasVertex, ImageVertex};
 
 // ---------------------------------------------------------------------------
 // Linear → sRGB conversion
@@ -47,6 +48,18 @@ pub struct CollectedShape {
     pub dimmed: bool,
 }
 
+pub struct CollectedImage {
+    pub image: Arc<ImageData>,
+    pub transform: Affine2,
+    pub opacity: f32,
+    pub dimmed: bool,
+}
+
+pub struct CollectedScene {
+    pub shapes: Vec<CollectedShape>,
+    pub images: Vec<CollectedImage>,
+}
+
 /// Extract renderable shapes from an EvalResult.
 ///
 /// `visible_nodes`: if `Some`, only include shapes from those nodes (selection/lock).
@@ -55,10 +68,18 @@ pub fn collect_shapes(
     eval_result: &EvalResult,
     visible_nodes: Option<&HashSet<NodeId>>,
 ) -> Vec<CollectedShape> {
-    let mut out = Vec::new();
+    collect_scene(eval_result, visible_nodes).shapes
+}
+
+/// Extract renderable shapes and images from an EvalResult.
+pub fn collect_scene(
+    eval_result: &EvalResult,
+    visible_nodes: Option<&HashSet<NodeId>>,
+) -> CollectedScene {
+    let mut shapes = Vec::new();
+    let mut images = Vec::new();
 
     for (&node_id, outputs) in &eval_result.outputs {
-        // If a visibility set is provided, skip nodes not in it entirely.
         if let Some(vis) = visible_nodes {
             if !vis.contains(&node_id) {
                 continue;
@@ -69,22 +90,21 @@ pub fn collect_shapes(
         for data in outputs {
             match data {
                 NodeData::Shape(s) => {
-                    out.push(CollectedShape {
+                    shapes.push(CollectedShape {
                         shape: (**s).clone(),
                         dimmed,
                     });
                 }
-                NodeData::Shapes(shapes) => {
-                    for s in shapes.iter() {
-                        out.push(CollectedShape {
+                NodeData::Shapes(ss) => {
+                    for s in ss.iter() {
+                        shapes.push(CollectedShape {
                             shape: s.clone(),
                             dimmed,
                         });
                     }
                 }
-                // Bare paths get a default white fill
                 NodeData::Path(p) => {
-                    out.push(CollectedShape {
+                    shapes.push(CollectedShape {
                         shape: Shape {
                             path: (**p).clone(),
                             fill: Some(Color::WHITE),
@@ -96,7 +116,7 @@ pub fn collect_shapes(
                 }
                 NodeData::Paths(paths) => {
                     for p in paths.iter() {
-                        out.push(CollectedShape {
+                        shapes.push(CollectedShape {
                             shape: Shape {
                                 path: p.clone(),
                                 fill: Some(Color::WHITE),
@@ -107,12 +127,20 @@ pub fn collect_shapes(
                         });
                     }
                 }
+                NodeData::Image(img) => {
+                    images.push(CollectedImage {
+                        image: Arc::clone(&img.image),
+                        transform: img.transform,
+                        opacity: img.opacity,
+                        dimmed,
+                    });
+                }
                 _ => {}
             }
         }
     }
 
-    out
+    CollectedScene { shapes, images }
 }
 
 // ---------------------------------------------------------------------------
@@ -127,10 +155,19 @@ pub struct DrawBatch {
     pub color: [f32; 4],
 }
 
+pub struct ImageDrawBatch {
+    pub image: Arc<ImageData>,
+    pub vertices: [ImageVertex; 4],
+    pub indices: [u32; 6],
+    pub transform: Mat4,
+    pub color: [f32; 4], // tint: [1,1,1,opacity] or dimmed
+}
+
 pub struct PreparedScene {
     pub vertices: Vec<CanvasVertex>,
     pub indices: Vec<u32>,
     pub batches: Vec<DrawBatch>,
+    pub image_batches: Vec<ImageDrawBatch>,
 }
 
 impl PreparedScene {
@@ -164,6 +201,51 @@ impl PreparedScene {
 
 const DIMMED_TINT: [f32; 4] = [0.3, 0.3, 0.3, 0.5];
 const DEFAULT_TOLERANCE: f32 = 0.5;
+
+/// Build image draw batches from collected images.
+fn prepare_image_batches(images: &[CollectedImage]) -> Vec<ImageDrawBatch> {
+    images
+        .iter()
+        .filter(|ci| ci.image.width > 0 && ci.image.height > 0)
+        .map(|ci| {
+            let w = ci.image.width as f32;
+            let h = ci.image.height as f32;
+            let hw = w / 2.0;
+            let hh = h / 2.0;
+
+            // UV y is flipped: image pixels are top-to-bottom, but world Y+ is up.
+            let vertices = [
+                ImageVertex { position: [-hw, -hh], uv: [0.0, 1.0] },
+                ImageVertex { position: [ hw, -hh], uv: [1.0, 1.0] },
+                ImageVertex { position: [ hw,  hh], uv: [1.0, 0.0] },
+                ImageVertex { position: [-hw,  hh], uv: [0.0, 0.0] },
+            ];
+            let indices = [0, 1, 2, 0, 2, 3];
+
+            let transform = affine2_to_mat4(&ci.transform);
+            let tint = if ci.dimmed {
+                DIMMED_TINT
+            } else {
+                [1.0, 1.0, 1.0, ci.opacity]
+            };
+
+            ImageDrawBatch {
+                image: Arc::clone(&ci.image),
+                vertices,
+                indices,
+                transform,
+                color: tint,
+            }
+        })
+        .collect()
+}
+
+/// Prepare a full scene from shapes and images.
+pub fn prepare_scene_full(scene: &CollectedScene, tolerance: f32) -> PreparedScene {
+    let mut prepared = prepare_scene(&scene.shapes, tolerance);
+    prepared.image_batches = prepare_image_batches(&scene.images);
+    prepared
+}
 
 struct SceneBuffers {
     vertices: Vec<CanvasVertex>,
@@ -209,6 +291,7 @@ pub fn prepare_scene(shapes: &[CollectedShape], tolerance: f32) -> PreparedScene
         vertices: buf.vertices,
         indices: buf.indices,
         batches: buf.batches,
+        image_batches: Vec::new(),
     }
 }
 

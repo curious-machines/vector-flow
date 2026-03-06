@@ -1,6 +1,6 @@
 use egui::Ui;
 
-use vector_flow_core::types::TimeContext;
+use vector_flow_core::types::EvalContext;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlaybackState {
@@ -10,14 +10,14 @@ pub enum PlaybackState {
 }
 
 pub struct TransportState {
-    pub time_ctx: TimeContext,
+    pub eval_ctx: EvalContext,
     pub playback: PlaybackState,
 }
 
 impl Default for TransportState {
     fn default() -> Self {
         Self {
-            time_ctx: TimeContext::default(),
+            eval_ctx: EvalContext::default(),
             playback: PlaybackState::Stopped,
         }
     }
@@ -29,21 +29,21 @@ impl TransportState {
         if self.playback != PlaybackState::Playing {
             return false;
         }
-        self.time_ctx.frame += 1;
-        self.time_ctx.time_secs = self.time_ctx.frame as f32 / self.time_ctx.fps;
+        self.eval_ctx.frame += 1;
+        self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
         true
     }
 
     pub fn rewind(&mut self) {
-        self.time_ctx.frame = 0;
-        self.time_ctx.time_secs = 0.0;
+        self.eval_ctx.frame = 0;
+        self.eval_ctx.time_secs = 0.0;
         self.playback = PlaybackState::Stopped;
     }
 
     pub fn step_forward(&mut self) {
         self.playback = PlaybackState::Paused;
-        self.time_ctx.frame += 1;
-        self.time_ctx.time_secs = self.time_ctx.frame as f32 / self.time_ctx.fps;
+        self.eval_ctx.frame += 1;
+        self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
     }
 }
 
@@ -83,7 +83,7 @@ pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState) -> bool {
         // Frame / time display.
         ui.label(format!(
             "Frame: {}  Time: {:.2}s  FPS: {}",
-            state.time_ctx.frame, state.time_ctx.time_secs, state.time_ctx.fps as u32
+            state.eval_ctx.frame, state.eval_ctx.time_secs, state.eval_ctx.fps as u32
         ));
     });
 

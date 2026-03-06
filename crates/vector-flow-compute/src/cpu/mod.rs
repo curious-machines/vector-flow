@@ -7,6 +7,7 @@ mod tessellation;
 mod transforms;
 mod utility;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use glam::{Affine2, Vec2};
@@ -17,7 +18,9 @@ use vector_flow_core::compute::{
 };
 use vector_flow_core::error::ComputeError;
 use vector_flow_core::node::NodeOp;
-use vector_flow_core::types::{Color, NodeData, PathData, PointBatch, Shape, TimeContext};
+use vector_flow_core::types::{
+    Color, ImageData, ImageInstance, NodeData, PathData, PointBatch, Shape, EvalContext,
+};
 
 use vector_flow_dsl::cache::DslFunctionCache;
 use vector_flow_dsl::codegen::{DslCompiler, ExprFnPtr};
@@ -26,6 +29,7 @@ use vector_flow_dsl::codegen::{DslCompiler, ExprFnPtr};
 pub struct CpuBackend {
     dsl_compiler: Mutex<DslCompiler>,
     dsl_cache: DslFunctionCache,
+    image_cache: Mutex<HashMap<String, Arc<ImageData>>>,
 }
 
 impl CpuBackend {
@@ -36,7 +40,30 @@ impl CpuBackend {
         Ok(Self {
             dsl_compiler: Mutex::new(compiler),
             dsl_cache: DslFunctionCache::new(),
+            image_cache: Mutex::new(HashMap::new()),
         })
+    }
+}
+
+impl CpuBackend {
+    fn load_image_cached(&self, path: &str) -> Result<Arc<ImageData>, ComputeError> {
+        let mut cache = self.image_cache.lock();
+        if let Some(cached) = cache.get(path) {
+            return Ok(Arc::clone(cached));
+        }
+        let img = image::open(path)
+            .map_err(|e| ComputeError::BackendError(format!("Failed to load image '{}': {}", path, e)))?
+            .into_rgba8();
+        let (width, height) = img.dimensions();
+        let pixels = img.into_raw();
+        let data = Arc::new(ImageData {
+            width,
+            height,
+            pixels,
+            source_path: path.to_string(),
+        });
+        cache.insert(path.to_string(), Arc::clone(&data));
+        Ok(data)
     }
 }
 
@@ -45,7 +72,7 @@ impl ComputeBackend for CpuBackend {
         &self,
         op: &NodeOp,
         inputs: &ResolvedInputs,
-        time_ctx: &TimeContext,
+        time_ctx: &EvalContext,
         outputs: &mut NodeOutputs,
     ) -> Result<(), ComputeError> {
         let result = match op {
@@ -306,6 +333,43 @@ impl ComputeBackend for CpuBackend {
                 return Ok(());
             }
 
+            // ── Image ───────────────────────────────────────────────
+            NodeOp::LoadImage { path } => {
+                let position = get_vec2(inputs, 0);
+                let width = get_scalar(inputs, 1) as f32;
+                let height = get_scalar(inputs, 2) as f32;
+                let opacity = get_scalar(inputs, 3).clamp(0.0, 1.0) as f32;
+
+                // Resolve relative paths against project directory
+                let resolved_path = resolve_path(path, &time_ctx.project_dir);
+                let image_data = self.load_image_cached(&resolved_path)?;
+
+                // Compute scale: if width/height are 0, use native size
+                let native_w = image_data.width as f32;
+                let native_h = image_data.height as f32;
+                let sx = if width > 0.0 { width / native_w } else { 1.0 };
+                let sy = if height > 0.0 { height / native_h } else { 1.0 };
+
+                let transform = Affine2::from_translation(position)
+                    * Affine2::from_scale(Vec2::new(sx, sy));
+
+                // Write all outputs directly: image, native_width, native_height
+                if !outputs.data.is_empty() {
+                    outputs.data[0] = Some(NodeData::Image(Arc::new(ImageInstance {
+                        image: image_data,
+                        transform,
+                        opacity,
+                    })));
+                }
+                if outputs.data.len() > 1 {
+                    outputs.data[1] = Some(NodeData::Scalar(native_w as f64));
+                }
+                if outputs.data.len() > 2 {
+                    outputs.data[2] = Some(NodeData::Scalar(native_h as f64));
+                }
+                return Ok(());
+            }
+
             // ── Graph I/O ───────────────────────────────────────────
             NodeOp::GraphInput { .. } => {
                 // Pass through — scheduler resolves graph inputs
@@ -455,6 +519,17 @@ fn batch_generate(pts: &PointBatch, mut f: impl FnMut(Vec2) -> NodeData) -> Node
     NodeData::Path(Arc::new(merged))
 }
 
+/// Resolve a file path: if relative, prepend the project directory.
+fn resolve_path(path: &str, project_dir: &str) -> String {
+    let p = std::path::Path::new(path);
+    if p.is_absolute() || project_dir.is_empty() {
+        path.to_string()
+    } else {
+        let base = std::path::Path::new(project_dir);
+        base.join(p).to_string_lossy().into_owned()
+    }
+}
+
 fn get_any(inputs: &ResolvedInputs, idx: usize) -> NodeData {
     inputs
         .data
@@ -471,10 +546,10 @@ fn get_any(inputs: &ResolvedInputs, idx: usize) -> NodeData {
 mod tests {
     use super::*;
     use vector_flow_core::compute::ResolvedInputs;
-    use vector_flow_core::types::{PathVerb, TimeContext};
+    use vector_flow_core::types::{PathVerb, EvalContext};
 
-    fn time_ctx() -> TimeContext {
-        TimeContext::default()
+    fn time_ctx() -> EvalContext {
+        EvalContext::default()
     }
 
     #[test]

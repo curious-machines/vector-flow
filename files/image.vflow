@@ -1,0 +1,279 @@
+{
+  "graph": {
+    "nodes": {
+      "5": {
+        "id": 5,
+        "name": "Scale",
+        "op": "Scale",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "factor",
+            "data_type": "Vec2",
+            "description": "Scale factor (x, y)",
+            "default_value": {
+              "Vec2": [
+                0.25,
+                0.25
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center of scaling",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          33.21875,
+          -305.375
+        ],
+        "generation": 6
+      },
+      "4": {
+        "id": 4,
+        "name": "Load Image",
+        "op": {
+          "LoadImage": {
+            "path": "lake-louise.jpg"
+          }
+        },
+        "inputs": [
+          {
+            "name": "position",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Display width (0 = native)",
+            "default_value": {
+              "Float": 1920.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Display height (0 = native)",
+            "default_value": {
+              "Float": 1080.0
+            },
+            "expression": null
+          },
+          {
+            "name": "opacity",
+            "data_type": "Scalar",
+            "description": "Image opacity (0..1)",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "image",
+            "data_type": "Image",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "native_width",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "native_height",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -114.9375,
+          -188.03125
+        ],
+        "generation": 15
+      },
+      "2": {
+        "id": 2,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          150.8125,
+          -106.21875
+        ],
+        "generation": 0
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 4,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 5,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      }
+    ],
+    "next_id": 6,
+    "generation": 329,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 4,
+          "display_name": "Load Image",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -226.18631,
+          "y": -145.94556
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 194.84448,
+          "y": -145.94556
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Scale",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -7.0492096,
+          "y": -146.41962
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      53.703125,
+      -100.0
+    ],
+    "graph_scale": 1.0603303,
+    "canvas_center": [
+      0.0,
+      0.0
+    ],
+    "canvas_zoom": 1.0
+  }
+}

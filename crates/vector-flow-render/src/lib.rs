@@ -6,8 +6,11 @@ pub mod renderer;
 pub mod overlay;
 
 pub use camera::{Camera, CameraUniform};
-pub use batch::{CollectedShape, DrawBatch, PreparedScene, collect_shapes, prepare_scene};
+pub use batch::{
+    CollectedImage, CollectedScene, CollectedShape, DrawBatch, ImageDrawBatch, PreparedScene,
+    collect_scene, collect_shapes, prepare_scene, prepare_scene_full,
+};
 pub use renderer::{CanvasRenderer, PrimitiveUniform};
 pub use overlay::{CanvasCallback, CanvasRenderResources, canvas_paint_callback};
-pub use vertex::CanvasVertex;
+pub use vertex::{CanvasVertex, ImageVertex};
 pub use error::RenderError;

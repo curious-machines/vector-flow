@@ -4,7 +4,7 @@ use glam::Affine2;
 
 use vector_flow_core::compute::{DslContext, NodeOutputs, ResolvedInputs};
 use vector_flow_core::error::ComputeError;
-use vector_flow_core::types::{DataType, NodeData, PathData, Shape, TimeContext};
+use vector_flow_core::types::{DataType, NodeData, PathData, Shape, EvalContext};
 
 use vector_flow_dsl::ast::DslType;
 use vector_flow_dsl::cache::DslFunctionCache;
@@ -192,7 +192,7 @@ pub fn dsl_code(
     inputs: &ResolvedInputs,
     compiler: &mut DslCompiler,
     cache: &DslFunctionCache,
-    time_ctx: &TimeContext,
+    time_ctx: &EvalContext,
     outputs: &mut NodeOutputs,
 ) -> Result<(), ComputeError> {
     if source.trim().is_empty() {

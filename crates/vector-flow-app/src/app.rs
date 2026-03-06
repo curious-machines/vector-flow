@@ -7,14 +7,14 @@ use egui_snarl::{NodeId as SnarlNodeId, Snarl};
 use glam::Vec2;
 
 use vector_flow_core::graph::Graph;
-use vector_flow_core::node::NodeOp;
+use vector_flow_core::node::{NodeOp, ParamValue};
 use vector_flow_core::scheduler::{EvalResult, Scheduler};
-use vector_flow_core::types::{NetworkBoxId, NodeId as CoreNodeId};
+use vector_flow_core::types::{NetworkBoxId, NodeData, NodeId as CoreNodeId};
 use vector_flow_compute::CpuBackend;
 use vector_flow_render::overlay::CanvasRenderResources;
 use vector_flow_render::renderer::CanvasRenderer;
 use vector_flow_render::camera::Camera;
-use vector_flow_render::{collect_shapes, prepare_scene, PreparedScene};
+use vector_flow_render::{collect_scene, prepare_scene_full, PreparedScene};
 
 use crate::canvas_panel::{self, CameraState};
 use crate::id_map::IdMap;
@@ -678,15 +678,25 @@ impl VectorFlowApp {
 
     fn needs_eval(&self) -> bool {
         let gen = self.graph.generation();
-        let frame = self.transport.time_ctx.frame;
+        let frame = self.transport.eval_ctx.frame;
         gen != self.last_eval_gen || frame != self.last_eval_frame
     }
 
     fn evaluate(&mut self) {
+        // Sync project directory for relative path resolution.
+        self.transport.eval_ctx.project_dir = self
+            .project_path
+            .as_ref()
+            .and_then(|p| p.parent())
+            .map(|d| d.to_string_lossy().into_owned())
+            .unwrap_or_default();
+
         // Clear cache so downstream nodes pick up upstream changes.
         self.scheduler.clear_cache();
-        match self.scheduler.evaluate(&mut self.graph, &self.transport.time_ctx) {
+        match self.scheduler.evaluate(&mut self.graph, &self.transport.eval_ctx) {
             Ok(result) => {
+                // Auto-populate LoadImage width/height from native dimensions.
+                self.auto_populate_image_dims(&result);
                 self.node_errors = result.errors.clone();
                 self.last_eval = Some(result);
             }
@@ -695,7 +705,50 @@ impl VectorFlowApp {
             }
         }
         self.last_eval_gen = self.graph.generation();
-        self.last_eval_frame = self.transport.time_ctx.frame;
+        self.last_eval_frame = self.transport.eval_ctx.frame;
+    }
+
+    /// After evaluation, auto-populate LoadImage width/height defaults from
+    /// native image dimensions when they are still at zero.
+    fn auto_populate_image_dims(&mut self, result: &EvalResult) {
+        // Collect updates first to avoid borrow conflict.
+        let updates: Vec<(CoreNodeId, f64, f64)> = self
+            .graph
+            .nodes()
+            .filter(|n| matches!(n.op, NodeOp::LoadImage { .. }))
+            .filter(|n| {
+                matches!(
+                    n.inputs.get(1).and_then(|p| p.default_value.as_ref()),
+                    Some(ParamValue::Float(v)) if *v == 0.0
+                ) && matches!(
+                    n.inputs.get(2).and_then(|p| p.default_value.as_ref()),
+                    Some(ParamValue::Float(v)) if *v == 0.0
+                )
+            })
+            .filter_map(|n| {
+                let outputs = result.outputs.get(&n.id)?;
+                let nw = match outputs.get(1) {
+                    Some(NodeData::Scalar(v)) if *v > 0.0 => *v,
+                    _ => return None,
+                };
+                let nh = match outputs.get(2) {
+                    Some(NodeData::Scalar(v)) if *v > 0.0 => *v,
+                    _ => return None,
+                };
+                Some((n.id, nw, nh))
+            })
+            .collect();
+
+        for (node_id, nw, nh) in updates {
+            if let Some(node) = self.graph.node_mut(node_id) {
+                if let Some(port) = node.inputs.get_mut(1) {
+                    port.default_value = Some(ParamValue::Float(nw));
+                }
+                if let Some(port) = node.inputs.get_mut(2) {
+                    port.default_value = Some(ParamValue::Float(nh));
+                }
+            }
+        }
     }
 
     /// Collect current view state (graph editor + canvas camera).
@@ -859,8 +912,8 @@ impl VectorFlowApp {
     fn update_scene(&mut self, selected_snarl_ids: &[SnarlNodeId]) {
         if let Some(ref eval) = self.last_eval {
             let visible = self.visible_node_set(selected_snarl_ids);
-            let shapes = collect_shapes(eval, visible.as_ref());
-            let scene = prepare_scene(&shapes, 0.5);
+            let collected = collect_scene(eval, visible.as_ref());
+            let scene = prepare_scene_full(&collected, 0.5);
             self.prepared_scene = Some(scene);
         } else {
             self.prepared_scene = None;

@@ -1,6 +1,121 @@
 {
   "graph": {
     "nodes": {
+      "4": {
+        "id": 4,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          284.125,
+          -495.5
+        ],
+        "generation": 0
+      },
+      "3": {
+        "id": 3,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.16287881,
+                0.04137877,
+                0.31079942,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          104.21875,
+          -652.53125
+        ],
+        "generation": 31
+      },
+      "1": {
+        "id": 1,
+        "name": "Point Grid",
+        "op": "PointGrid",
+        "inputs": [
+          {
+            "name": "columns",
+            "data_type": "Int",
+            "description": "Number of columns",
+            "default_value": {
+              "Int": 5
+            },
+            "expression": null
+          },
+          {
+            "name": "rows",
+            "data_type": "Int",
+            "description": "Number of rows",
+            "default_value": {
+              "Int": 5
+            },
+            "expression": null
+          },
+          {
+            "name": "spacing",
+            "data_type": "Scalar",
+            "description": "Distance between points",
+            "default_value": {
+              "Float": 40.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          1.875,
+          -650.96875
+        ],
+        "generation": 24
+      },
       "2": {
         "id": 2,
         "name": "Circle",
@@ -51,121 +166,6 @@
           -712.96875
         ],
         "generation": 1
-      },
-      "3": {
-        "id": 3,
-        "name": "Set Fill",
-        "op": "SetFill",
-        "inputs": [
-          {
-            "name": "shape",
-            "data_type": "Shape",
-            "description": "Input shape",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "color",
-            "data_type": "Color",
-            "description": "Fill color",
-            "default_value": {
-              "Color": [
-                0.16287881,
-                0.04137877,
-                0.31079942,
-                1.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "shape",
-            "data_type": "Shape",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          104.21875,
-          -652.53125
-        ],
-        "generation": 31
-      },
-      "4": {
-        "id": 4,
-        "name": "Output: output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any"
-          }
-        },
-        "inputs": [
-          {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [],
-        "position": [
-          284.125,
-          -495.5
-        ],
-        "generation": 0
-      },
-      "1": {
-        "id": 1,
-        "name": "Point Grid",
-        "op": "PointGrid",
-        "inputs": [
-          {
-            "name": "columns",
-            "data_type": "Int",
-            "description": "Number of columns",
-            "default_value": {
-              "Int": 5
-            },
-            "expression": null
-          },
-          {
-            "name": "rows",
-            "data_type": "Int",
-            "description": "Number of rows",
-            "default_value": {
-              "Int": 5
-            },
-            "expression": null
-          },
-          {
-            "name": "spacing",
-            "data_type": "Scalar",
-            "description": "Distance between points",
-            "default_value": {
-              "Float": 40.0
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "points",
-            "data_type": "Points",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          1.875,
-          -650.96875
-        ],
-        "generation": 24
       }
     },
     "edges": [
@@ -201,7 +201,9 @@
       }
     ],
     "next_id": 5,
-    "generation": 67
+    "generation": 67,
+    "network_boxes": {},
+    "next_box_id": 0
   },
   "snarl": {
     "nodes": {
@@ -269,7 +271,7 @@
             80,
             255
           ],
-          "pinned": false
+          "pinned": true
         },
         "pos": {
           "x": 284.12503,

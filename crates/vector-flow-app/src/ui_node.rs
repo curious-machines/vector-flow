@@ -92,6 +92,7 @@ pub fn data_type_color(dt: DataType) -> Color32 {
         DataType::Scalars => Color32::from_rgb(100, 180, 100),
         DataType::Colors => Color32::from_rgb(200, 60, 200),
         DataType::Ints => Color32::from_rgb(80, 180, 140),
+        DataType::Image => Color32::from_rgb(160, 120, 200),
         DataType::Any => Color32::from_rgb(180, 180, 180),
     }
 }
@@ -117,6 +118,12 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         entry!("Line", Generators, NodeDef::line),
         entry!("Point Grid", Generators, NodeDef::point_grid),
         entry!("Scatter Points", Generators, NodeDef::scatter_points),
+        CatalogEntry {
+            label: "Load Image",
+            category: Generators,
+            factory: |id| NodeDef::load_image(id, String::new()),
+            color: cat_color(Generators),
+        },
         // Transforms
         entry!("Translate", Transforms, NodeDef::translate),
         entry!("Rotate", Transforms, NodeDef::rotate),
@@ -225,6 +232,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::PortalReceive { .. } => "Portal Receive",
         NodeOp::Merge => "Merge",
         NodeOp::Duplicate => "Duplicate",
+        NodeOp::LoadImage { .. } => "Load Image",
         NodeOp::DslCode { .. } => "DSL Code",
         NodeOp::GraphInput { .. } => "Graph Input",
         NodeOp::GraphOutput { .. } => "Graph Output",
