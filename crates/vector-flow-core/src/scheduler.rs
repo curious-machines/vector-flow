@@ -45,6 +45,8 @@ impl EvalCache {
 /// Result of evaluating the entire graph.
 pub struct EvalResult {
     pub outputs: HashMap<NodeId, Vec<NodeData>>,
+    /// Non-fatal per-node errors (e.g. DSL compile errors).
+    pub errors: HashMap<NodeId, String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -124,13 +126,15 @@ impl Scheduler {
             ordered.extend(deferred);
 
             let mut local_outputs: HashMap<NodeId, Vec<NodeData>> = HashMap::new();
+            let mut local_errors: HashMap<NodeId, String> = HashMap::new();
             for node_id in ordered {
-                self.evaluate_one(graph, node_id, &mut local_outputs, &portal_map, time_ctx)?;
+                self.evaluate_one(graph, node_id, &mut local_outputs, &mut local_errors, &portal_map, time_ctx)?;
             }
-            Ok(EvalResult { outputs: local_outputs })
+            Ok(EvalResult { outputs: local_outputs, errors: local_errors })
         } else {
             // No portals — use parallel subgraph evaluation.
-            let subgraph_results: Vec<Result<HashMap<NodeId, Vec<NodeData>>, ComputeError>> =
+            type SubgraphResult = (HashMap<NodeId, Vec<NodeData>>, HashMap<NodeId, String>);
+            let subgraph_results: Vec<Result<SubgraphResult, ComputeError>> =
                 subgraphs
                     .par_iter()
                     .map(|subgraph_nodes| {
@@ -139,10 +143,13 @@ impl Scheduler {
                     .collect();
 
             let mut outputs = HashMap::new();
+            let mut errors = HashMap::new();
             for result in subgraph_results {
-                outputs.extend(result?);
+                let (o, e) = result?;
+                outputs.extend(o);
+                errors.extend(e);
             }
-            Ok(EvalResult { outputs })
+            Ok(EvalResult { outputs, errors })
         }
     }
 
@@ -163,7 +170,7 @@ impl Scheduler {
         subgraph_nodes: &[NodeId],
         topo_order: &[NodeId],
         time_ctx: &TimeContext,
-    ) -> Result<HashMap<NodeId, Vec<NodeData>>, ComputeError> {
+    ) -> Result<(HashMap<NodeId, Vec<NodeData>>, HashMap<NodeId, String>), ComputeError> {
         let subgraph_set: std::collections::HashSet<NodeId> =
             subgraph_nodes.iter().copied().collect();
 
@@ -175,10 +182,11 @@ impl Scheduler {
 
         let empty_portals = HashMap::new();
         let mut local_outputs: HashMap<NodeId, Vec<NodeData>> = HashMap::new();
+        let mut local_errors: HashMap<NodeId, String> = HashMap::new();
         for node_id in ordered {
-            self.evaluate_one(graph, node_id, &mut local_outputs, &empty_portals, time_ctx)?;
+            self.evaluate_one(graph, node_id, &mut local_outputs, &mut local_errors, &empty_portals, time_ctx)?;
         }
-        Ok(local_outputs)
+        Ok((local_outputs, local_errors))
     }
 
     /// Evaluate a single node, storing results in `local_outputs`.
@@ -187,6 +195,7 @@ impl Scheduler {
         graph: &Graph,
         node_id: NodeId,
         local_outputs: &mut HashMap<NodeId, Vec<NodeData>>,
+        node_errors: &mut HashMap<NodeId, String>,
         portal_map: &HashMap<String, NodeId>,
         time_ctx: &TimeContext,
     ) -> Result<(), ComputeError> {
@@ -228,6 +237,13 @@ impl Scheduler {
                 node: node_id,
                 reason: e.to_string(),
             })?;
+
+        // Collect non-fatal errors (e.g. DSL compile errors).
+        if let Some(err) = node_outputs.error {
+            node_errors.insert(node_id, err);
+        } else {
+            node_errors.remove(&node_id);
+        }
 
         // Collect outputs.
         // For sink nodes (no output ports, e.g. GraphOutput), store resolved

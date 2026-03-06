@@ -1,6 +1,6 @@
 use crate::span::Span;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum DslError {
     #[error("lex error at {line}:{col}: {message}")]
     LexError {

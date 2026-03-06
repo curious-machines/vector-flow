@@ -60,6 +60,9 @@ pub struct VectorFlowApp {
     /// Cached eval result from last graph evaluation.
     last_eval: Option<EvalResult>,
 
+    /// Per-node errors from last evaluation (e.g. DSL compile errors).
+    node_errors: HashMap<CoreNodeId, String>,
+
     /// Last graph generation we evaluated at.
     last_eval_gen: u64,
 
@@ -137,6 +140,7 @@ impl VectorFlowApp {
             transport: TransportState::default(),
             cam_state: CameraState::default(),
             last_eval: None,
+            node_errors: HashMap::new(),
             last_eval_gen: u64::MAX,
             last_eval_frame: u64::MAX,
             prepared_scene: None,
@@ -496,6 +500,7 @@ impl VectorFlowApp {
         self.scheduler.clear_cache();
         match self.scheduler.evaluate(&mut self.graph, &self.transport.time_ctx) {
             Ok(result) => {
+                self.node_errors = result.errors.clone();
                 self.last_eval = Some(result);
             }
             Err(e) => {
@@ -570,6 +575,7 @@ impl VectorFlowApp {
         self.snarl = Snarl::new();
         self.id_map = IdMap::new();
         self.last_eval = None;
+        self.node_errors.clear();
         self.last_eval_gen = u64::MAX;
         self.last_eval_frame = u64::MAX;
         self.prepared_scene = None;
@@ -744,6 +750,9 @@ impl eframe::App for VectorFlowApp {
         }
 
         // 0. Keyboard shortcuts.
+        // Skip non-modifier shortcuts (F, arrows) when a text widget has focus.
+        let text_editing = ctx.memory(|m| m.focused().is_some())
+            && ctx.input(|i| !i.modifiers.command && !i.modifiers.ctrl && !i.modifiers.alt);
         let (do_save, do_save_as, do_open, do_new, do_close_file, do_duplicate, do_fit_all, do_quit,
          do_align_left, do_align_right, do_align_top, do_align_bottom,
          do_dist_h, do_dist_v, nudge) = ctx.input_mut(|i| {
@@ -772,7 +781,8 @@ impl eframe::App for VectorFlowApp {
                 egui::Modifiers::COMMAND,
                 egui::Key::D,
             ));
-            let fit_all = i.consume_shortcut(&egui::KeyboardShortcut::new(
+            // Non-modifier shortcuts: only when no text widget has focus.
+            let fit_all = !text_editing && i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::NONE,
                 egui::Key::F,
             ));
@@ -780,28 +790,30 @@ impl eframe::App for VectorFlowApp {
                 egui::Modifiers::COMMAND,
                 egui::Key::Q,
             ));
-            // Arrow key nudge (Shift for 10x step).
-            let nudge_step = if i.modifiers.shift { 10.0 } else { 1.0 };
+            // Arrow key nudge — only when no text widget has focus.
             let mut nudge = egui::Vec2::ZERO;
-            if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowLeft))
-                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowLeft))
-            {
-                nudge.x = -nudge_step;
-            }
-            if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowRight))
-                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowRight))
-            {
-                nudge.x = nudge_step;
-            }
-            if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowUp))
-                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowUp))
-            {
-                nudge.y = -nudge_step;
-            }
-            if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowDown))
-                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowDown))
-            {
-                nudge.y = nudge_step;
+            if !text_editing {
+                let nudge_step = if i.modifiers.shift { 10.0 } else { 1.0 };
+                if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowLeft))
+                    || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowLeft))
+                {
+                    nudge.x = -nudge_step;
+                }
+                if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowRight))
+                    || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowRight))
+                {
+                    nudge.x = nudge_step;
+                }
+                if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowUp))
+                    || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowUp))
+                {
+                    nudge.y = -nudge_step;
+                }
+                if i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::ArrowDown))
+                    || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::SHIFT, egui::Key::ArrowDown))
+                {
+                    nudge.y = nudge_step;
+                }
             }
 
             (save, save_as, open, new, close_file, duplicate, fit_all, quit,
@@ -1042,7 +1054,7 @@ impl eframe::App for VectorFlowApp {
                     .collect();
 
                 props_changed =
-                    properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core);
+                    properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors);
 
                 // Sync portal display names after properties edit.
                 if props_changed {

@@ -16,12 +16,16 @@ pub struct ResolvedInputs {
 /// Output slots for a node evaluation. Each output port may or may not produce a value.
 pub struct NodeOutputs {
     pub data: Vec<Option<NodeData>>,
+    /// Non-fatal error message (e.g. DSL compile error). The node still produces
+    /// default outputs but the UI can display this to the user.
+    pub error: Option<String>,
 }
 
 impl NodeOutputs {
     pub fn new(port_count: usize) -> Self {
         Self {
             data: vec![None; port_count],
+            error: None,
         }
     }
 }

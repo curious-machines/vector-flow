@@ -428,7 +428,7 @@ mod tests {
             NodeId(1),
             vec![NodeData::Shape(Arc::new(test_shape()))],
         );
-        let result = EvalResult { outputs };
+        let result = EvalResult { outputs, errors: HashMap::new() };
 
         let shapes = collect_shapes(&result, None);
         assert_eq!(shapes.len(), 1);
@@ -446,7 +446,7 @@ mod tests {
             NodeId(2),
             vec![NodeData::Shape(Arc::new(test_shape()))],
         );
-        let result = EvalResult { outputs };
+        let result = EvalResult { outputs, errors: HashMap::new() };
 
         let mut visible = HashSet::new();
         visible.insert(NodeId(1));
@@ -463,7 +463,7 @@ mod tests {
             NodeId(1),
             vec![NodeData::Path(Arc::new(square_path()))],
         );
-        let result = EvalResult { outputs };
+        let result = EvalResult { outputs, errors: HashMap::new() };
 
         let shapes = collect_shapes(&result, None);
         assert_eq!(shapes.len(), 1);
