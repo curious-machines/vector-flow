@@ -13,6 +13,7 @@ This document describes every node type available in Vector Flow, organized by c
   - [Point Grid](#point-grid)
   - [Scatter Points](#scatter-points)
   - [Load Image](#load-image)
+  - [SVG Path](#svg-path)
 - [Transforms](#transforms)
   - [Translate](#translate)
   - [Rotate](#rotate)
@@ -271,6 +272,32 @@ Loads an image file from disk and outputs it as an Image.
 
 ```
 Example patch: Load Image ("logo.png", width: 200) -> Graph Output
+```
+
+---
+
+### SVG Path
+
+Creates a path from an SVG path data string (the `d` attribute of an SVG `<path>` element).
+
+**Inputs:** None
+
+**Outputs:**
+
+| Name | Type | Description      |
+|------|------|------------------|
+| path | Path | The parsed path  |
+
+**Properties:**
+
+| Name      | Description                                          |
+|-----------|------------------------------------------------------|
+| Path Data | Multiline text field for SVG path `d` attribute data |
+
+**Notes:** Supports the full set of SVG path commands: `M`/`m` (move to), `L`/`l` (line to), `H`/`h` (horizontal line), `V`/`v` (vertical line), `C`/`c` (cubic Bezier), `S`/`s` (smooth cubic), `Q`/`q` (quadratic Bezier), `T`/`t` (smooth quadratic), `A`/`a` (arc), and `Z`/`z` (close path). Both absolute (uppercase) and relative (lowercase) commands are supported. Implicit repeated coordinates are handled (e.g., multiple coordinate pairs after `L` create successive line segments). The path data must start with an `M` or `m` command. Validation errors are shown in red below the editor. Parsed paths are cached for performance.
+
+```
+Example: SVG Path ("M0,0 L100,0 L100,100 Z") -> Set Fill (red) -> Graph Output
 ```
 
 ---

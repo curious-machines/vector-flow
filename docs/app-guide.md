@@ -24,6 +24,7 @@ This document describes the Vector Flow desktop application from a user's perspe
   - [Standard Node Properties](#standard-node-properties)
   - [DSL Code Node Properties](#dsl-code-node-properties)
   - [Load Image Node Properties](#load-image-node-properties)
+  - [SVG Path Node Properties](#svg-path-node-properties)
   - [Color Parse Node Properties](#color-parse-node-properties)
   - [Portal Node Properties](#portal-node-properties)
   - [Network Box Properties](#network-box-properties)
@@ -126,7 +127,7 @@ The node editor is the main workspace for building your processing graph. Nodes 
 
 Right-click on the graph background to open the **Add Node** context menu. Nodes are organized into categories:
 
-- **Generators** — Circle, Rectangle, Regular Polygon, Line, Point Grid, Scatter Points, Load Image
+- **Generators** — Circle, Rectangle, Regular Polygon, Line, Point Grid, Scatter Points, Load Image, SVG Path
 - **Transforms** — Translate, Rotate, Scale, Apply Transform
 - **Path Ops** — Path Union, Path Intersect, Path Difference, Path Offset, Path Subdivide, Path Reverse, Resample Path
 - **Styling** — Set Fill, Set Stroke
@@ -252,6 +253,10 @@ In addition to standard parameters (position, width, height, opacity), shows:
 
 Width and height of 0 mean "use the native image dimensions". They auto-populate after the image first loads.
 
+### SVG Path Node Properties
+
+Shows a multiline text field labeled **Path Data (SVG d attribute)** where you can enter SVG path commands. The full SVG path command set is supported (`M`, `L`, `H`, `V`, `C`, `S`, `Q`, `T`, `A`, `Z` and their lowercase relative variants). If the path data is invalid, a validation error is shown in red below the editor.
+
 ### Color Parse Node Properties
 
 Shows a text field labeled **Color** where you can type:
@@ -326,7 +331,7 @@ Opens a dialog to render the canvas to a PNG file at any resolution.
 | Camera | **Current View** uses the same center and zoom as the canvas preview. **Fit to Content** automatically frames all content. |
 | Output | The destination file path. Click **Browse...** to choose a location. Default: `export.png`. |
 
-Click **Export** to render. A success or error message appears in the dialog. The export uses an independent offscreen renderer, so it does not interfere with the live canvas preview.
+Click **Export** to render. A success or error message appears in the dialog. The export uses an independent offscreen renderer with 4x MSAA anti-aliasing for smooth edges, so exported images are higher quality than the live canvas preview.
 
 ### Export Canvas Video
 
@@ -350,7 +355,7 @@ Click **Export** to begin rendering. A progress bar shows the current frame out 
 
 **MP4 export** requires [ffmpeg](https://ffmpeg.org/) to be installed and available on your system PATH. If ffmpeg is not found, an error message is shown in the dialog.
 
-The export works by stepping through each frame in the range, evaluating the graph at that frame's time, and rendering the result. This means animation-driven content (using `frame`, `time`, etc.) will produce proper animated output.
+The export works by stepping through each frame in the range, evaluating the graph at that frame's time, and rendering the result with 4x MSAA anti-aliasing. This means animation-driven content (using `frame`, `time`, etc.) will produce proper animated output with smooth edges.
 
 ### Save Graph Screenshot
 
