@@ -1,15 +1,25 @@
 use std::collections::HashMap;
 
 use egui::{Color32, Frame, Label, Pos2, Rect, RichText, Ui};
+use egui::layers::ShapeIdx;
 use egui_snarl::ui::{PinInfo, SnarlViewer};
 use egui_snarl::{InPin, InPinId, NodeId as SnarlNodeId, OutPin, OutPinId, Snarl};
 
 use vector_flow_core::graph::Graph;
 use vector_flow_core::node::{PortId, PortIndex};
-use vector_flow_core::types::NodeId as CoreNodeId;
+use vector_flow_core::types::{NetworkBoxId, NodeId as CoreNodeId};
 
 use crate::id_map::IdMap;
 use crate::ui_node::{data_type_color, node_op_label, CatalogEntry, NodeCategory, UiNode};
+
+/// Actions from context menus that need to be handled by the app after snarl.show().
+#[derive(Default)]
+pub struct ViewerActions {
+    pub create_box_from: Vec<SnarlNodeId>,
+    pub add_to_box: Option<(SnarlNodeId, NetworkBoxId)>,
+    pub remove_from_box: Option<SnarlNodeId>,
+    pub delete_box: Option<NetworkBoxId>,
+}
 
 /// Temporary per-frame viewer that borrows app state.
 pub struct GraphViewer<'a> {
@@ -18,6 +28,10 @@ pub struct GraphViewer<'a> {
     pub catalog: &'a [CatalogEntry],
     /// Populated during `snarl.show()` via `final_node_rect` callback.
     pub node_rects: &'a mut HashMap<SnarlNodeId, Rect>,
+    /// Actions to apply after snarl.show() completes.
+    pub actions: &'a mut ViewerActions,
+    /// Shape slots reserved during draw_background for network box rects (behind nodes).
+    pub box_shape_slots: &'a mut Vec<(NetworkBoxId, ShapeIdx, ShapeIdx)>,
 }
 
 impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
@@ -224,6 +238,15 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
         if let Some(ui_node) = snarl.get_node(node) {
             let c = ui_node.color;
             frame.fill = Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), 40);
+
+            // If node belongs to a network box, tint the border with the box's fill color.
+            if let Some(box_id) = self.graph.node_network_box(ui_node.core_id) {
+                if let Some(nb) = self.graph.network_box(box_id) {
+                    let bc = nb.fill_color;
+                    frame.stroke.color = Color32::from_rgba_unmultiplied(bc[0], bc[1], bc[2], 200);
+                    frame.stroke.width = 2.0;
+                }
+            }
         }
         frame
     }
@@ -238,6 +261,30 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
         _snarl: &mut Snarl<UiNode>,
     ) {
         self.node_rects.insert(node, graph_rect);
+    }
+
+    fn draw_background(
+        &mut self,
+        background: Option<&egui_snarl::ui::BackgroundPattern>,
+        viewport: &egui_snarl::ui::Viewport,
+        snarl_style: &egui_snarl::ui::SnarlStyle,
+        style: &egui::Style,
+        painter: &egui::Painter,
+        _snarl: &Snarl<UiNode>,
+    ) {
+        // Draw the default background pattern first.
+        if let Some(bg) = background {
+            bg.draw(viewport, snarl_style, style, painter);
+        }
+
+        // Reserve placeholder shapes for each network box.
+        // These slots are in paint order AFTER the background but BEFORE nodes.
+        self.box_shape_slots.clear();
+        for nb in self.graph.network_boxes() {
+            let rect_idx = painter.add(egui::epaint::Shape::Noop);
+            let text_idx = painter.add(egui::epaint::Shape::Noop);
+            self.box_shape_slots.push((nb.id, rect_idx, text_idx));
+        }
     }
 
     fn has_graph_menu(&mut self, _pos: Pos2, _snarl: &mut Snarl<UiNode>) -> bool {
@@ -278,6 +325,22 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
                 }
             });
         }
+
+        // Network box deletion: check if right-click is on a box title bar.
+        let boxes: Vec<_> = self.graph.network_boxes()
+            .map(|nb| (nb.id, nb.title.clone()))
+            .collect();
+        if !boxes.is_empty() {
+            ui.separator();
+            ui.menu_button("Delete Network Box", |ui| {
+                for (box_id, title) in &boxes {
+                    if ui.button(title.as_str()).clicked() {
+                        self.actions.delete_box = Some(*box_id);
+                        ui.close_menu();
+                    }
+                }
+            });
+        }
     }
 
     fn has_node_menu(&mut self, _node: &UiNode) -> bool {
@@ -305,6 +368,43 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
             self.duplicate_nodes(&[node], snarl);
             ui.close_menu();
         }
+
+        ui.separator();
+
+        // "Create Network Box" — uses the current selection (handled in app).
+        if ui.button("Create Network Box").clicked() {
+            self.actions.create_box_from = vec![node];
+            ui.close_menu();
+        }
+
+        // Network box context menu items.
+        if let Some(ui_node) = snarl.get_node(node) {
+            let core_id = ui_node.core_id;
+            let in_box = self.graph.node_network_box(core_id);
+
+            // "Add to Network Box" submenu (only if boxes exist).
+            let boxes: Vec<_> = self.graph.network_boxes()
+                .map(|nb| (nb.id, nb.title.clone()))
+                .collect();
+            if !boxes.is_empty() {
+                ui.menu_button("Add to Network Box", |ui| {
+                    for (box_id, title) in &boxes {
+                        if ui.button(title.as_str()).clicked() {
+                            self.actions.add_to_box = Some((node, *box_id));
+                            ui.close_menu();
+                        }
+                    }
+                });
+            }
+
+            // "Remove from Network Box" (only if node is in one).
+            if in_box.is_some() && ui.button("Remove from Network Box").clicked() {
+                self.actions.remove_from_box = Some(node);
+                ui.close_menu();
+            }
+        }
+
+        ui.separator();
 
         if ui.button("Delete").clicked() {
             self.remove_node(node, snarl);

@@ -14,6 +14,9 @@ pub struct NodeId(pub u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EdgeId(pub u64);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NetworkBoxId(pub u64);
+
 // ---------------------------------------------------------------------------
 // Geometry primitives
 // ---------------------------------------------------------------------------

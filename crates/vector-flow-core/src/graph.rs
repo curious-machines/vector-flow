@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::GraphError;
 use crate::node::{NodeDef, PortId, PortIndex};
-use crate::types::NodeId;
+use crate::types::{NetworkBoxId, NodeId};
 
 // ---------------------------------------------------------------------------
 // Edge
@@ -17,6 +17,35 @@ pub struct Edge {
 }
 
 // ---------------------------------------------------------------------------
+// Network Box
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkBox {
+    pub id: NetworkBoxId,
+    pub title: String,
+    pub fill_color: [u8; 4],
+    pub stroke_color: [u8; 4],
+    pub stroke_width: f32,
+    pub padding: f32,
+    pub members: HashSet<NodeId>,
+}
+
+impl NetworkBox {
+    pub fn new(id: NetworkBoxId, title: String, members: HashSet<NodeId>) -> Self {
+        Self {
+            id,
+            title,
+            fill_color: [100, 140, 200, 60],
+            stroke_color: [100, 140, 200, 180],
+            stroke_width: 1.5,
+            padding: 25.0,
+            members,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Graph
 // ---------------------------------------------------------------------------
 
@@ -26,6 +55,11 @@ pub struct Graph {
     edges: Vec<Edge>,
     next_id: u64,
     generation: u64,
+
+    #[serde(default)]
+    network_boxes: HashMap<NetworkBoxId, NetworkBox>,
+    #[serde(default)]
+    next_box_id: u64,
 
     #[serde(skip)]
     adjacency_out: HashMap<NodeId, Vec<NodeId>>,
@@ -48,6 +82,8 @@ impl Graph {
             edges: Vec::new(),
             next_id: 1,
             generation: 0,
+            network_boxes: HashMap::new(),
+            next_box_id: 1,
             adjacency_out: HashMap::new(),
             adjacency_in: HashMap::new(),
             topo_cache: None,
@@ -110,6 +146,8 @@ impl Graph {
         for list in self.adjacency_in.values_mut() {
             list.retain(|n| *n != id);
         }
+        // Remove from any network box.
+        self.remove_node_from_any_box_internal(id);
         self.bump_generation();
         Ok(node)
     }
@@ -369,6 +407,87 @@ impl Graph {
         }
 
         groups.into_values().collect()
+    }
+
+    // -- Network Boxes --
+
+    pub fn network_boxes(&self) -> impl Iterator<Item = &NetworkBox> {
+        self.network_boxes.values()
+    }
+
+    pub fn network_box(&self, id: NetworkBoxId) -> Option<&NetworkBox> {
+        self.network_boxes.get(&id)
+    }
+
+    pub fn network_box_mut(&mut self, id: NetworkBoxId) -> Option<&mut NetworkBox> {
+        self.generation += 1;
+        self.network_boxes.get_mut(&id)
+    }
+
+    /// Create a new network box with the given members. Returns its ID.
+    pub fn add_network_box(&mut self, title: String, members: HashSet<NodeId>) -> NetworkBoxId {
+        let id = NetworkBoxId(self.next_box_id);
+        self.next_box_id += 1;
+
+        // Remove members from any existing box (single membership).
+        for &node_id in &members {
+            self.remove_node_from_any_box_internal(node_id);
+        }
+
+        self.network_boxes.insert(id, NetworkBox::new(id, title, members));
+        self.generation += 1;
+        id
+    }
+
+    /// Remove a network box. Does not delete its member nodes.
+    pub fn remove_network_box(&mut self, id: NetworkBoxId) -> Option<NetworkBox> {
+        let removed = self.network_boxes.remove(&id);
+        if removed.is_some() {
+            self.generation += 1;
+        }
+        removed
+    }
+
+    /// Add a node to a network box, removing it from any other box first.
+    pub fn add_node_to_box(&mut self, node_id: NodeId, box_id: NetworkBoxId) {
+        self.remove_node_from_any_box_internal(node_id);
+        if let Some(nb) = self.network_boxes.get_mut(&box_id) {
+            nb.members.insert(node_id);
+        }
+        self.generation += 1;
+    }
+
+    /// Remove a node from whichever network box it belongs to.
+    pub fn remove_node_from_any_box(&mut self, node_id: NodeId) {
+        let mut changed = false;
+        for nb in self.network_boxes.values_mut() {
+            if nb.members.remove(&node_id) {
+                changed = true;
+            }
+        }
+        if changed {
+            self.generation += 1;
+        }
+    }
+
+    /// Internal: remove without bumping generation (caller is responsible).
+    fn remove_node_from_any_box_internal(&mut self, node_id: NodeId) {
+        for nb in self.network_boxes.values_mut() {
+            nb.members.remove(&node_id);
+        }
+    }
+
+    /// Find which network box a node belongs to, if any.
+    pub fn node_network_box(&self, node_id: NodeId) -> Option<NetworkBoxId> {
+        self.network_boxes
+            .values()
+            .find(|nb| nb.members.contains(&node_id))
+            .map(|nb| nb.id)
+    }
+
+    /// Generate the next box title like "Box 1", "Box 2", etc.
+    pub fn next_box_title(&self) -> String {
+        format!("Box {}", self.next_box_id)
     }
 
     // -- Internal helpers --
@@ -698,5 +817,79 @@ mod tests {
         g.connect(from, to).unwrap();
         let edge = g.input_connection(to).unwrap();
         assert_eq!(edge.from, from);
+    }
+
+    // -- Network Box tests --
+
+    #[test]
+    fn create_network_box() {
+        let mut g = Graph::new();
+        let a = g.add_node(NodeDef::circle(NodeId(0)));
+        let b = g.add_node(NodeDef::rectangle(NodeId(0)));
+
+        let members: HashSet<NodeId> = [a, b].into_iter().collect();
+        let box_id = g.add_network_box("Test Box".into(), members);
+
+        let nb = g.network_box(box_id).unwrap();
+        assert_eq!(nb.title, "Test Box");
+        assert!(nb.members.contains(&a));
+        assert!(nb.members.contains(&b));
+    }
+
+    #[test]
+    fn single_membership() {
+        let mut g = Graph::new();
+        let a = g.add_node(NodeDef::circle(NodeId(0)));
+
+        let box1 = g.add_network_box("Box 1".into(), [a].into_iter().collect());
+        let box2 = g.add_network_box("Box 2".into(), [a].into_iter().collect());
+
+        // Node should only be in box2 now.
+        assert!(!g.network_box(box1).unwrap().members.contains(&a));
+        assert!(g.network_box(box2).unwrap().members.contains(&a));
+        assert_eq!(g.node_network_box(a), Some(box2));
+    }
+
+    #[test]
+    fn remove_node_cleans_box() {
+        let mut g = Graph::new();
+        let a = g.add_node(NodeDef::circle(NodeId(0)));
+        let b = g.add_node(NodeDef::rectangle(NodeId(0)));
+
+        let box_id = g.add_network_box("Box".into(), [a, b].into_iter().collect());
+        g.remove_node(a).unwrap();
+
+        let nb = g.network_box(box_id).unwrap();
+        assert!(!nb.members.contains(&a));
+        assert!(nb.members.contains(&b));
+    }
+
+    #[test]
+    fn delete_network_box() {
+        let mut g = Graph::new();
+        let a = g.add_node(NodeDef::circle(NodeId(0)));
+
+        let box_id = g.add_network_box("Box".into(), [a].into_iter().collect());
+        g.remove_network_box(box_id);
+
+        assert!(g.network_box(box_id).is_none());
+        assert!(g.node_network_box(a).is_none());
+        // Node still exists.
+        assert!(g.node(a).is_some());
+    }
+
+    #[test]
+    fn add_remove_node_from_box() {
+        let mut g = Graph::new();
+        let a = g.add_node(NodeDef::circle(NodeId(0)));
+        let b = g.add_node(NodeDef::rectangle(NodeId(0)));
+
+        let box_id = g.add_network_box("Box".into(), [a].into_iter().collect());
+
+        g.add_node_to_box(b, box_id);
+        assert!(g.network_box(box_id).unwrap().members.contains(&b));
+
+        g.remove_node_from_any_box(a);
+        assert!(!g.network_box(box_id).unwrap().members.contains(&a));
     }
 }

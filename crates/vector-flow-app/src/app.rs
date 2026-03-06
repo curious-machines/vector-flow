@@ -9,7 +9,7 @@ use glam::Vec2;
 use vector_flow_core::graph::Graph;
 use vector_flow_core::node::NodeOp;
 use vector_flow_core::scheduler::{EvalResult, Scheduler};
-use vector_flow_core::types::NodeId as CoreNodeId;
+use vector_flow_core::types::{NetworkBoxId, NodeId as CoreNodeId};
 use vector_flow_compute::CpuBackend;
 use vector_flow_render::overlay::CanvasRenderResources;
 use vector_flow_render::renderer::CanvasRenderer;
@@ -22,7 +22,7 @@ use crate::project::{self, ProjectFile, ViewState, WindowGeometry};
 use crate::properties_panel;
 use crate::transport_panel::{self, TransportState};
 use crate::ui_node::{node_catalog, CatalogEntry, UiNode};
-use crate::viewer::GraphViewer;
+use crate::viewer::{GraphViewer, ViewerActions};
 
 const NODE_EDITOR_ID: &str = "node_editor";
 
@@ -87,6 +87,13 @@ pub struct VectorFlowApp {
     /// Hash of node positions at last save/load, for layout dirty tracking.
     saved_node_pos_hash: u64,
 
+    /// Window position/size at last save/load, for dirty tracking.
+    saved_window_geom: Option<[f32; 4]>,
+
+    /// Frames remaining before re-snapshotting saved state after load.
+    /// Needed because viewport commands (window resize/move) apply asynchronously.
+    pending_snapshot_frames: u8,
+
     /// The egui UI Id for the node editor panel (needed to access snarl view state).
     node_editor_ui_id: egui::Id,
 
@@ -104,6 +111,9 @@ pub struct VectorFlowApp {
 
     /// Cached node rects (in graph coordinates) from the last frame's `snarl.show()`.
     node_rects: HashMap<SnarlNodeId, egui::Rect>,
+
+    /// Currently selected network box (if any). Cleared when nodes are selected.
+    selected_box: Option<NetworkBoxId>,
 }
 
 impl VectorFlowApp {
@@ -149,12 +159,15 @@ impl VectorFlowApp {
             saved_panel_widths: None,
             saved_view_state: None,
             saved_node_pos_hash,
+            saved_window_geom: None,
+            pending_snapshot_frames: 0,
             node_editor_ui_id: egui::Id::NULL,
             pending_view_restore: None,
             pending_canvas_restore: None,
             pending_action: None,
             close_confirmed: false,
             node_rects: HashMap::new(),
+            selected_box: None,
         }
     }
 
@@ -188,6 +201,16 @@ impl VectorFlowApp {
         // Check if node positions changed (layout drag).
         if Self::node_position_hash(&self.snarl) != self.saved_node_pos_hash {
             return true;
+        }
+        // Check if window position/size changed.
+        if let (Some(saved), Some(current)) =
+            (self.saved_window_geom, Self::current_window_rect(ctx))
+        {
+            for (s, c) in saved.iter().zip(current.iter()) {
+                if (c - s).abs() > 1.0 {
+                    return true;
+                }
+            }
         }
         // Check if view state changed (pan/zoom in either view).
         if let Some(ref saved_vs) = self.saved_view_state {
@@ -227,6 +250,14 @@ impl VectorFlowApp {
             )?.rect.width();
         }
         Some(widths)
+    }
+
+    /// Read current window position and size as [x, y, w, h].
+    fn current_window_rect(ctx: &egui::Context) -> Option<[f32; 4]> {
+        ctx.input(|i| {
+            let outer = i.viewport().outer_rect?;
+            Some([outer.min.x, outer.min.y, outer.width(), outer.height()])
+        })
     }
 
     /// Read current window geometry from the egui context.
@@ -489,6 +520,162 @@ impl VectorFlowApp {
         }
     }
 
+    // ── Network Box helpers ──────────────────────────────────────
+
+    /// Compute the bounding rect of a network box in graph coordinates.
+    fn network_box_rect(&self, nb: &vector_flow_core::graph::NetworkBox) -> Option<egui::Rect> {
+        let mut rects = Vec::new();
+        for &node_id in &nb.members {
+            if let Some(snarl_id) = self.id_map.core_to_snarl(node_id) {
+                if let Some(rect) = self.node_rects.get(&snarl_id) {
+                    rects.push(*rect);
+                }
+            }
+        }
+        if rects.is_empty() {
+            return None;
+        }
+        let mut combined = rects[0];
+        for r in &rects[1..] {
+            combined = combined.union(*r);
+        }
+        // Apply padding and space for title bar.
+        let title_height = 20.0;
+        Some(egui::Rect::from_min_max(
+            egui::pos2(combined.min.x - nb.padding, combined.min.y - nb.padding - title_height),
+            egui::pos2(combined.max.x + nb.padding, combined.max.y + nb.padding),
+        ))
+    }
+
+    fn show_network_box_properties(&mut self, ui: &mut egui::Ui, box_id: NetworkBoxId) -> bool {
+        let Some(nb) = self.graph.network_box(box_id) else {
+            ui.label("Box not found");
+            return false;
+        };
+
+        let mut title = nb.title.clone();
+        let mut fill = [
+            nb.fill_color[0] as f32 / 255.0,
+            nb.fill_color[1] as f32 / 255.0,
+            nb.fill_color[2] as f32 / 255.0,
+            nb.fill_color[3] as f32 / 255.0,
+        ];
+        let mut stroke = [
+            nb.stroke_color[0] as f32 / 255.0,
+            nb.stroke_color[1] as f32 / 255.0,
+            nb.stroke_color[2] as f32 / 255.0,
+            nb.stroke_color[3] as f32 / 255.0,
+        ];
+        let mut stroke_width = nb.stroke_width;
+
+        ui.heading("Network Box");
+        ui.separator();
+
+        let mut changed = false;
+
+        ui.horizontal(|ui| {
+            ui.label("Title");
+            if ui.text_edit_singleline(&mut title).changed() {
+                changed = true;
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Fill");
+            if ui.color_edit_button_rgba_unmultiplied(&mut fill).changed() {
+                changed = true;
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Stroke");
+            if ui.color_edit_button_rgba_unmultiplied(&mut stroke).changed() {
+                changed = true;
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Stroke Width");
+            if ui.add(egui::DragValue::new(&mut stroke_width).speed(0.1).range(0.0..=10.0)).changed() {
+                changed = true;
+            }
+        });
+
+        if changed {
+            if let Some(nb) = self.graph.network_box_mut(box_id) {
+                nb.title = title;
+                nb.fill_color = [
+                    (fill[0] * 255.0) as u8,
+                    (fill[1] * 255.0) as u8,
+                    (fill[2] * 255.0) as u8,
+                    (fill[3] * 255.0) as u8,
+                ];
+                nb.stroke_color = [
+                    (stroke[0] * 255.0) as u8,
+                    (stroke[1] * 255.0) as u8,
+                    (stroke[2] * 255.0) as u8,
+                    (stroke[3] * 255.0) as u8,
+                ];
+                nb.stroke_width = stroke_width;
+            }
+        }
+
+        changed
+    }
+
+    /// Compute the bounding rect of all nodes and network boxes in graph space.
+    fn graph_content_bounds(&self) -> Option<egui::Rect> {
+        let mut bounds: Option<egui::Rect> = None;
+
+        // Include all node rects.
+        for rect in self.node_rects.values() {
+            bounds = Some(match bounds {
+                Some(b) => b.union(*rect),
+                None => *rect,
+            });
+        }
+
+        // Include all network box rects (which extend beyond member nodes).
+        for nb in self.graph.network_boxes() {
+            if let Some(box_rect) = self.network_box_rect(nb) {
+                bounds = Some(match bounds {
+                    Some(b) => b.union(box_rect),
+                    None => box_rect,
+                });
+            }
+        }
+
+        bounds
+    }
+
+    /// Custom fit-all that accounts for network boxes.
+    fn fit_all(&self, ctx: &egui::Context, viewport: egui::Rect) {
+        let Some(bounds) = self.graph_content_bounds() else { return };
+        if bounds.is_negative() || bounds.area() == 0.0 {
+            return;
+        }
+
+        let margin = 40.0; // screen-space margin
+        let available = egui::vec2(
+            (viewport.width() - margin * 2.0).max(1.0),
+            (viewport.height() - margin * 2.0).max(1.0),
+        );
+
+        let scale_x = available.x / bounds.width();
+        let scale_y = available.y / bounds.height();
+        let scale = scale_x.min(scale_y).min(2.0); // cap at 2x zoom
+
+        let offset = egui::vec2(bounds.center().x, bounds.center().y);
+
+        Snarl::<UiNode>::set_view_state(
+            NODE_EDITOR_ID,
+            self.node_editor_ui_id,
+            ctx,
+            offset,
+            scale,
+        );
+    }
+
     fn needs_eval(&self) -> bool {
         let gen = self.graph.generation();
         let frame = self.transport.time_ctx.frame;
@@ -549,6 +736,7 @@ impl VectorFlowApp {
                     self.saved_panel_widths = Self::current_panel_widths(ctx);
                     self.saved_view_state = Some(self.current_view_state(ctx));
                     self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
+                    self.saved_window_geom = Self::current_window_rect(ctx);
                     self.save_window_geometry(ctx);
                 }
                 Err(e) => log::error!("Failed to save: {e}"),
@@ -583,6 +771,8 @@ impl VectorFlowApp {
         self.saved_gen = self.graph.generation();
         self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
         self.cam_state.do_reset = true;
+        self.selected_box = None;
+        self.saved_window_geom = None;
     }
 
     /// Request a new file, prompting for unsaved changes if dirty.
@@ -651,7 +841,11 @@ impl VectorFlowApp {
                 Self::restore_window_geometry(ctx, path);
                 self.saved_panel_widths = Self::current_panel_widths(ctx);
                 self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
+                self.saved_window_geom = Self::current_window_rect(ctx);
                 self.saved_view_state = pf.view_state.clone();
+
+                // Re-snapshot after viewport commands settle (async resize/move).
+                self.pending_snapshot_frames = 3;
 
                 // Restore view state (graph editor + canvas camera).
                 self.pending_view_restore = pf.view_state;
@@ -733,6 +927,18 @@ impl VectorFlowApp {
 
 impl eframe::App for VectorFlowApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // Re-snapshot saved state after load once viewport commands have settled.
+        if self.pending_snapshot_frames > 0 {
+            self.pending_snapshot_frames -= 1;
+            if self.pending_snapshot_frames == 0 {
+                self.saved_window_geom = Self::current_window_rect(ctx);
+                self.saved_panel_widths = Self::current_panel_widths(ctx);
+                self.saved_view_state = Some(self.current_view_state(ctx));
+                self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
+            }
+            ctx.request_repaint();
+        }
+
         // Update window title to reflect dirty state.
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(self.window_title(ctx)));
 
@@ -944,12 +1150,16 @@ impl eframe::App for VectorFlowApp {
         // 3. Left panel: node editor (fills full height).
         // Rendered first so snarl updates selection state before we query it.
         let mut snarl_viewport = egui::Rect::NOTHING;
+        let mut snarl_layer_id = egui::LayerId::background();
+        let mut viewer_actions = ViewerActions::default();
+        let mut box_shape_slots = Vec::new();
         egui::SidePanel::left("node_editor_panel")
             .default_width(ctx.screen_rect().width() * 0.55)
             .resizable(true)
             .show(ctx, |ui| {
                 self.node_editor_ui_id = ui.id();
                 snarl_viewport = ui.max_rect();
+                snarl_layer_id = ui.layer_id();
 
                 self.node_rects.clear();
                 let mut viewer = GraphViewer {
@@ -957,9 +1167,152 @@ impl eframe::App for VectorFlowApp {
                     id_map: &mut self.id_map,
                     catalog: &self.catalog,
                     node_rects: &mut self.node_rects,
+                    actions: &mut viewer_actions,
+                    box_shape_slots: &mut box_shape_slots,
                 };
                 self.snarl.show(&mut viewer, &self.snarl_style, NODE_EDITOR_ID, ui);
             });
+
+        // 3.1. Render network boxes behind nodes and handle interaction.
+        {
+            let (view_offset, view_scale) = Snarl::<UiNode>::get_view_state(
+                NODE_EDITOR_ID,
+                self.node_editor_ui_id,
+                ctx,
+            ).unwrap_or((egui::Vec2::ZERO, 1.0));
+
+            let viewport_center = snarl_viewport.center();
+            let to_screen = |p: egui::Pos2| -> egui::Pos2 {
+                egui::pos2(
+                    (p.x - view_offset.x) * view_scale + viewport_center.x,
+                    (p.y - view_offset.y) * view_scale + viewport_center.y,
+                )
+            };
+
+            // Collect box rendering data (avoid borrowing graph while interacting).
+            struct BoxRender {
+                id: NetworkBoxId,
+                screen_rect: egui::Rect,
+                fill: egui::Color32,
+                stroke: egui::Stroke,
+                title: String,
+                title_font_size: f32,
+                title_bar_height: f32,
+                rect_idx: egui::layers::ShapeIdx,
+                text_idx: egui::layers::ShapeIdx,
+            }
+            let mut box_renders = Vec::new();
+
+            for (box_id, rect_idx, text_idx) in &box_shape_slots {
+                let Some(nb) = self.graph.network_box(*box_id) else { continue };
+                let Some(box_rect) = self.network_box_rect(nb) else { continue };
+
+                let screen_rect = egui::Rect::from_min_max(
+                    to_screen(box_rect.min),
+                    to_screen(box_rect.max),
+                );
+                if screen_rect.intersect(snarl_viewport).is_negative() {
+                    continue;
+                }
+
+                let fill = nb.fill_color;
+                let stroke_c = nb.stroke_color;
+
+                box_renders.push(BoxRender {
+                    id: *box_id,
+                    screen_rect,
+                    fill: egui::Color32::from_rgba_unmultiplied(fill[0], fill[1], fill[2], fill[3]),
+                    stroke: egui::Stroke::new(nb.stroke_width, egui::Color32::from_rgba_unmultiplied(stroke_c[0], stroke_c[1], stroke_c[2], stroke_c[3])),
+                    title: nb.title.clone(),
+                    title_font_size: 14.0 * view_scale,
+                    title_bar_height: 22.0 * view_scale,
+                    rect_idx: *rect_idx,
+                    text_idx: *text_idx,
+                });
+            }
+
+            // Fill in the pre-reserved shape slots so boxes render behind nodes.
+            let painter = ctx.layer_painter(snarl_layer_id);
+            for br in &box_renders {
+                painter.set(
+                    br.rect_idx,
+                    egui::epaint::RectShape::new(
+                        br.screen_rect,
+                        egui::CornerRadius::same(4),
+                        br.fill,
+                        br.stroke,
+                        egui::StrokeKind::Outside,
+                    ),
+                );
+
+                let title_pos = egui::pos2(br.screen_rect.min.x + 6.0, br.screen_rect.min.y + 3.0);
+                // Fully opaque version of stroke color for the title text.
+                let c = br.stroke.color;
+                let title_color = egui::Color32::from_rgb(c.r(), c.g(), c.b());
+                let galley = ctx.fonts(|f| {
+                    f.layout_no_wrap(
+                        br.title.clone(),
+                        egui::FontId::proportional(br.title_font_size),
+                        title_color,
+                    )
+                });
+                painter.set(
+                    br.text_idx,
+                    egui::epaint::TextShape::new(title_pos, galley, title_color),
+                );
+            }
+
+            // Handle interaction via invisible Areas for each box title bar.
+            let mut box_to_delete = None;
+            for br in &box_renders {
+                let title_bar = egui::Rect::from_min_size(
+                    br.screen_rect.min,
+                    egui::vec2(br.screen_rect.width(), br.title_bar_height),
+                );
+                let resp = egui::Area::new(egui::Id::new(("netbox_area", br.id.0)))
+                    .fixed_pos(title_bar.min)
+                    .order(egui::Order::Middle)
+                    .interactable(true)
+                    .show(ctx, |ui| {
+                        ui.set_min_size(title_bar.size());
+                        let (_, resp) = ui.allocate_exact_size(title_bar.size(), egui::Sense::click_and_drag());
+                        resp
+                    }).inner;
+
+                if resp.clicked() {
+                    self.selected_box = Some(br.id);
+                }
+
+                if resp.dragged() {
+                    let delta = resp.drag_delta();
+                    let graph_delta = egui::vec2(delta.x / view_scale, delta.y / view_scale);
+                    if let Some(nb) = self.graph.network_box(br.id) {
+                        let member_ids: Vec<_> = nb.members.iter().copied().collect();
+                        for core_id in member_ids {
+                            if let Some(snarl_id) = self.id_map.core_to_snarl(core_id) {
+                                if let Some(info) = self.snarl.get_node_info_mut(snarl_id) {
+                                    info.pos += graph_delta;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                resp.context_menu(|ui: &mut egui::Ui| {
+                    if ui.button("Delete Network Box").clicked() {
+                        box_to_delete = Some(br.id);
+                        ui.close_menu();
+                    }
+                });
+            }
+
+            if let Some(bid) = box_to_delete {
+                self.graph.remove_network_box(bid);
+                if self.selected_box == Some(bid) {
+                    self.selected_box = None;
+                }
+            }
+        }
 
         // Apply pending view restore (graph editor offset/scale).
         if let Some(vs) = self.pending_view_restore.take() {
@@ -977,6 +1330,26 @@ impl eframe::App for VectorFlowApp {
             ));
         }
 
+        // 3a. Handle viewer actions (network box operations).
+        // Note: selected_snarl not yet available here, so create_box_from is
+        // handled after selection query below.
+        if let Some((snarl_id, box_id)) = viewer_actions.add_to_box {
+            if let Some(ui_node) = self.snarl.get_node(snarl_id) {
+                self.graph.add_node_to_box(ui_node.core_id, box_id);
+            }
+        }
+        if let Some(snarl_id) = viewer_actions.remove_from_box {
+            if let Some(ui_node) = self.snarl.get_node(snarl_id) {
+                self.graph.remove_node_from_any_box(ui_node.core_id);
+            }
+        }
+        if let Some(box_id) = viewer_actions.delete_box {
+            self.graph.remove_network_box(box_id);
+            if self.selected_box == Some(box_id) {
+                self.selected_box = None;
+            }
+        }
+
         // Overlay "Show All" button on the node editor panel.
         {
             let inset = canvas_panel::TOOLBAR_INSET * 2.0;
@@ -991,7 +1364,7 @@ impl eframe::App for VectorFlowApp {
                     }
                 });
             if fit_requested {
-                Snarl::<UiNode>::request_fit_all(NODE_EDITOR_ID, self.node_editor_ui_id, ctx);
+                self.fit_all(ctx, snarl_viewport);
             }
         }
 
@@ -1001,11 +1374,15 @@ impl eframe::App for VectorFlowApp {
 
         // 3b. Duplicate selected nodes on Ctrl+D.
         if do_duplicate && !selected_snarl.is_empty() {
+            let mut dup_actions = ViewerActions::default();
+            let mut dup_slots = Vec::new();
             let mut viewer = GraphViewer {
                 graph: &mut self.graph,
                 id_map: &mut self.id_map,
                 catalog: &self.catalog,
                 node_rects: &mut self.node_rects,
+                actions: &mut dup_actions,
+                box_shape_slots: &mut dup_slots,
             };
             let new_ids = viewer.duplicate_nodes(&selected_snarl, &mut self.snarl);
             // Select the new duplicates instead of the originals.
@@ -1029,13 +1406,37 @@ impl eframe::App for VectorFlowApp {
         if menu_dist_h || do_dist_h { self.distribute_nodes(&selected_snarl, true); }
         if menu_dist_v || do_dist_v { self.distribute_nodes(&selected_snarl, false); }
 
-        // 3d. Nudge selected nodes with arrow keys.
+        // 3d. Create Network Box from selection (deferred from viewer action).
+        if !viewer_actions.create_box_from.is_empty() {
+            // Use current selection if available, otherwise fall back to the right-clicked node.
+            let nodes_for_box = if selected_snarl.len() > 1 {
+                &selected_snarl
+            } else {
+                &viewer_actions.create_box_from
+            };
+            let members: HashSet<CoreNodeId> = nodes_for_box
+                .iter()
+                .filter_map(|sid| self.snarl.get_node(*sid).map(|n| n.core_id))
+                .collect();
+            if !members.is_empty() {
+                let title = self.graph.next_box_title();
+                let box_id = self.graph.add_network_box(title, members);
+                self.selected_box = Some(box_id);
+            }
+        }
+
+        // 3e. Nudge selected nodes with arrow keys.
         if nudge != egui::Vec2::ZERO && !selected_snarl.is_empty() {
             for &sid in &selected_snarl {
                 if let Some(info) = self.snarl.get_node_info_mut(sid) {
                     info.pos += nudge;
                 }
             }
+        }
+
+        // Clear box selection when nodes are selected.
+        if !selected_snarl.is_empty() {
+            self.selected_box = None;
         }
 
         // 4. Right panel: properties inspector.
@@ -1046,23 +1447,28 @@ impl eframe::App for VectorFlowApp {
                 ui.heading("Properties");
                 ui.separator();
 
-                let selected_core: Vec<CoreNodeId> = selected_snarl
-                    .iter()
-                    .filter_map(|sid| {
-                        self.snarl.get_node(*sid).map(|n| n.core_id)
-                    })
-                    .collect();
+                if let Some(box_id) = self.selected_box {
+                    // Show network box properties.
+                    props_changed = self.show_network_box_properties(ui, box_id);
+                } else {
+                    let selected_core: Vec<CoreNodeId> = selected_snarl
+                        .iter()
+                        .filter_map(|sid| {
+                            self.snarl.get_node(*sid).map(|n| n.core_id)
+                        })
+                        .collect();
 
-                props_changed =
-                    properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors);
+                    props_changed =
+                        properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors);
 
-                // Sync portal display names after properties edit.
-                if props_changed {
-                    for &sid in &selected_snarl {
-                        if let Some(ui_node) = self.snarl.get_node_mut(sid) {
-                            if let Some(core_node) = self.graph.node(ui_node.core_id) {
-                                if matches!(core_node.op, NodeOp::PortalSend { .. } | NodeOp::PortalReceive { .. }) {
-                                    ui_node.display_name = core_node.name.clone();
+                    // Sync portal display names after properties edit.
+                    if props_changed {
+                        for &sid in &selected_snarl {
+                            if let Some(ui_node) = self.snarl.get_node_mut(sid) {
+                                if let Some(core_node) = self.graph.node(ui_node.core_id) {
+                                    if matches!(core_node.op, NodeOp::PortalSend { .. } | NodeOp::PortalReceive { .. }) {
+                                        ui_node.display_name = core_node.name.clone();
+                                    }
                                 }
                             }
                         }
