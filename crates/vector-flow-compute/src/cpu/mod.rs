@@ -20,7 +20,8 @@ use vector_flow_core::compute::{
 use vector_flow_core::error::ComputeError;
 use vector_flow_core::node::NodeOp;
 use vector_flow_core::types::{
-    Color, ImageData, ImageInstance, NodeData, PathData, PointBatch, Shape, EvalContext,
+    Color, ImageData, ImageInstance, LineCap, LineJoin, NodeData, PathData, PointBatch, Shape,
+    StrokeStyle, EvalContext,
 };
 
 use vector_flow_dsl::cache::DslFunctionCache;
@@ -227,11 +228,32 @@ impl ComputeBackend for CpuBackend {
                 let color = get_color(inputs, 1);
                 styling::set_fill(&shape, color)
             }
-            NodeOp::SetStroke => {
+            NodeOp::SetStroke { ref dash_pattern } => {
                 let shape = get_any(inputs, 0);
                 let color = get_color(inputs, 1);
                 let width = get_scalar(inputs, 2);
-                styling::set_stroke(&shape, color, width)
+                let cap = int_to_line_cap(get_int(inputs, 3));
+                let join = int_to_line_join(get_int(inputs, 4), get_scalar(inputs, 5) as f32);
+                let dash_offset = get_scalar(inputs, 6) as f32;
+                let dash_array = parse_dash_pattern(dash_pattern);
+                styling::set_stroke(&shape, color, width, cap, join, dash_array, dash_offset)
+            }
+            NodeOp::StrokeToPath { ref dash_pattern } => {
+                let shape = get_any(inputs, 0);
+                let width = get_scalar(inputs, 1) as f32;
+                let cap = int_to_line_cap(get_int(inputs, 2));
+                let join = int_to_line_join(get_int(inputs, 3), get_scalar(inputs, 4) as f32);
+                let dash_offset = get_scalar(inputs, 5) as f32;
+                let dash_array = parse_dash_pattern(dash_pattern);
+                let stroke = StrokeStyle {
+                    color: Color::BLACK,
+                    width,
+                    line_cap: cap,
+                    line_join: join,
+                    dash_array,
+                    dash_offset,
+                };
+                styling::stroke_to_path(&shape, &stroke)
             }
 
             // ── Color operations ───────────────────────────────────────
@@ -313,9 +335,7 @@ impl ComputeBackend for CpuBackend {
 
             // ── Utility ─────────────────────────────────────────────
             NodeOp::Merge => {
-                let a = get_any(inputs, 0);
-                let b = get_any(inputs, 1);
-                utility::merge(&a, &b)
+                utility::merge_n(inputs)
             }
             NodeOp::Duplicate => {
                 let geometry = get_any(inputs, 0);
@@ -545,6 +565,33 @@ fn get_any(inputs: &ResolvedInputs, idx: usize) -> NodeData {
         .unwrap_or(NodeData::Scalar(0.0))
 }
 
+fn int_to_line_cap(v: i64) -> LineCap {
+    match v {
+        1 => LineCap::Round,
+        2 => LineCap::Square,
+        _ => LineCap::Butt,
+    }
+}
+
+fn int_to_line_join(v: i64, miter_limit: f32) -> LineJoin {
+    match v {
+        1 => LineJoin::Round,
+        2 => LineJoin::Bevel,
+        _ => LineJoin::Miter(miter_limit),
+    }
+}
+
+fn parse_dash_pattern(s: &str) -> Vec<f32> {
+    if s.trim().is_empty() {
+        return vec![];
+    }
+    s.split(|c: char| c == ',' || c == ' ')
+        .filter(|s| !s.is_empty())
+        .filter_map(|s| s.trim().parse::<f32>().ok())
+        .filter(|v| *v > 0.0)
+        .collect()
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -731,5 +778,28 @@ mod tests {
         } else {
             panic!("expected Path");
         }
+    }
+
+    #[test]
+    fn parse_dash_pattern_tests() {
+        assert_eq!(parse_dash_pattern(""), Vec::<f32>::new());
+        assert_eq!(parse_dash_pattern("10,5"), vec![10.0, 5.0]);
+        assert_eq!(parse_dash_pattern("10 5 3 5"), vec![10.0, 5.0, 3.0, 5.0]);
+        assert_eq!(parse_dash_pattern("10, 5, 3"), vec![10.0, 5.0, 3.0]);
+        assert_eq!(parse_dash_pattern("abc"), Vec::<f32>::new());
+        // Negative values filtered out
+        assert_eq!(parse_dash_pattern("10,-5,3"), vec![10.0, 3.0]);
+    }
+
+    #[test]
+    fn int_to_cap_join_conversion() {
+        assert_eq!(int_to_line_cap(0), LineCap::Butt);
+        assert_eq!(int_to_line_cap(1), LineCap::Round);
+        assert_eq!(int_to_line_cap(2), LineCap::Square);
+        assert_eq!(int_to_line_cap(99), LineCap::Butt); // fallback
+
+        assert_eq!(int_to_line_join(0, 4.0), LineJoin::Miter(4.0));
+        assert_eq!(int_to_line_join(1, 4.0), LineJoin::Round);
+        assert_eq!(int_to_line_join(2, 4.0), LineJoin::Bevel);
     }
 }

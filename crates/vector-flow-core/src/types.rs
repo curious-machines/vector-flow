@@ -57,12 +57,14 @@ pub enum LineJoin {
     Bevel,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StrokeStyle {
     pub color: Color,
     pub width: f32,
     pub line_cap: LineCap,
     pub line_join: LineJoin,
+    pub dash_array: Vec<f32>,
+    pub dash_offset: f32,
 }
 
 // ---------------------------------------------------------------------------

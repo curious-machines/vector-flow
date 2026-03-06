@@ -63,7 +63,7 @@ pub fn apply_transform(data: &NodeData, xform: &Affine2) -> NodeData {
             let new_shape = Shape {
                 path: shape.path.clone(),
                 fill: shape.fill,
-                stroke: shape.stroke,
+                stroke: shape.stroke.clone(),
                 transform: *xform * shape.transform,
             };
             NodeData::Shape(Arc::new(new_shape))
@@ -81,7 +81,7 @@ pub fn apply_transform(data: &NodeData, xform: &Affine2) -> NodeData {
                 .map(|s| Shape {
                     path: s.path.clone(),
                     fill: s.fill,
-                    stroke: s.stroke,
+                    stroke: s.stroke.clone(),
                     transform: *xform * s.transform,
                 })
                 .collect();

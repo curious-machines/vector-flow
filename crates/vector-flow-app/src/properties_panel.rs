@@ -87,6 +87,14 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get dash pattern if this is a SetStroke or StrokeToPath node.
+    let dash_pattern = match &node.op {
+        NodeOp::SetStroke { dash_pattern } | NodeOp::StrokeToPath { dash_pattern } => {
+            Some(dash_pattern.clone())
+        }
+        _ => None,
+    };
+
     ui.heading(label);
     ui.separator();
 
@@ -198,6 +206,33 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             if let Some(node) = graph.node_mut(core_id) {
                 if let NodeOp::SvgPath { data } = &mut node.op {
                     *data = svg_data;
+                }
+                node.touch();
+                changed = true;
+            }
+        }
+        ui.separator();
+    }
+
+    // Dash pattern editor (for SetStroke and StrokeToPath).
+    if let Some(mut dpat) = dash_pattern {
+        let mut pat_changed = false;
+        ui.horizontal(|ui| {
+            ui.label("Dash Pattern");
+            if ui
+                .text_edit_singleline(&mut dpat)
+                .on_hover_text("Comma-separated dash/gap lengths, e.g. \"10,5\" or \"10,5,3,5\"")
+                .changed()
+            {
+                pat_changed = true;
+            }
+        });
+        if pat_changed {
+            if let Some(node) = graph.node_mut(core_id) {
+                match &mut node.op {
+                    NodeOp::SetStroke { dash_pattern } => *dash_pattern = dpat,
+                    NodeOp::StrokeToPath { dash_pattern } => *dash_pattern = dpat,
+                    _ => {}
                 }
                 node.touch();
                 changed = true;

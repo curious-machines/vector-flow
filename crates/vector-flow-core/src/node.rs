@@ -92,7 +92,8 @@ pub enum NodeOp {
     ResamplePath,
     // Styling
     SetFill,
-    SetStroke,
+    SetStroke { dash_pattern: String },
+    StrokeToPath { dash_pattern: String },
     // Color operations
     AdjustHue,
     AdjustSaturation,
@@ -164,7 +165,7 @@ impl NodeDef {
 
     /// Whether this node supports a variable number of inputs.
     pub fn is_variadic(&self) -> bool {
-        matches!(self.op, NodeOp::PathUnion)
+        matches!(self.op, NodeOp::PathUnion | NodeOp::Merge)
     }
 
     /// Add another variadic input port. Returns the new port index.
@@ -174,8 +175,12 @@ impl NodeDef {
         }
         let idx = self.inputs.len();
         let name = variadic_port_name(idx);
+        let desc = match self.op {
+            NodeOp::Merge => "Input",
+            _ => "Path input",
+        };
         let port = PortDef::new(name, DataType::Any)
-            .with_description("Path input");
+            .with_description(desc);
         self.inputs.push(port);
         self.touch();
         Some(idx)
@@ -424,7 +429,7 @@ impl NodeDef {
         Self {
             id,
             name: "Set Stroke".into(),
-            op: NodeOp::SetStroke,
+            op: NodeOp::SetStroke { dash_pattern: String::new() },
             inputs: vec![
                 PortDef::new("shape", DataType::Shape).with_description("Input shape"),
                 PortDef::new("color", DataType::Color)
@@ -433,8 +438,49 @@ impl NodeDef {
                 PortDef::new("width", DataType::Scalar)
                     .with_default(ParamValue::Float(2.0))
                     .with_description("Stroke width"),
+                PortDef::new("cap", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("End cap: 0=Butt, 1=Round, 2=Square"),
+                PortDef::new("join", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Line join: 0=Miter, 1=Round, 2=Bevel"),
+                PortDef::new("miter_limit", DataType::Scalar)
+                    .with_default(ParamValue::Float(4.0))
+                    .with_description("Miter limit (only for Miter join)"),
+                PortDef::new("dash_offset", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Dash pattern offset"),
             ],
             outputs: vec![PortDef::new("shape", DataType::Shape)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn stroke_to_path(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Stroke to Path".into(),
+            op: NodeOp::StrokeToPath { dash_pattern: String::new() },
+            inputs: vec![
+                PortDef::new("shape", DataType::Any).with_description("Input shape or path"),
+                PortDef::new("width", DataType::Scalar)
+                    .with_default(ParamValue::Float(2.0))
+                    .with_description("Stroke width"),
+                PortDef::new("cap", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("End cap: 0=Butt, 1=Round, 2=Square"),
+                PortDef::new("join", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Line join: 0=Miter, 1=Round, 2=Bevel"),
+                PortDef::new("miter_limit", DataType::Scalar)
+                    .with_default(ParamValue::Float(4.0))
+                    .with_description("Miter limit (only for Miter join)"),
+                PortDef::new("dash_offset", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Dash pattern offset"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
         }

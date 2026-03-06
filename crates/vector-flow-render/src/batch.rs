@@ -331,22 +331,7 @@ fn tessellate_fill(
     push_batch(geometry, transform, linear_to_srgb(tint), buf);
 }
 
-fn tessellate_stroke(
-    path: &PathData,
-    stroke: &StrokeStyle,
-    tolerance: f32,
-    transform: Mat4,
-    tint: [f32; 4],
-    buf: &mut SceneBuffers,
-) {
-    if path.verbs.is_empty() || stroke.width <= 0.0 {
-        return;
-    }
-
-    let lyon_path = build_lyon_path(path);
-    let mut geometry: VertexBuffers<CanvasVertex, u32> = VertexBuffers::new();
-    let mut tessellator = StrokeTessellator::new();
-
+fn make_stroke_options(stroke: &StrokeStyle, tolerance: f32) -> StrokeOptions {
     let mut options = StrokeOptions::tolerance(tolerance).with_line_width(stroke.width);
     let cap = match stroke.line_cap {
         LineCap::Butt => lyon::tessellation::LineCap::Butt,
@@ -363,6 +348,49 @@ fn tessellate_stroke(
         LineJoin::Round => lyon::tessellation::LineJoin::Round,
         LineJoin::Bevel => lyon::tessellation::LineJoin::Bevel,
     };
+    options
+}
+
+fn tessellate_stroke(
+    path: &PathData,
+    stroke: &StrokeStyle,
+    tolerance: f32,
+    transform: Mat4,
+    tint: [f32; 4],
+    buf: &mut SceneBuffers,
+) {
+    if path.verbs.is_empty() || stroke.width <= 0.0 {
+        return;
+    }
+
+    // If dash pattern is set, split into dashed sub-paths.
+    if !stroke.dash_array.is_empty() {
+        let dashed = apply_dash_pattern(path, &stroke.dash_array, stroke.dash_offset, tolerance);
+        for sub_path in &dashed {
+            tessellate_stroke_simple(sub_path, stroke, tolerance, transform, tint, buf);
+        }
+        return;
+    }
+
+    tessellate_stroke_simple(path, stroke, tolerance, transform, tint, buf);
+}
+
+fn tessellate_stroke_simple(
+    path: &PathData,
+    stroke: &StrokeStyle,
+    tolerance: f32,
+    transform: Mat4,
+    tint: [f32; 4],
+    buf: &mut SceneBuffers,
+) {
+    if path.verbs.is_empty() {
+        return;
+    }
+
+    let lyon_path = build_lyon_path(path);
+    let mut geometry: VertexBuffers<CanvasVertex, u32> = VertexBuffers::new();
+    let mut tessellator = StrokeTessellator::new();
+    let options = make_stroke_options(stroke, tolerance);
 
     let vertex_color = linear_to_srgb([stroke.color.r, stroke.color.g, stroke.color.b, stroke.color.a]);
     let result = tessellator.tessellate_path(
@@ -382,6 +410,132 @@ fn tessellate_stroke(
     }
 
     push_batch(geometry, transform, linear_to_srgb(tint), buf);
+}
+
+/// Apply a dash pattern to a path, returning dashed sub-paths.
+fn apply_dash_pattern(
+    path: &PathData,
+    dash_array: &[f32],
+    dash_offset: f32,
+    tolerance: f32,
+) -> Vec<PathData> {
+    use lyon::path::iterator::PathIterator;
+    use vector_flow_core::types::Point;
+
+    let total_pattern: f32 = dash_array.iter().sum();
+    if total_pattern <= 0.0 {
+        return vec![path.clone()];
+    }
+
+    let lyon_path = build_lyon_path(path);
+
+    // Flatten to line segments.
+    let mut segments: Vec<(Point, Point)> = Vec::new();
+    let mut current = Point { x: 0.0, y: 0.0 };
+    for evt in lyon_path.iter().flattened(tolerance) {
+        use lyon::path::Event;
+        match evt {
+            Event::Begin { at } => {
+                current = Point { x: at.x, y: at.y };
+            }
+            Event::Line { to, .. } => {
+                let to_pt = Point { x: to.x, y: to.y };
+                segments.push((current, to_pt));
+                current = to_pt;
+            }
+            Event::End { .. } => {}
+            _ => {}
+        }
+    }
+
+    if segments.is_empty() {
+        return vec![path.clone()];
+    }
+
+    let mut offset = dash_offset % total_pattern;
+    if offset < 0.0 {
+        offset += total_pattern;
+    }
+
+    let mut dash_idx = 0usize;
+    let mut dash_remaining = dash_array[0];
+    let mut drawing = true;
+
+    // Consume offset.
+    let mut off = offset;
+    while off > 0.0 {
+        if off < dash_remaining {
+            dash_remaining -= off;
+            break;
+        }
+        off -= dash_remaining;
+        drawing = !drawing;
+        dash_idx = (dash_idx + 1) % dash_array.len();
+        dash_remaining = dash_array[dash_idx];
+    }
+
+    let mut result: Vec<PathData> = Vec::new();
+    let mut current_path = PathData::new();
+    let mut needs_move = true;
+
+    for (from, to) in &segments {
+        let dx = to.x - from.x;
+        let dy = to.y - from.y;
+        let seg_len = (dx * dx + dy * dy).sqrt();
+        if seg_len < 1e-6 {
+            continue;
+        }
+
+        let mut consumed = 0.0f32;
+        while consumed < seg_len - 1e-6 {
+            let remaining_seg = seg_len - consumed;
+            let advance = remaining_seg.min(dash_remaining);
+            let t_start = consumed / seg_len;
+            let t_end = (consumed + advance) / seg_len;
+            let start_pt = Point {
+                x: from.x + dx * t_start,
+                y: from.y + dy * t_start,
+            };
+            let end_pt = Point {
+                x: from.x + dx * t_end,
+                y: from.y + dy * t_end,
+            };
+
+            if drawing {
+                if needs_move {
+                    current_path.verbs.push(PathVerb::MoveTo(start_pt));
+                    needs_move = false;
+                }
+                current_path.verbs.push(PathVerb::LineTo(end_pt));
+            }
+
+            consumed += advance;
+            dash_remaining -= advance;
+
+            if dash_remaining < 1e-6 {
+                if drawing && !current_path.verbs.is_empty() {
+                    result.push(current_path);
+                    current_path = PathData::new();
+                    needs_move = true;
+                }
+                drawing = !drawing;
+                dash_idx = (dash_idx + 1) % dash_array.len();
+                dash_remaining = dash_array[dash_idx];
+                if drawing {
+                    needs_move = true;
+                }
+            }
+        }
+    }
+
+    if !current_path.verbs.is_empty() {
+        result.push(current_path);
+    }
+
+    if result.is_empty() {
+        result.push(PathData::new());
+    }
+    result
 }
 
 fn push_batch(
@@ -646,6 +800,8 @@ mod tests {
                     width: 2.0,
                     line_cap: LineCap::Butt,
                     line_join: LineJoin::Miter(4.0),
+                    dash_array: vec![],
+                    dash_offset: 0.0,
                 }),
                 transform: Affine2::IDENTITY,
             },

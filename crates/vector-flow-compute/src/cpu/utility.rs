@@ -69,6 +69,19 @@ pub fn merge(a: &NodeData, b: &NodeData) -> NodeData {
     }
 }
 
+/// Merge N inputs by folding pairwise with `merge`.
+pub fn merge_n(inputs: &ResolvedInputs) -> NodeData {
+    let mut iter = inputs.data.iter();
+    let Some(first) = iter.next() else {
+        return NodeData::Scalar(0.0);
+    };
+    let mut acc = first.clone();
+    for item in iter {
+        acc = merge(&acc, item);
+    }
+    acc
+}
+
 /// Duplicate geometry `count` times, applying `step_transform` cumulatively.
 pub fn duplicate(data: &NodeData, count: i64, step_transform: &Affine2) -> NodeData {
     let n = count.max(0) as usize;
@@ -94,7 +107,7 @@ pub fn duplicate(data: &NodeData, count: i64, step_transform: &Affine2) -> NodeD
                     let s = Shape {
                         path: base_shape.path.clone(),
                         fill: base_shape.fill,
-                        stroke: base_shape.stroke,
+                        stroke: base_shape.stroke.clone(),
                         transform: *xform * base_shape.transform,
                     };
                     *xform = *step_transform * *xform;
@@ -111,7 +124,7 @@ pub fn duplicate(data: &NodeData, count: i64, step_transform: &Affine2) -> NodeD
                     all.push(Shape {
                         path: s.path.clone(),
                         fill: s.fill,
-                        stroke: s.stroke,
+                        stroke: s.stroke.clone(),
                         transform: current_xform * s.transform,
                     });
                 }
