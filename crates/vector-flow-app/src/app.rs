@@ -1147,8 +1147,8 @@ impl VectorFlowApp {
         let viewport_center = self.graph_panel_rect.center();
         let to_screen = |p: egui::Pos2| -> egui::Pos2 {
             egui::pos2(
-                (p.x - view_offset.x) * view_scale + viewport_center.x,
-                (p.y - view_offset.y) * view_scale + viewport_center.y,
+                p.x * view_scale - view_offset.x + viewport_center.x,
+                p.y * view_scale - view_offset.y + viewport_center.y,
             )
         };
 
@@ -1625,13 +1625,19 @@ impl eframe::App for VectorFlowApp {
                     br.screen_rect.min,
                     egui::vec2(br.screen_rect.width(), br.title_bar_height),
                 );
+                // Clip title bar interaction to the graph panel so it can't
+                // overlap menus or other panels when zoomed/panned.
+                let clipped_title = title_bar.intersect(self.graph_panel_rect);
+                if !clipped_title.is_positive() {
+                    continue;
+                }
                 let area_resp = egui::Area::new(egui::Id::new(("netbox_area", br.id.0)))
-                    .fixed_pos(title_bar.min)
+                    .fixed_pos(clipped_title.min)
                     .order(egui::Order::Middle)
                     .interactable(false)
                     .show(ctx, |ui| {
-                        ui.set_min_size(title_bar.size());
-                        let (_, resp) = ui.allocate_exact_size(title_bar.size(), egui::Sense::click_and_drag());
+                        ui.set_min_size(clipped_title.size());
+                        let (_, resp) = ui.allocate_exact_size(clipped_title.size(), egui::Sense::click_and_drag());
                         resp
                     });
                 let resp = area_resp.inner;
