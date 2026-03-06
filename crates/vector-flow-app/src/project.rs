@@ -9,7 +9,7 @@ use crate::id_map::IdMap;
 use crate::ui_node::UiNode;
 
 // ---------------------------------------------------------------------------
-// Window geometry (stored as .vflow.meta sidecar)
+// Window geometry (stored inline in .vflow project file)
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,35 +38,6 @@ impl WindowGeometry {
         self.x = self.x.clamp(MARGIN - self.width, screen_w - MARGIN);
         self.y = self.y.clamp(0.0, screen_h - MARGIN);
     }
-}
-
-fn meta_path(project_path: &Path) -> PathBuf {
-    let mut p = project_path.to_owned();
-    let mut ext = p
-        .extension()
-        .unwrap_or_default()
-        .to_os_string();
-    ext.push(".meta");
-    p.set_extension(ext);
-    p
-}
-
-pub fn save_window_geometry(project_path: &Path, geom: &WindowGeometry) {
-    let path = meta_path(project_path);
-    match serde_json::to_string_pretty(geom) {
-        Ok(json) => {
-            if let Err(e) = std::fs::write(&path, json) {
-                log::warn!("Failed to save window geometry: {e}");
-            }
-        }
-        Err(e) => log::warn!("Failed to serialize window geometry: {e}"),
-    }
-}
-
-pub fn load_window_geometry(project_path: &Path) -> Option<WindowGeometry> {
-    let path = meta_path(project_path);
-    let json = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&json).ok()
 }
 
 /// Saved view state for graph editor and canvas camera.
@@ -110,6 +81,8 @@ pub struct ProjectFile {
     pub snarl: Snarl<UiNode>,
     #[serde(default)]
     pub view_state: Option<ViewState>,
+    #[serde(default)]
+    pub window_geometry: Option<WindowGeometry>,
 }
 
 impl ProjectFile {

@@ -304,18 +304,9 @@ impl VectorFlowApp {
         })
     }
 
-    /// Save window geometry to the sidecar file for the current project.
-    fn save_window_geometry(&self, ctx: &egui::Context) {
-        if let Some(ref path) = self.project_path {
-            if let Some(geom) = Self::current_window_geometry(ctx) {
-                project::save_window_geometry(path, &geom);
-            }
-        }
-    }
-
-    /// Restore window geometry from the sidecar file, clamped to screen.
-    fn restore_window_geometry(ctx: &egui::Context, project_path: &std::path::Path) {
-        if let Some(mut geom) = project::load_window_geometry(project_path) {
+    /// Restore window geometry, clamped to screen.
+    fn restore_window_geometry(ctx: &egui::Context, geom: Option<WindowGeometry>) {
+        if let Some(mut geom) = geom {
             // Clamp to whatever screen info we have.
             let screen_size = ctx.input(|i| i.viewport().monitor_size);
             if let Some(monitor) = screen_size {
@@ -802,6 +793,7 @@ impl VectorFlowApp {
                 graph: self.graph.clone(),
                 snarl: self.snarl.clone(),
                 view_state: Some(self.current_view_state(ctx)),
+                window_geometry: Self::current_window_geometry(ctx),
             };
             match pf.save(&path) {
                 Ok(()) => {
@@ -812,7 +804,6 @@ impl VectorFlowApp {
                     self.saved_view_state = Some(self.current_view_state(ctx));
                     self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
                     self.saved_window_geom = Self::current_window_rect(ctx);
-                    self.save_window_geometry(ctx);
                 }
                 Err(e) => log::error!("Failed to save: {e}"),
             }
@@ -910,7 +901,7 @@ impl VectorFlowApp {
                 self.prepared_scene = None;
                 self.project_path = Some(path.to_owned());
                 self.saved_gen = self.graph.generation();
-                Self::restore_window_geometry(ctx, path);
+                Self::restore_window_geometry(ctx, pf.window_geometry);
                 self.saved_panel_widths = Self::current_panel_widths(ctx);
                 self.saved_view_state = pf.view_state.clone();
                 self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);

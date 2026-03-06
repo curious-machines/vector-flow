@@ -275,5 +275,13 @@
       0.0
     ],
     "canvas_zoom": 1.0
+  },
+  "window_geometry": {
+    "x": 151.0,
+    "y": 459.0,
+    "width": 1576.5,
+    "height": 874.0,
+    "node_editor_width": 704.0,
+    "properties_width": 367.15625
   }
 }

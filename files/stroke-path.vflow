@@ -78,6 +78,124 @@
         ],
         "generation": 795
       },
+      "8": {
+        "id": 8,
+        "name": "Merge",
+        "op": "Merge",
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          177.07303,
+          -187.00496
+        ],
+        "generation": 1
+      },
+      "5": {
+        "id": 5,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          307.1875,
+          -23.90625
+        ],
+        "generation": 0
+      },
+      "1": {
+        "id": 1,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "segments",
+            "data_type": "Int",
+            "description": "Number of segments for approximation",
+            "default_value": {
+              "Int": 64
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -212.90625,
+          -120.4375
+        ],
+        "generation": 0
+      },
       "2": {
         "id": 2,
         "name": "Set Stroke",
@@ -294,124 +412,6 @@
           130.84375
         ],
         "generation": 397
-      },
-      "8": {
-        "id": 8,
-        "name": "Merge",
-        "op": "Merge",
-        "inputs": [
-          {
-            "name": "a",
-            "data_type": "Any",
-            "description": "First input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "b",
-            "data_type": "Any",
-            "description": "Second input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "c",
-            "data_type": "Any",
-            "description": "Input",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "merged",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          177.07303,
-          -187.00496
-        ],
-        "generation": 1
-      },
-      "1": {
-        "id": 1,
-        "name": "Circle",
-        "op": "Circle",
-        "inputs": [
-          {
-            "name": "radius",
-            "data_type": "Scalar",
-            "description": "Circle radius",
-            "default_value": {
-              "Float": 100.0
-            },
-            "expression": null
-          },
-          {
-            "name": "center",
-            "data_type": "Vec2",
-            "description": "Center position",
-            "default_value": {
-              "Vec2": [
-                0.0,
-                0.0
-              ]
-            },
-            "expression": null
-          },
-          {
-            "name": "segments",
-            "data_type": "Int",
-            "description": "Number of segments for approximation",
-            "default_value": {
-              "Int": 64
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "path",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -212.90625,
-          -120.4375
-        ],
-        "generation": 0
-      },
-      "5": {
-        "id": 5,
-        "name": "Output: output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any"
-          }
-        },
-        "inputs": [
-          {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [],
-        "position": [
-          307.1875,
-          -23.90625
-        ],
-        "generation": 0
       }
     },
     "edges": [
@@ -623,51 +623,11 @@
     "wires": [
       {
         "out_pin": {
-          "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 3,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 5,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 4,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 3,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 5,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
           "node": 0,
           "output": 0
         },
         "in_pin": {
           "node": 2,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 0,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 1,
           "input": 0
         }
       },
@@ -683,12 +643,52 @@
       },
       {
         "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
           "node": 1,
           "output": 0
         },
         "in_pin": {
           "node": 5,
           "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
         }
       }
     ]
@@ -704,5 +704,13 @@
       0.13714981
     ],
     "canvas_zoom": 3.2497973
+  },
+  "window_geometry": {
+    "x": 260.0,
+    "y": 247.0,
+    "width": 2119.0,
+    "height": 1022.0,
+    "node_editor_width": 987.0625,
+    "properties_width": 250.0
   }
 }
