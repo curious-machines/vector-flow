@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use glam::{Affine2, Vec2};
 
-use vector_flow_core::types::{ImageInstance, NodeData, PathData, PathVerb, Point, PointBatch, Shape};
+use vector_flow_core::types::{ImageInstance, NodeData, PathData, PathVerb, Point, PointBatch, Shape, TextInstance};
 
 /// Apply an Affine2 transform to a Point.
 fn transform_point(p: Point, xform: &Affine2) -> Point {
@@ -93,6 +93,22 @@ pub fn apply_transform(data: &NodeData, xform: &Affine2) -> NodeData {
                 transform: *xform * img.transform,
                 opacity: img.opacity,
             }))
+        }
+        NodeData::Text(txt) => {
+            NodeData::Text(Arc::new(TextInstance {
+                text: txt.text.clone(),
+                style: txt.style.clone(),
+                color: txt.color,
+                transform: *xform * txt.transform,
+                opacity: txt.opacity,
+                layout: Arc::clone(&txt.layout),
+            }))
+        }
+        NodeData::Mixed(items) => {
+            let transformed: Vec<NodeData> = items.iter()
+                .map(|item| apply_transform(item, xform))
+                .collect();
+            NodeData::Mixed(Arc::new(transformed))
         }
         other => other.clone(),
     }

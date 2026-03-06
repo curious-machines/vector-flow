@@ -15,6 +15,7 @@ use vector_flow_render::overlay::CanvasRenderResources;
 use vector_flow_render::renderer::CanvasRenderer;
 use vector_flow_render::camera::Camera;
 use vector_flow_render::{collect_scene, prepare_scene_full, PreparedScene};
+use vector_flow_render::batch::prepare_scene_full_with_text;
 
 use crate::canvas_panel::{self, CameraState};
 use crate::export::{self, ExportState, VideoExportConfig};
@@ -923,7 +924,12 @@ impl VectorFlowApp {
         if let Some(ref eval) = self.last_eval {
             let visible = self.visible_node_set(selected_snarl_ids);
             let collected = collect_scene(eval, visible.as_ref());
-            let scene = prepare_scene_full(&collected, 0.5);
+            let scene = prepare_scene_full_with_text(
+                &collected,
+                0.5,
+                self.cam_state.current_zoom,
+                1.0, // pixels_per_point applied at render time
+            );
             self.prepared_scene = Some(scene);
         } else {
             self.prepared_scene = None;

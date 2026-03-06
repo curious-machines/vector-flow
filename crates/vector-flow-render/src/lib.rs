@@ -5,10 +5,12 @@ pub mod batch;
 pub mod renderer;
 pub mod overlay;
 pub mod offscreen;
+pub mod text_raster;
 
 pub use camera::{Camera, CameraUniform};
 pub use batch::{
-    CollectedImage, CollectedScene, CollectedShape, DrawBatch, ImageDrawBatch, PreparedScene,
+    CollectedImage, CollectedScene, CollectedShape, CollectedText,
+    DrawBatch, ImageDrawBatch, PreparedScene,
     collect_scene, collect_shapes, prepare_scene, prepare_scene_full,
 };
 pub use renderer::{CanvasRenderer, PrimitiveUniform};

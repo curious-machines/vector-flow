@@ -60,12 +60,25 @@ fn build_lyon_path(path: &PathData) -> Path {
                 in_subpath = true;
             }
             PathVerb::LineTo(p) => {
-                builder.line_to(point(p.x, p.y));
+                if !in_subpath {
+                    builder.begin(point(p.x, p.y));
+                    in_subpath = true;
+                } else {
+                    builder.line_to(point(p.x, p.y));
+                }
             }
             PathVerb::QuadTo { ctrl, to } => {
+                if !in_subpath {
+                    builder.begin(point(ctrl.x, ctrl.y));
+                    in_subpath = true;
+                }
                 builder.quadratic_bezier_to(point(ctrl.x, ctrl.y), point(to.x, to.y));
             }
             PathVerb::CubicTo { ctrl1, ctrl2, to } => {
+                if !in_subpath {
+                    builder.begin(point(ctrl1.x, ctrl1.y));
+                    in_subpath = true;
+                }
                 builder.cubic_bezier_to(
                     point(ctrl1.x, ctrl1.y),
                     point(ctrl2.x, ctrl2.y),
@@ -73,8 +86,10 @@ fn build_lyon_path(path: &PathData) -> Path {
                 );
             }
             PathVerb::Close => {
-                builder.end(true);
-                in_subpath = false;
+                if in_subpath {
+                    builder.end(true);
+                    in_subpath = false;
+                }
             }
         }
     }

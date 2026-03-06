@@ -365,6 +365,19 @@ fn default_for_type(dt: crate::types::DataType) -> NodeData {
             transform: glam::Affine2::IDENTITY,
             opacity: 1.0,
         })),
+        DataType::Text => NodeData::Text(Arc::new(crate::types::TextInstance {
+            text: String::new(),
+            style: crate::types::TextStyle::default(),
+            color: crate::types::Color::WHITE,
+            transform: glam::Affine2::IDENTITY,
+            opacity: 1.0,
+            layout: Arc::new(crate::types::TextLayout {
+                glyphs: Vec::new(),
+                bounds: (0.0, 0.0),
+                font_data: Arc::new(Vec::new()),
+                font_index: 0,
+            }),
+        })),
     }
 }
 

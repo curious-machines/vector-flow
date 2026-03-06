@@ -126,6 +126,83 @@ pub struct ImageInstance {
 }
 
 // ---------------------------------------------------------------------------
+// Text types
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FontStyle {
+    Normal,
+    Italic,
+    Oblique,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TextAlignment {
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TextStyle {
+    pub font_family: String,
+    pub font_path: String,
+    pub font_size: f64,
+    pub font_weight: u16,
+    pub font_style: FontStyle,
+    pub letter_spacing: f64,
+    pub line_height: f64,
+    pub alignment: TextAlignment,
+    pub wrap: bool,
+    pub box_width: f64,
+    pub box_height: f64,
+}
+
+impl Default for TextStyle {
+    fn default() -> Self {
+        Self {
+            font_family: String::new(),
+            font_path: String::new(),
+            font_size: 24.0,
+            font_weight: 400,
+            font_style: FontStyle::Normal,
+            letter_spacing: 0.0,
+            line_height: 1.2,
+            alignment: TextAlignment::Left,
+            wrap: true,
+            box_width: 0.0,
+            box_height: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PositionedGlyph {
+    pub glyph_id: u16,
+    pub x: f32,
+    pub y: f32,
+    pub size: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct TextLayout {
+    pub glyphs: Vec<PositionedGlyph>,
+    pub bounds: (f32, f32),
+    pub font_data: Arc<Vec<u8>>,
+    pub font_index: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct TextInstance {
+    pub text: String,
+    pub style: TextStyle,
+    pub color: Color,
+    pub transform: Affine2,
+    pub opacity: f32,
+    pub layout: Arc<TextLayout>,
+}
+
+// ---------------------------------------------------------------------------
 // SoA Point Batch (SIMD-friendly)
 // ---------------------------------------------------------------------------
 
@@ -198,6 +275,9 @@ pub enum NodeData {
     Paths(Arc<Vec<PathData>>),
     Shapes(Arc<Vec<Shape>>),
     Image(Arc<ImageInstance>),
+    Text(Arc<TextInstance>),
+    /// Bundle of heterogeneous data items (produced by Merge with mixed types).
+    Mixed(Arc<Vec<NodeData>>),
 }
 
 impl NodeData {
@@ -218,6 +298,8 @@ impl NodeData {
             NodeData::Paths(_) => DataType::Paths,
             NodeData::Shapes(_) => DataType::Shapes,
             NodeData::Image(_) => DataType::Image,
+            NodeData::Text(_) => DataType::Text,
+            NodeData::Mixed(_) => DataType::Any,
         }
     }
 }
@@ -243,6 +325,7 @@ pub enum DataType {
     Colors,
     Ints,
     Image,
+    Text,
     Any,
 }
 

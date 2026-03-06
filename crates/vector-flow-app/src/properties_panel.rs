@@ -95,6 +95,14 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get Text node fields if applicable.
+    let text_info = match &node.op {
+        NodeOp::Text { text, font_family, font_path } => {
+            Some((text.clone(), font_family.clone(), font_path.clone()))
+        }
+        _ => None,
+    };
+
     ui.heading(label);
     ui.separator();
 
@@ -233,6 +241,78 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                     NodeOp::SetStroke { dash_pattern } => *dash_pattern = dpat,
                     NodeOp::StrokeToPath { dash_pattern } => *dash_pattern = dpat,
                     _ => {}
+                }
+                node.touch();
+                changed = true;
+            }
+        }
+        ui.separator();
+    }
+
+    // Text node editors.
+    if let Some((mut text_content, mut font_family, mut font_path)) = text_info {
+        let mut text_changed = false;
+        let mut family_changed = false;
+        let mut path_changed = false;
+
+        ui.label("Text");
+        if ui
+            .add(
+                egui::TextEdit::multiline(&mut text_content)
+                    .desired_width(f32::INFINITY)
+                    .desired_rows(3)
+                    .hint_text("Enter text..."),
+            )
+            .changed()
+        {
+            text_changed = true;
+        }
+
+        ui.horizontal(|ui| {
+            ui.label("Font Family");
+            if ui
+                .text_edit_singleline(&mut font_family)
+                .on_hover_text("System font name, e.g. \"Arial\", \"Noto Sans\" (empty = default)")
+                .changed()
+            {
+                family_changed = true;
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Font Path");
+            if ui.text_edit_singleline(&mut font_path).changed() {
+                path_changed = true;
+            }
+            if ui.button("\u{1F4C2}").on_hover_text("Browse...").clicked() {
+                if let Some(picked) = rfd::FileDialog::new()
+                    .add_filter("Fonts", &["ttf", "otf", "ttc", "otc"])
+                    .add_filter("All files", &["*"])
+                    .pick_file()
+                {
+                    font_path = picked.display().to_string();
+                    path_changed = true;
+                }
+            }
+        });
+
+        if text_changed || family_changed || path_changed {
+            if let Some(node) = graph.node_mut(core_id) {
+                if let NodeOp::Text {
+                    text: ref mut t,
+                    font_family: ref mut ff,
+                    font_path: ref mut fp,
+                } = node.op
+                {
+                    if text_changed {
+                        *t = text_content;
+                    }
+                    if family_changed {
+                        *ff = font_family;
+                    }
+                    if path_changed {
+                        *fp = font_path;
+                    }
                 }
                 node.touch();
                 changed = true;

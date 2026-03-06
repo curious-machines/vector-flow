@@ -12,6 +12,7 @@ use lyon::tessellation::{
 use vector_flow_core::scheduler::EvalResult;
 use vector_flow_core::types::{
     Color, ImageData, LineCap, LineJoin, NodeData, NodeId, PathData, PathVerb, Shape, StrokeStyle,
+    TextInstance,
 };
 
 use crate::vertex::{CanvasVertex, ImageVertex};
@@ -55,9 +56,15 @@ pub struct CollectedImage {
     pub dimmed: bool,
 }
 
+pub struct CollectedText {
+    pub text: Arc<TextInstance>,
+    pub dimmed: bool,
+}
+
 pub struct CollectedScene {
     pub shapes: Vec<CollectedShape>,
     pub images: Vec<CollectedImage>,
+    pub texts: Vec<CollectedText>,
 }
 
 /// Extract renderable shapes from an EvalResult.
@@ -71,6 +78,77 @@ pub fn collect_shapes(
     collect_scene(eval_result, visible_nodes).shapes
 }
 
+/// Collect a single NodeData item into the appropriate output lists.
+/// Recursively unwraps `Mixed` bundles.
+fn collect_node_data(
+    data: &NodeData,
+    dimmed: bool,
+    shapes: &mut Vec<CollectedShape>,
+    images: &mut Vec<CollectedImage>,
+    texts: &mut Vec<CollectedText>,
+) {
+    match data {
+        NodeData::Shape(s) => {
+            shapes.push(CollectedShape {
+                shape: (**s).clone(),
+                dimmed,
+            });
+        }
+        NodeData::Shapes(ss) => {
+            for s in ss.iter() {
+                shapes.push(CollectedShape {
+                    shape: s.clone(),
+                    dimmed,
+                });
+            }
+        }
+        NodeData::Path(p) => {
+            shapes.push(CollectedShape {
+                shape: Shape {
+                    path: (**p).clone(),
+                    fill: Some(Color::WHITE),
+                    stroke: None,
+                    transform: Affine2::IDENTITY,
+                },
+                dimmed,
+            });
+        }
+        NodeData::Paths(paths) => {
+            for p in paths.iter() {
+                shapes.push(CollectedShape {
+                    shape: Shape {
+                        path: p.clone(),
+                        fill: Some(Color::WHITE),
+                        stroke: None,
+                        transform: Affine2::IDENTITY,
+                    },
+                    dimmed,
+                });
+            }
+        }
+        NodeData::Image(img) => {
+            images.push(CollectedImage {
+                image: Arc::clone(&img.image),
+                transform: img.transform,
+                opacity: img.opacity,
+                dimmed,
+            });
+        }
+        NodeData::Text(txt) => {
+            texts.push(CollectedText {
+                text: Arc::clone(txt),
+                dimmed,
+            });
+        }
+        NodeData::Mixed(items) => {
+            for item in items.iter() {
+                collect_node_data(item, dimmed, shapes, images, texts);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Extract renderable shapes and images from an EvalResult.
 pub fn collect_scene(
     eval_result: &EvalResult,
@@ -78,6 +156,7 @@ pub fn collect_scene(
 ) -> CollectedScene {
     let mut shapes = Vec::new();
     let mut images = Vec::new();
+    let mut texts = Vec::new();
 
     for (&node_id, outputs) in &eval_result.outputs {
         if let Some(vis) = visible_nodes {
@@ -88,59 +167,11 @@ pub fn collect_scene(
         let dimmed = false;
 
         for data in outputs {
-            match data {
-                NodeData::Shape(s) => {
-                    shapes.push(CollectedShape {
-                        shape: (**s).clone(),
-                        dimmed,
-                    });
-                }
-                NodeData::Shapes(ss) => {
-                    for s in ss.iter() {
-                        shapes.push(CollectedShape {
-                            shape: s.clone(),
-                            dimmed,
-                        });
-                    }
-                }
-                NodeData::Path(p) => {
-                    shapes.push(CollectedShape {
-                        shape: Shape {
-                            path: (**p).clone(),
-                            fill: Some(Color::WHITE),
-                            stroke: None,
-                            transform: Affine2::IDENTITY,
-                        },
-                        dimmed,
-                    });
-                }
-                NodeData::Paths(paths) => {
-                    for p in paths.iter() {
-                        shapes.push(CollectedShape {
-                            shape: Shape {
-                                path: p.clone(),
-                                fill: Some(Color::WHITE),
-                                stroke: None,
-                                transform: Affine2::IDENTITY,
-                            },
-                            dimmed,
-                        });
-                    }
-                }
-                NodeData::Image(img) => {
-                    images.push(CollectedImage {
-                        image: Arc::clone(&img.image),
-                        transform: img.transform,
-                        opacity: img.opacity,
-                        dimmed,
-                    });
-                }
-                _ => {}
-            }
+            collect_node_data(data, dimmed, &mut shapes, &mut images, &mut texts);
         }
     }
 
-    CollectedScene { shapes, images }
+    CollectedScene { shapes, images, texts }
 }
 
 // ---------------------------------------------------------------------------
@@ -240,7 +271,24 @@ fn prepare_image_batches(images: &[CollectedImage]) -> Vec<ImageDrawBatch> {
         .collect()
 }
 
-/// Prepare a full scene from shapes and images.
+/// Prepare a full scene from shapes, images, and text.
+/// `zoom` and `pixels_per_point` are used for text rasterization quality.
+pub fn prepare_scene_full_with_text(
+    scene: &CollectedScene,
+    tolerance: f32,
+    zoom: f32,
+    pixels_per_point: f32,
+) -> PreparedScene {
+    let mut prepared = prepare_scene(&scene.shapes, tolerance);
+    prepared.image_batches = prepare_image_batches(&scene.images);
+    // Append text as image batches (rasterized at current zoom)
+    let text_batches =
+        crate::text_raster::prepare_text_batches(&scene.texts, zoom, pixels_per_point);
+    prepared.image_batches.extend(text_batches);
+    prepared
+}
+
+/// Prepare a full scene from shapes and images (no text rasterization).
 pub fn prepare_scene_full(scene: &CollectedScene, tolerance: f32) -> PreparedScene {
     let mut prepared = prepare_scene(&scene.shapes, tolerance);
     prepared.image_batches = prepare_image_batches(&scene.images);
@@ -627,12 +675,25 @@ fn build_lyon_path(path: &PathData) -> Path {
                 in_subpath = true;
             }
             PathVerb::LineTo(p) => {
-                builder.line_to(point(p.x, p.y));
+                if !in_subpath {
+                    builder.begin(point(p.x, p.y));
+                    in_subpath = true;
+                } else {
+                    builder.line_to(point(p.x, p.y));
+                }
             }
             PathVerb::QuadTo { ctrl, to } => {
+                if !in_subpath {
+                    builder.begin(point(ctrl.x, ctrl.y));
+                    in_subpath = true;
+                }
                 builder.quadratic_bezier_to(point(ctrl.x, ctrl.y), point(to.x, to.y));
             }
             PathVerb::CubicTo { ctrl1, ctrl2, to } => {
+                if !in_subpath {
+                    builder.begin(point(ctrl1.x, ctrl1.y));
+                    in_subpath = true;
+                }
                 builder.cubic_bezier_to(
                     point(ctrl1.x, ctrl1.y),
                     point(ctrl2.x, ctrl2.y),
@@ -640,8 +701,10 @@ fn build_lyon_path(path: &PathData) -> Path {
                 );
             }
             PathVerb::Close => {
-                builder.end(true);
-                in_subpath = false;
+                if in_subpath {
+                    builder.end(true);
+                    in_subpath = false;
+                }
             }
         }
     }

@@ -37,6 +37,7 @@ pub enum NodeCategory {
     PathOps,
     Styling,
     Color,
+    Text,
     Utility,
     GraphIO,
 }
@@ -49,6 +50,7 @@ impl NodeCategory {
             Self::PathOps => "Path Ops",
             Self::Styling => "Styling",
             Self::Color => "Color",
+            Self::Text => "Text",
             Self::Utility => "Utility",
             Self::GraphIO => "Graph I/O",
         }
@@ -70,6 +72,7 @@ fn cat_color(cat: NodeCategory) -> Color32 {
         NodeCategory::PathOps => Color32::from_rgb(200, 120, 60),
         NodeCategory::Styling => Color32::from_rgb(180, 80, 180),
         NodeCategory::Color => Color32::from_rgb(220, 100, 200),
+        NodeCategory::Text => Color32::from_rgb(100, 180, 220),
         NodeCategory::Utility => Color32::from_rgb(140, 140, 140),
         NodeCategory::GraphIO => Color32::from_rgb(200, 200, 80),
     }
@@ -93,6 +96,7 @@ pub fn data_type_color(dt: DataType) -> Color32 {
         DataType::Colors => Color32::from_rgb(200, 60, 200),
         DataType::Ints => Color32::from_rgb(80, 180, 140),
         DataType::Image => Color32::from_rgb(160, 120, 200),
+        DataType::Text => Color32::from_rgb(100, 180, 220),
         DataType::Any => Color32::from_rgb(180, 180, 180),
     }
 }
@@ -162,6 +166,14 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
             factory: |id| NodeDef::svg_path(id, String::new()),
             color: cat_color(Generators),
         },
+        // Text
+        CatalogEntry {
+            label: "Text",
+            category: Text,
+            factory: |id| NodeDef::text(id, "Hello World".into()),
+            color: cat_color(Text),
+        },
+        entry!("Text to Path", Text, NodeDef::text_to_path),
         // Constants
         entry!("Constant Scalar", Utility, NodeDef::const_scalar),
         entry!("Constant Int", Utility, NodeDef::const_int),
@@ -242,6 +254,8 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::Merge => "Merge",
         NodeOp::Duplicate => "Duplicate",
         NodeOp::LoadImage { .. } => "Load Image",
+        NodeOp::Text { .. } => "Text",
+        NodeOp::TextToPath => "Text to Path",
         NodeOp::DslCode { .. } => "DSL Code",
         NodeOp::GraphInput { .. } => "Graph Input",
         NodeOp::GraphOutput { .. } => "Graph Output",

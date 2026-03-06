@@ -147,18 +147,36 @@ pub fn stroke_to_path(data: &NodeData, stroke: &StrokeStyle) -> NodeData {
 
 fn build_lyon_path(path: &PathData) -> LyonPath {
     let mut builder = LyonPath::builder();
+    let mut in_subpath = false;
     for verb in &path.verbs {
         match *verb {
             PathVerb::MoveTo(p) => {
+                if in_subpath {
+                    builder.end(false);
+                }
                 builder.begin(point(p.x, p.y));
+                in_subpath = true;
             }
             PathVerb::LineTo(p) => {
-                builder.line_to(point(p.x, p.y));
+                if !in_subpath {
+                    builder.begin(point(p.x, p.y));
+                    in_subpath = true;
+                } else {
+                    builder.line_to(point(p.x, p.y));
+                }
             }
             PathVerb::QuadTo { ctrl, to } => {
+                if !in_subpath {
+                    builder.begin(point(ctrl.x, ctrl.y));
+                    in_subpath = true;
+                }
                 builder.quadratic_bezier_to(point(ctrl.x, ctrl.y), point(to.x, to.y));
             }
             PathVerb::CubicTo { ctrl1, ctrl2, to } => {
+                if !in_subpath {
+                    builder.begin(point(ctrl1.x, ctrl1.y));
+                    in_subpath = true;
+                }
                 builder.cubic_bezier_to(
                     point(ctrl1.x, ctrl1.y),
                     point(ctrl2.x, ctrl2.y),
@@ -166,11 +184,14 @@ fn build_lyon_path(path: &PathData) -> LyonPath {
                 );
             }
             PathVerb::Close => {
-                builder.close();
+                if in_subpath {
+                    builder.close();
+                    in_subpath = false;
+                }
             }
         }
     }
-    if !path.verbs.is_empty() && !matches!(path.verbs.last(), Some(PathVerb::Close)) {
+    if in_subpath {
         builder.end(false);
     }
     builder.build()

@@ -12,9 +12,23 @@ use vector_flow_dsl::codegen::{DslCompiler, ExprFnPtr};
 
 use super::transforms;
 
-/// Merge two geometry inputs into one. Handles combinations of Path, Paths,
-/// Shape, and Shapes by collecting into the appropriate batch type.
-pub fn merge(a: &NodeData, b: &NodeData) -> NodeData {
+/// Returns true if two NodeData values are the same "kind" and can be merged.
+fn is_mergeable(a: &NodeData, b: &NodeData) -> bool {
+    matches!(
+        (a, b),
+        (NodeData::Path(_), NodeData::Path(_))
+            | (NodeData::Path(_), NodeData::Paths(_))
+            | (NodeData::Paths(_), NodeData::Path(_))
+            | (NodeData::Paths(_), NodeData::Paths(_))
+            | (NodeData::Shape(_), NodeData::Shape(_))
+            | (NodeData::Shape(_), NodeData::Shapes(_))
+            | (NodeData::Shapes(_), NodeData::Shape(_))
+            | (NodeData::Shapes(_), NodeData::Shapes(_))
+    )
+}
+
+/// Merge two compatible geometry inputs into one.
+fn merge_pair(a: &NodeData, b: &NodeData) -> NodeData {
     match (a, b) {
         // Path + Path → merged Path
         (NodeData::Path(pa), NodeData::Path(pb)) => {
@@ -64,22 +78,47 @@ pub fn merge(a: &NodeData, b: &NodeData) -> NodeData {
             out.extend_from_slice(pb);
             NodeData::Paths(Arc::new(out))
         }
-        // Fallback
         _ => a.clone(),
     }
 }
 
-/// Merge N inputs by folding pairwise with `merge`.
+/// Returns true if a NodeData is a trivial default (unconnected port placeholder).
+fn is_default_value(d: &NodeData) -> bool {
+    matches!(d, NodeData::Scalar(v) if *v == 0.0)
+}
+
+/// Merge N inputs into a single NodeData.
+/// Compatible geometry types (Path/Paths, Shape/Shapes) are merged together.
+/// Incompatible types (Text, Image, etc.) are bundled into a `Mixed` value
+/// so `collect_scene` can render all of them.
 pub fn merge_n(inputs: &ResolvedInputs) -> NodeData {
-    let mut iter = inputs.data.iter();
-    let Some(first) = iter.next() else {
+    // Filter out unconnected default placeholders.
+    let items: Vec<&NodeData> = inputs.data.iter().filter(|d| !is_default_value(d)).collect();
+    if items.is_empty() {
         return NodeData::Scalar(0.0);
-    };
-    let mut acc = first.clone();
-    for item in iter {
-        acc = merge(&acc, item);
     }
-    acc
+
+    // Group mergeable items together; keep others as separate entries.
+    let mut groups: Vec<NodeData> = Vec::new();
+    for item in &items {
+        let mut merged = false;
+        for existing in &mut groups {
+            if is_mergeable(existing, item) {
+                *existing = merge_pair(existing, item);
+                merged = true;
+                break;
+            }
+        }
+        if !merged {
+            groups.push((*item).clone());
+        }
+    }
+
+    if groups.len() == 1 {
+        groups.remove(0)
+    } else {
+        NodeData::Mixed(Arc::new(groups))
+    }
 }
 
 /// Duplicate geometry `count` times, applying `step_transform` cumulatively.

@@ -4,6 +4,7 @@ mod generators;
 mod path_ops;
 mod styling;
 pub(crate) mod svg_path;
+pub(crate) mod text;
 mod tessellation;
 mod transforms;
 mod utility;
@@ -33,6 +34,7 @@ pub struct CpuBackend {
     dsl_cache: DslFunctionCache,
     image_cache: Mutex<HashMap<String, Arc<ImageData>>>,
     svg_path_cache: svg_path::SvgPathCache,
+    font_cache: Mutex<text::FontCache>,
 }
 
 impl CpuBackend {
@@ -45,6 +47,7 @@ impl CpuBackend {
             dsl_cache: DslFunctionCache::new(),
             image_cache: Mutex::new(HashMap::new()),
             svg_path_cache: svg_path::SvgPathCache::new(),
+            font_cache: Mutex::new(text::FontCache::new()),
         })
     }
 }
@@ -393,6 +396,51 @@ impl ComputeBackend for CpuBackend {
                 }
                 if outputs.data.len() > 2 {
                     outputs.data[2] = Some(NodeData::Scalar(native_h as f64));
+                }
+                return Ok(());
+            }
+
+            // ── Text ─────────────────────────────────────────────────
+            NodeOp::Text { text, font_family, font_path } => {
+                let mut font_cache = self.font_cache.lock();
+                let (inst, w, h) = text::execute_text(
+                    text,
+                    font_family,
+                    font_path,
+                    inputs,
+                    &mut font_cache,
+                    &time_ctx.project_dir,
+                )?;
+                if !outputs.data.is_empty() {
+                    outputs.data[0] = Some(NodeData::Text(inst));
+                }
+                if outputs.data.len() > 1 {
+                    outputs.data[1] = Some(NodeData::Scalar(w));
+                }
+                if outputs.data.len() > 2 {
+                    outputs.data[2] = Some(NodeData::Scalar(h));
+                }
+                return Ok(());
+            }
+            NodeOp::TextToPath => {
+                let text_inst = inputs.data.first().and_then(|d| {
+                    if let NodeData::Text(t) = d { Some(t) } else { None }
+                });
+                let result = if let Some(inst) = text_inst {
+                    let (path, transform) = text::text_to_path(inst)?;
+                    // Return as Shape so the font-unit path gets tessellated at
+                    // high resolution, with the scale applied as a GPU transform.
+                    NodeData::Shape(Arc::new(Shape {
+                        path,
+                        fill: Some(inst.color),
+                        stroke: None,
+                        transform,
+                    }))
+                } else {
+                    NodeData::Path(Arc::new(PathData::new()))
+                };
+                if !outputs.data.is_empty() {
+                    outputs.data[0] = Some(result);
                 }
                 return Ok(());
             }

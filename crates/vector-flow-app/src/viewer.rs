@@ -308,6 +308,7 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
             NodeCategory::PathOps,
             NodeCategory::Styling,
             NodeCategory::Color,
+            NodeCategory::Text,
             NodeCategory::Utility,
             NodeCategory::GraphIO,
         ];

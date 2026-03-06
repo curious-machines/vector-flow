@@ -127,6 +127,13 @@ pub enum NodeOp {
     },
     // Image
     LoadImage { path: String },
+    // Text
+    Text {
+        text: String,
+        font_family: String,
+        font_path: String,
+    },
+    TextToPath,
     // Graph I/O
     GraphInput { name: String, data_type: DataType },
     GraphOutput { name: String, data_type: DataType },
@@ -957,6 +964,78 @@ impl NodeDef {
                 PortDef::new("native_width", DataType::Scalar),
                 PortDef::new("native_height", DataType::Scalar),
             ],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn text(id: NodeId, text: String) -> Self {
+        Self {
+            id,
+            name: "Text".into(),
+            op: NodeOp::Text {
+                text,
+                font_family: String::new(),
+                font_path: String::new(),
+            },
+            inputs: vec![
+                PortDef::new("position", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Text anchor position"),
+                PortDef::new("font_size", DataType::Scalar)
+                    .with_default(ParamValue::Float(24.0))
+                    .with_description("Font size in canvas units"),
+                PortDef::new("font_weight", DataType::Int)
+                    .with_default(ParamValue::Int(400))
+                    .with_description("Font weight (100-900, 400=regular, 700=bold)"),
+                PortDef::new("font_style", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Font style: 0=Normal, 1=Italic, 2=Oblique"),
+                PortDef::new("letter_spacing", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Extra spacing between glyphs"),
+                PortDef::new("line_height", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.2))
+                    .with_description("Line height multiplier"),
+                PortDef::new("alignment", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Text alignment: 0=Left, 1=Center, 2=Right"),
+                PortDef::new("box_width", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Text box width (0 = unconstrained)"),
+                PortDef::new("box_height", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Text box height (0 = unconstrained)"),
+                PortDef::new("wrap", DataType::Bool)
+                    .with_default(ParamValue::Bool(true))
+                    .with_description("Enable word wrapping"),
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Text color"),
+                PortDef::new("opacity", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Opacity (0..1)"),
+            ],
+            outputs: vec![
+                PortDef::new("text", DataType::Text),
+                PortDef::new("width", DataType::Scalar),
+                PortDef::new("height", DataType::Scalar),
+            ],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn text_to_path(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Text to Path".into(),
+            op: NodeOp::TextToPath,
+            inputs: vec![
+                PortDef::new("text", DataType::Text)
+                    .with_description("Input text instance"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
         }
