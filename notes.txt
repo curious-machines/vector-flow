@@ -1,0 +1,4 @@
+- render text - text node: text, box, maybe font size, font would be nice, but can defer
+- render SVG? Maybe have a tool that converts svg to vflow graph?
+- support stroke features like end caps, line joins, dash array
+- possibly support stroke to fill area so that it can be manipulated like a shape

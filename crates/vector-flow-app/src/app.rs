@@ -686,7 +686,8 @@ impl VectorFlowApp {
         let scale_y = available.y / bounds.height();
         let scale = scale_x.min(scale_y).min(2.0); // cap at 2x zoom
 
-        let offset = egui::vec2(bounds.center().x, bounds.center().y);
+        // Snarl offset is in screen-scaled space: screen = graph * scale - offset + viewport_center
+        let offset = egui::vec2(bounds.center().x * scale, bounds.center().y * scale);
 
         Snarl::<UiNode>::set_view_state(
             NODE_EDITOR_ID,
@@ -894,9 +895,6 @@ impl VectorFlowApp {
         if self.is_dirty(ctx) && !self.close_confirmed {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.pending_action = Some(PendingAction::Close);
-        } else {
-            // Save geometry on clean close.
-            self.save_window_geometry(ctx);
         }
     }
 
@@ -914,9 +912,9 @@ impl VectorFlowApp {
                 self.saved_gen = self.graph.generation();
                 Self::restore_window_geometry(ctx, path);
                 self.saved_panel_widths = Self::current_panel_widths(ctx);
+                self.saved_view_state = pf.view_state.clone();
                 self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
                 self.saved_window_geom = Self::current_window_rect(ctx);
-                self.saved_view_state = pf.view_state.clone();
 
                 // Re-snapshot after viewport commands settle (async resize/move).
                 self.pending_snapshot_frames = 3;
@@ -1103,24 +1101,79 @@ impl VectorFlowApp {
         if let Some(image) = screenshot {
             self.pending_graph_screenshot = false;
             if let Some(path) = self.graph_screenshot_path.take() {
-                // Convert graph_panel_rect from logical to physical pixels.
                 let ppp = ctx.pixels_per_point();
-                let crop = egui::Rect::from_min_max(
-                    egui::pos2(
-                        self.graph_panel_rect.min.x * ppp,
-                        self.graph_panel_rect.min.y * ppp,
-                    ),
-                    egui::pos2(
-                        self.graph_panel_rect.max.x * ppp,
-                        self.graph_panel_rect.max.y * ppp,
-                    ),
-                );
+
+                // Compute tight crop around graph content in screen space.
+                let crop = if let Some(content_rect) = self.graph_screenshot_content_rect(ctx) {
+                    // Clamp to panel bounds and add padding.
+                    let padding = 20.0;
+                    let padded = content_rect.expand(padding);
+                    let clamped = padded.intersect(self.graph_panel_rect);
+                    // Convert to physical pixels.
+                    egui::Rect::from_min_max(
+                        egui::pos2(clamped.min.x * ppp, clamped.min.y * ppp),
+                        egui::pos2(clamped.max.x * ppp, clamped.max.y * ppp),
+                    )
+                } else {
+                    // Fallback: full panel rect.
+                    egui::Rect::from_min_max(
+                        egui::pos2(
+                            self.graph_panel_rect.min.x * ppp,
+                            self.graph_panel_rect.min.y * ppp,
+                        ),
+                        egui::pos2(
+                            self.graph_panel_rect.max.x * ppp,
+                            self.graph_panel_rect.max.y * ppp,
+                        ),
+                    )
+                };
+
                 match export::save_graph_screenshot(&image, crop, &path) {
                     Ok(()) => log::info!("Graph screenshot saved to {}", path.display()),
                     Err(e) => log::error!("Failed to save graph screenshot: {e}"),
                 }
             }
         }
+    }
+
+    /// Compute the screen-space bounding rect of all graph content (nodes + network boxes).
+    fn graph_screenshot_content_rect(&self, ctx: &egui::Context) -> Option<egui::Rect> {
+        let (view_offset, view_scale) = Snarl::<UiNode>::get_view_state(
+            NODE_EDITOR_ID,
+            self.node_editor_ui_id,
+            ctx,
+        )?;
+
+        let viewport_center = self.graph_panel_rect.center();
+        let to_screen = |p: egui::Pos2| -> egui::Pos2 {
+            egui::pos2(
+                (p.x - view_offset.x) * view_scale + viewport_center.x,
+                (p.y - view_offset.y) * view_scale + viewport_center.y,
+            )
+        };
+
+        let mut bounds: Option<egui::Rect> = None;
+        let mut extend = |rect: egui::Rect| {
+            let screen_rect = egui::Rect::from_min_max(
+                to_screen(rect.min),
+                to_screen(rect.max),
+            );
+            bounds = Some(match bounds {
+                Some(b) => b.union(screen_rect),
+                None => screen_rect,
+            });
+        };
+
+        for rect in self.node_rects.values() {
+            extend(*rect);
+        }
+        for nb in self.graph.network_boxes() {
+            if let Some(box_rect) = self.network_box_rect(nb) {
+                extend(box_rect);
+            }
+        }
+
+        bounds
     }
 
     /// Show the unsaved-changes dialog. Returns `true` if the pending action was resolved.
@@ -1167,7 +1220,6 @@ impl VectorFlowApp {
                 self.open_project(ctx);
             }
             PendingAction::Close => {
-                self.save_window_geometry(ctx);
                 self.close_confirmed = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
@@ -1431,11 +1483,14 @@ impl eframe::App for VectorFlowApp {
             self.video_export_dialog.open = true;
         }
         if menu_graph_screenshot {
-            if let Some(path) = rfd::FileDialog::new()
+            if let Some(mut path) = rfd::FileDialog::new()
                 .set_title("Save Graph Screenshot")
                 .add_filter("PNG Image", &["png"])
                 .save_file()
             {
+                if path.extension().is_none() {
+                    path.set_extension("png");
+                }
                 self.graph_screenshot_path = Some(path);
                 self.pending_graph_screenshot = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(
@@ -1482,8 +1537,8 @@ impl eframe::App for VectorFlowApp {
             let viewport_center = snarl_viewport.center();
             let to_screen = |p: egui::Pos2| -> egui::Pos2 {
                 egui::pos2(
-                    (p.x - view_offset.x) * view_scale + viewport_center.x,
-                    (p.y - view_offset.y) * view_scale + viewport_center.y,
+                    p.x * view_scale - view_offset.x + viewport_center.x,
+                    p.y * view_scale - view_offset.y + viewport_center.y,
                 )
             };
 
@@ -1530,7 +1585,8 @@ impl eframe::App for VectorFlowApp {
             }
 
             // Fill in the pre-reserved shape slots so boxes render behind nodes.
-            let painter = ctx.layer_painter(snarl_layer_id);
+            // Clip to the snarl viewport so boxes don't bleed outside the panel.
+            let painter = ctx.layer_painter(snarl_layer_id).with_clip_rect(snarl_viewport);
             for br in &box_renders {
                 painter.set(
                     br.rect_idx,
@@ -1560,22 +1616,25 @@ impl eframe::App for VectorFlowApp {
                 );
             }
 
-            // Handle interaction via invisible Areas for each box title bar.
+            // Handle interaction on box title bars without blocking scroll/zoom events.
+            // We use interactable(false) so the Area layer doesn't block scroll from
+            // reaching snarl underneath. The inner widget still detects click/drag.
             let mut box_to_delete = None;
             for br in &box_renders {
                 let title_bar = egui::Rect::from_min_size(
                     br.screen_rect.min,
                     egui::vec2(br.screen_rect.width(), br.title_bar_height),
                 );
-                let resp = egui::Area::new(egui::Id::new(("netbox_area", br.id.0)))
+                let area_resp = egui::Area::new(egui::Id::new(("netbox_area", br.id.0)))
                     .fixed_pos(title_bar.min)
                     .order(egui::Order::Middle)
-                    .interactable(true)
+                    .interactable(false)
                     .show(ctx, |ui| {
                         ui.set_min_size(title_bar.size());
                         let (_, resp) = ui.allocate_exact_size(title_bar.size(), egui::Sense::click_and_drag());
                         resp
-                    }).inner;
+                    });
+                let resp = area_resp.inner;
 
                 if resp.clicked() {
                     self.selected_box = Some(br.id);
@@ -1648,19 +1707,21 @@ impl eframe::App for VectorFlowApp {
             }
         }
 
-        // Overlay "Show All" button on the node editor panel.
+        // Overlay "Show All" button on the node editor panel (hidden during screenshot).
         {
             let inset = canvas_panel::TOOLBAR_INSET * 2.0;
             let mut fit_requested = do_fit_all;
-            egui::Area::new(egui::Id::new("graph_toolbar"))
-                .fixed_pos(egui::pos2(snarl_viewport.left() + inset, snarl_viewport.top() + inset))
-                .order(egui::Order::Foreground)
-                .interactable(true)
-                .show(ctx, |ui| {
-                    if ui.button("Show All").on_hover_text("Fit all nodes in view (F)").clicked() {
-                        fit_requested = true;
-                    }
-                });
+            if !self.pending_graph_screenshot {
+                egui::Area::new(egui::Id::new("graph_toolbar"))
+                    .fixed_pos(egui::pos2(snarl_viewport.left() + inset, snarl_viewport.top() + inset))
+                    .order(egui::Order::Foreground)
+                    .interactable(true)
+                    .show(ctx, |ui| {
+                        if ui.button("Show All").on_hover_text("Fit all nodes in view (F)").clicked() {
+                            fit_requested = true;
+                        }
+                    });
+            }
             if fit_requested {
                 self.fit_all(ctx, snarl_viewport);
             }

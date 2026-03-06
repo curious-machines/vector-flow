@@ -103,6 +103,7 @@ pub enum NodeOp {
     MixColors,
     SetAlpha,
     ColorParse { text: String },
+    SvgPath { data: String },
     // Constants
     ConstScalar,
     ConstInt,
@@ -869,6 +870,18 @@ impl NodeDef {
             op: NodeOp::ColorParse { text },
             inputs: vec![],
             outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn svg_path(id: NodeId, data: String) -> Self {
+        Self {
+            id,
+            name: "SVG Path".into(),
+            op: NodeOp::SvgPath { data },
+            inputs: vec![],
+            outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
         }

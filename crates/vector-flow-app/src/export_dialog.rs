@@ -125,11 +125,14 @@ pub fn show_image_export_dialog(
                             .unwrap_or_else(|| dialog.path.to_string_lossy().into_owned());
                         ui.label(&display);
                         if ui.button("Browse...").clicked() {
-                            if let Some(path) = rfd::FileDialog::new()
+                            if let Some(mut path) = rfd::FileDialog::new()
                                 .set_title("Export Image")
                                 .add_filter("PNG Image", &["png"])
                                 .save_file()
                             {
+                                if path.extension().is_none() {
+                                    path.set_extension("png");
+                                }
                                 dialog.path = path;
                             }
                         }
@@ -256,11 +259,14 @@ pub fn show_video_export_dialog(
                         ui.label(&display);
                         if ui.button("Browse...").clicked() {
                             if dialog.format == VideoFormat::Mp4 {
-                                if let Some(path) = rfd::FileDialog::new()
+                                if let Some(mut path) = rfd::FileDialog::new()
                                     .set_title("Export MP4")
                                     .add_filter("MP4 Video", &["mp4"])
                                     .save_file()
                                 {
+                                    if path.extension().is_none() {
+                                        path.set_extension("mp4");
+                                    }
                                     dialog.mp4_path = path;
                                 }
                             } else if let Some(path) = rfd::FileDialog::new()

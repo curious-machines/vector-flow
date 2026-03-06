@@ -81,6 +81,12 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get SvgPath data if applicable.
+    let svg_path_data = match &node.op {
+        NodeOp::SvgPath { data } => Some(data.clone()),
+        _ => None,
+    };
+
     ui.heading(label);
     ui.separator();
 
@@ -167,6 +173,31 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             if let Some(node) = graph.node_mut(core_id) {
                 if let NodeOp::ColorParse { text } = &mut node.op {
                     *text = ctext;
+                }
+                node.touch();
+                changed = true;
+            }
+        }
+        ui.separator();
+    }
+
+    // SvgPath data editor.
+    if let Some(mut svg_data) = svg_path_data {
+        let mut data_changed = false;
+        ui.label("Path Data (SVG d attribute)");
+        if ui
+            .add(egui::TextEdit::multiline(&mut svg_data).desired_rows(4).code_editor())
+            .changed()
+        {
+            data_changed = true;
+        }
+        if let Some(err) = vector_flow_compute::validate_svg_path(&svg_data) {
+            ui.colored_label(egui::Color32::from_rgb(255, 100, 100), err);
+        }
+        if data_changed {
+            if let Some(node) = graph.node_mut(core_id) {
+                if let NodeOp::SvgPath { data } = &mut node.op {
+                    *data = svg_data;
                 }
                 node.touch();
                 changed = true;

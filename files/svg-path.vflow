@@ -1,0 +1,215 @@
+{
+  "graph": {
+    "nodes": {
+      "1": {
+        "id": 1,
+        "name": "SVG Path",
+        "op": {
+          "SvgPath": {
+            "data": "m0,0 l100,100 100,0z"
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -182.75,
+          -161.40625
+        ],
+        "generation": 22
+      },
+      "3": {
+        "id": 3,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          188.0625,
+          -118.25
+        ],
+        "generation": 0
+      },
+      "2": {
+        "id": 2,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.027047448,
+                0.022335997,
+                0.18797952,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -9.40625,
+          -149.9375
+        ],
+        "generation": 112
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      }
+    ],
+    "next_id": 4,
+    "generation": 142,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "SVG Path",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -221.70575,
+          "y": -136.74219
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -64.02173,
+          "y": -145.49219
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 116.33539,
+          "y": -136.74219
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      7.671875,
+      -116.5
+    ],
+    "graph_scale": 1.2844788,
+    "canvas_center": [
+      100.48157,
+      1.4398193
+    ],
+    "canvas_zoom": 1.0
+  }
+}

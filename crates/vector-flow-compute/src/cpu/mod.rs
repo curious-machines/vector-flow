@@ -3,6 +3,7 @@ mod color_ops;
 mod generators;
 mod path_ops;
 mod styling;
+pub(crate) mod svg_path;
 mod tessellation;
 mod transforms;
 mod utility;
@@ -30,6 +31,7 @@ pub struct CpuBackend {
     dsl_compiler: Mutex<DslCompiler>,
     dsl_cache: DslFunctionCache,
     image_cache: Mutex<HashMap<String, Arc<ImageData>>>,
+    svg_path_cache: svg_path::SvgPathCache,
 }
 
 impl CpuBackend {
@@ -41,6 +43,7 @@ impl CpuBackend {
             dsl_compiler: Mutex::new(compiler),
             dsl_cache: DslFunctionCache::new(),
             image_cache: Mutex::new(HashMap::new()),
+            svg_path_cache: svg_path::SvgPathCache::new(),
         })
     }
 }
@@ -278,6 +281,10 @@ impl ComputeBackend for CpuBackend {
             }
             NodeOp::ColorParse { text } => {
                 NodeData::Color(color_ops::color_parse(text))
+            }
+            NodeOp::SvgPath { data } => {
+                let path = self.svg_path_cache.get_or_parse(data);
+                NodeData::Path(path)
             }
 
             // ── Constants ───────────────────────────────────────────

@@ -48,11 +48,16 @@ pub fn tessellate_path_lyon(path: &PathData, fill: bool, tolerance: f32) -> Tess
 
 fn build_lyon_path(path: &PathData) -> Path {
     let mut builder = Path::builder();
+    let mut in_subpath = false;
 
     for v in &path.verbs {
         match *v {
             PathVerb::MoveTo(p) => {
+                if in_subpath {
+                    builder.end(false);
+                }
                 builder.begin(point(p.x, p.y));
+                in_subpath = true;
             }
             PathVerb::LineTo(p) => {
                 builder.line_to(point(p.x, p.y));
@@ -69,14 +74,12 @@ fn build_lyon_path(path: &PathData) -> Path {
             }
             PathVerb::Close => {
                 builder.end(true);
+                in_subpath = false;
             }
         }
     }
 
-    // If the path doesn't end with Close, end it open
-    if path.verbs.last().is_none_or(|v| !matches!(v, PathVerb::Close))
-        && path.verbs.iter().any(|v| matches!(v, PathVerb::MoveTo(_)))
-    {
+    if in_subpath {
         builder.end(false);
     }
 

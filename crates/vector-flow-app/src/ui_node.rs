@@ -155,6 +155,12 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
             factory: |id| NodeDef::color_parse(id, "#FFFFFF".into()),
             color: cat_color(Color),
         },
+        CatalogEntry {
+            label: "SVG Path",
+            category: Generators,
+            factory: |id| NodeDef::svg_path(id, String::new()),
+            color: cat_color(Generators),
+        },
         // Constants
         entry!("Constant Scalar", Utility, NodeDef::const_scalar),
         entry!("Constant Int", Utility, NodeDef::const_int),
@@ -224,6 +230,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::MixColors => "Mix Colors",
         NodeOp::SetAlpha => "Set Alpha",
         NodeOp::ColorParse { .. } => "Color Parse",
+        NodeOp::SvgPath { .. } => "SVG Path",
         NodeOp::ConstScalar => "Constant Scalar",
         NodeOp::ConstInt => "Constant Int",
         NodeOp::ConstVec2 => "Constant Vec2",
