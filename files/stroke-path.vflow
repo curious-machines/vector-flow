@@ -1,0 +1,708 @@
+{
+  "graph": {
+    "nodes": {
+      "3": {
+        "id": 3,
+        "name": "Stroke to Path",
+        "op": {
+          "StrokeToPath": {
+            "dash_pattern": "15"
+          }
+        },
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Any",
+            "description": "Input shape or path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 20.0
+            },
+            "expression": null
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          141.3125,
+          -166.5625
+        ],
+        "generation": 795
+      },
+      "2": {
+        "id": 2,
+        "name": "Set Stroke",
+        "op": {
+          "SetStroke": {
+            "dash_pattern": "15"
+          }
+        },
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Stroke color",
+            "default_value": {
+              "Color": [
+                0.47657472,
+                0.22339673,
+                0.22339673,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 20.0
+            },
+            "expression": null
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -130.0,
+          -261.5
+        ],
+        "generation": 89
+      },
+      "9": {
+        "id": 9,
+        "name": "Constant Color",
+        "op": "ConstColor",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Color value",
+            "default_value": {
+              "Color": [
+                0.016106417,
+                0.010272312,
+                0.16558827,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -303.37253,
+          -453.8057
+        ],
+        "generation": 475
+      },
+      "7": {
+        "id": 7,
+        "name": "Set Stroke",
+        "op": {
+          "SetStroke": {
+            "dash_pattern": "4"
+          }
+        },
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Stroke color",
+            "default_value": {
+              "Color": [
+                0.041626174,
+                0.47365642,
+                0.099626616,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          29.40625,
+          130.84375
+        ],
+        "generation": 397
+      },
+      "8": {
+        "id": 8,
+        "name": "Merge",
+        "op": "Merge",
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          177.07303,
+          -187.00496
+        ],
+        "generation": 1
+      },
+      "1": {
+        "id": 1,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "segments",
+            "data_type": "Int",
+            "description": "Number of segments for approximation",
+            "default_value": {
+              "Int": 64
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -212.90625,
+          -120.4375
+        ],
+        "generation": 0
+      },
+      "5": {
+        "id": 5,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          307.1875,
+          -23.90625
+        ],
+        "generation": 0
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 7,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 8,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 9,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 0
+        },
+        "to": {
+          "node": 8,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 8,
+          "port": 1
+        }
+      }
+    ],
+    "next_id": 11,
+    "generation": 1907,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -386.89224,
+          "y": -22.49152
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Set Stroke",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -24.42932,
+          "y": 22.959679
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Stroke to Path",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -206.12872,
+          "y": -148.20158
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 7,
+          "display_name": "Set Stroke",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -26.407442,
+          "y": -156.88043
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 302.0466,
+          "y": -106.29251
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 8,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 165.76054,
+          "y": -122.16502
+        },
+        "open": true
+      },
+      "6": {
+        "value": {
+          "core_id": 9,
+          "display_name": "Constant Color",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -188.33936,
+          "y": 64.45688
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 1
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      28.30488,
+      5.083726
+    ],
+    "graph_scale": 1.0600389,
+    "canvas_center": [
+      0.011276245,
+      0.13714981
+    ],
+    "canvas_zoom": 3.2497973
+  }
+}
