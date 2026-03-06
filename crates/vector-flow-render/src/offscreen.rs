@@ -11,6 +11,9 @@ const COPY_BYTES_PER_ROW_ALIGNMENT: u32 = 256;
 /// Texture format used for offscreen rendering.
 const OFFSCREEN_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
+/// MSAA sample count for anti-aliased offscreen rendering.
+const MSAA_SAMPLE_COUNT: u32 = 4;
+
 /// Camera configuration for offscreen export.
 pub enum ExportCamera {
     /// Use explicit center and zoom from the current viewport.
@@ -25,8 +28,12 @@ pub enum ExportCamera {
 /// independent of the on-screen egui callback renderer.
 pub struct OffscreenRenderer {
     renderer: CanvasRenderer,
+    /// Resolve target (sample_count=1) — final image is read from here.
     texture: wgpu::Texture,
     texture_view: wgpu::TextureView,
+    /// Multisample render target (sample_count=MSAA_SAMPLE_COUNT).
+    msaa_texture: wgpu::Texture,
+    msaa_texture_view: wgpu::TextureView,
     staging_buffer: wgpu::Buffer,
     width: u32,
     height: u32,
@@ -35,14 +42,17 @@ pub struct OffscreenRenderer {
 
 impl OffscreenRenderer {
     pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
-        let renderer = CanvasRenderer::new(device, OFFSCREEN_FORMAT);
-        let (texture, texture_view, staging_buffer, padded_row_bytes) =
+        let renderer =
+            CanvasRenderer::with_sample_count(device, OFFSCREEN_FORMAT, MSAA_SAMPLE_COUNT);
+        let (texture, texture_view, msaa_texture, msaa_texture_view, staging_buffer, padded_row_bytes) =
             Self::create_resources(device, width, height);
 
         Self {
             renderer,
             texture,
             texture_view,
+            msaa_texture,
+            msaa_texture_view,
             staging_buffer,
             width,
             height,
@@ -55,10 +65,12 @@ impl OffscreenRenderer {
         if width == self.width && height == self.height {
             return;
         }
-        let (texture, texture_view, staging_buffer, padded_row_bytes) =
+        let (texture, texture_view, msaa_texture, msaa_texture_view, staging_buffer, padded_row_bytes) =
             Self::create_resources(device, width, height);
         self.texture = texture;
         self.texture_view = texture_view;
+        self.msaa_texture = msaa_texture;
+        self.msaa_texture_view = msaa_texture_view;
         self.staging_buffer = staging_buffer;
         self.width = width;
         self.height = height;
@@ -104,8 +116,8 @@ impl OffscreenRenderer {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("offscreen_render_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.texture_view,
-                    resolve_target: None,
+                    view: &self.msaa_texture_view,
+                    resolve_target: Some(&self.texture_view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
                             r: 0.0,
@@ -189,14 +201,17 @@ impl OffscreenRenderer {
         device: &wgpu::Device,
         width: u32,
         height: u32,
-    ) -> (wgpu::Texture, wgpu::TextureView, wgpu::Buffer, u32) {
+    ) -> (wgpu::Texture, wgpu::TextureView, wgpu::Texture, wgpu::TextureView, wgpu::Buffer, u32) {
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+
+        // Resolve target (sample_count=1) — pixels are read from here.
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("offscreen_texture"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
+            size,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -205,6 +220,19 @@ impl OffscreenRenderer {
             view_formats: &[],
         });
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        // MSAA render target.
+        let msaa_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("offscreen_msaa_texture"),
+            size,
+            mip_level_count: 1,
+            sample_count: MSAA_SAMPLE_COUNT,
+            dimension: wgpu::TextureDimension::D2,
+            format: OFFSCREEN_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let msaa_texture_view = msaa_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let unpadded_row_bytes = width * 4;
         let padded_row_bytes =
@@ -218,6 +246,6 @@ impl OffscreenRenderer {
             mapped_at_creation: false,
         });
 
-        (texture, texture_view, staging_buffer, padded_row_bytes)
+        (texture, texture_view, msaa_texture, msaa_texture_view, staging_buffer, padded_row_bytes)
     }
 }
