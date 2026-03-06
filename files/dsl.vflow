@@ -1,0 +1,309 @@
+{
+  "graph": {
+    "nodes": {
+      "5": {
+        "id": 5,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          219.71875,
+          -193.75
+        ],
+        "generation": 0
+      },
+      "2": {
+        "id": 2,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "segments",
+            "data_type": "Int",
+            "description": "Number of segments for approximation",
+            "default_value": {
+              "Int": 64
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -3.8125,
+          -216.59375
+        ],
+        "generation": 0
+      },
+      "3": {
+        "id": 3,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.008724442,
+                0.048147112,
+                0.02184792,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          100.34375,
+          -201.25
+        ],
+        "generation": 12
+      },
+      "1": {
+        "id": 1,
+        "name": "DSL Code",
+        "op": {
+          "DslCode": {
+            "source": "out1 = sin(time * TAU / 30.0) * 50.0 + 75.0;",
+            "script_inputs": [],
+            "script_outputs": [
+              [
+                "out1",
+                "Scalar"
+              ]
+            ]
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "out1",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -141.0,
+          -66.0
+        ],
+        "generation": 83
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      }
+    ],
+    "next_id": 6,
+    "generation": 110
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "DSL Code",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -301.77127,
+          "y": -124.00128
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -119.563065,
+          "y": -124.00128
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 63.64514,
+          "y": -124.00128
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 246.85336,
+          "y": -124.00128
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      52.28586,
+      -47.10315
+    ],
+    "graph_scale": 1.0,
+    "canvas_center": [
+      0.0,
+      0.0
+    ],
+    "canvas_zoom": 1.0
+  }
+}

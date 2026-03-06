@@ -1,0 +1,548 @@
+{
+  "graph": {
+    "nodes": {
+      "8": {
+        "id": 8,
+        "name": "Constant Scalar",
+        "op": "ConstScalar",
+        "inputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "Scalar value",
+            "default_value": {
+              "Float": 75.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -152.5,
+          -374.09375
+        ],
+        "generation": 2
+      },
+      "1": {
+        "id": 1,
+        "name": "DSL Code",
+        "op": {
+          "DslCode": {
+            "source": "out1 = sin(time * TAU * freq) * amp + offset;",
+            "script_inputs": [
+              [
+                "freq",
+                "Scalar"
+              ],
+              [
+                "amp",
+                "Scalar"
+              ],
+              [
+                "offset",
+                "Scalar"
+              ]
+            ],
+            "script_outputs": [
+              [
+                "out1",
+                "Scalar"
+              ]
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "freq",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "amp",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "offset",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "out1",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -141.0,
+          -66.0
+        ],
+        "generation": 152
+      },
+      "5": {
+        "id": 5,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any"
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          219.71875,
+          -193.75
+        ],
+        "generation": 0
+      },
+      "7": {
+        "id": 7,
+        "name": "Constant Scalar",
+        "op": "ConstScalar",
+        "inputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "Scalar value",
+            "default_value": {
+              "Float": 50.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -380.09375,
+          -359.09375
+        ],
+        "generation": 2
+      },
+      "6": {
+        "id": 6,
+        "name": "Constant Scalar",
+        "op": "ConstScalar",
+        "inputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "Scalar value",
+            "default_value": {
+              "Float": 0.03333
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -405.84375,
+          -349.78125
+        ],
+        "generation": 4
+      },
+      "3": {
+        "id": 3,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "Input shape",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.008724442,
+                0.048147112,
+                0.02184792,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "shape",
+            "data_type": "Shape",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          100.34375,
+          -201.25
+        ],
+        "generation": 12
+      },
+      "2": {
+        "id": 2,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "segments",
+            "data_type": "Int",
+            "description": "Number of segments for approximation",
+            "default_value": {
+              "Int": 64
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -3.8125,
+          -216.59375
+        ],
+        "generation": 0
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 8,
+          "port": 0
+        },
+        "to": {
+          "node": 1,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 0
+        },
+        "to": {
+          "node": 1,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 6,
+          "port": 0
+        },
+        "to": {
+          "node": 1,
+          "port": 0
+        }
+      }
+    ],
+    "next_id": 9,
+    "generation": 196
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "DSL Code",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -302.77127,
+          "y": -124.00128
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -119.563065,
+          "y": -124.00128
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 63.64514,
+          "y": -124.00128
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 246.85336,
+          "y": -124.00128
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 6,
+          "display_name": "Constant Scalar",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -492.5812,
+          "y": -190.74524
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 7,
+          "display_name": "Constant Scalar",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -491.2708,
+          "y": -129.87384
+        },
+        "open": true
+      },
+      "6": {
+        "value": {
+          "core_id": 8,
+          "display_name": "Constant Scalar",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -491.15906,
+          "y": -68.1958
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 0,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 0,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 0,
+          "input": 2
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      -52.872284,
+      -107.16394
+    ],
+    "graph_scale": 1.0,
+    "canvas_center": [
+      0.0,
+      0.0
+    ],
+    "canvas_zoom": 1.0
+  }
+}
