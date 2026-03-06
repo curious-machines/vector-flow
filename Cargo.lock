@@ -4258,6 +4258,7 @@ dependencies = [
  "egui-wgpu",
  "env_logger",
  "glam",
+ "image",
  "log",
  "rfd",
  "serde",

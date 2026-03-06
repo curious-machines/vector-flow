@@ -4,6 +4,7 @@ pub mod camera;
 pub mod batch;
 pub mod renderer;
 pub mod overlay;
+pub mod offscreen;
 
 pub use camera::{Camera, CameraUniform};
 pub use batch::{
@@ -14,3 +15,4 @@ pub use renderer::{CanvasRenderer, PrimitiveUniform};
 pub use overlay::{CanvasCallback, CanvasRenderResources, canvas_paint_callback};
 pub use vertex::{CanvasVertex, ImageVertex};
 pub use error::RenderError;
+pub use offscreen::{ExportCamera, OffscreenRenderer};

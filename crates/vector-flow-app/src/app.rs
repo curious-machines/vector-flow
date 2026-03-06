@@ -17,6 +17,8 @@ use vector_flow_render::camera::Camera;
 use vector_flow_render::{collect_scene, prepare_scene_full, PreparedScene};
 
 use crate::canvas_panel::{self, CameraState};
+use crate::export::{self, ExportState, VideoExportConfig};
+use crate::export_dialog::{self, ImageExportDialog, VideoExportDialog};
 use crate::id_map::IdMap;
 use crate::project::{self, ProjectFile, ViewState, WindowGeometry};
 use crate::properties_panel;
@@ -114,6 +116,19 @@ pub struct VectorFlowApp {
 
     /// Currently selected network box (if any). Cleared when nodes are selected.
     selected_box: Option<NetworkBoxId>,
+
+    // ── Export state ──────────────────────────────────────────────────
+    export_state: ExportState,
+    image_export_dialog: ImageExportDialog,
+    video_export_dialog: VideoExportDialog,
+
+    /// When true, a graph screenshot has been requested. We send the viewport
+    /// command this frame and check for the result next frame.
+    pending_graph_screenshot: bool,
+    /// Path to save the graph screenshot to.
+    graph_screenshot_path: Option<PathBuf>,
+    /// Rect of the node editor panel in screen pixels (for cropping screenshots).
+    graph_panel_rect: egui::Rect,
 }
 
 impl VectorFlowApp {
@@ -164,6 +179,12 @@ impl VectorFlowApp {
             node_editor_ui_id: egui::Id::NULL,
             pending_view_restore: None,
             pending_canvas_restore: None,
+            export_state: ExportState::default(),
+            image_export_dialog: ImageExportDialog::default(),
+            video_export_dialog: VideoExportDialog::default(),
+            pending_graph_screenshot: false,
+            graph_screenshot_path: None,
+            graph_panel_rect: egui::Rect::NOTHING,
             pending_action: None,
             close_confirmed: false,
             node_rects: HashMap::new(),
@@ -920,6 +941,188 @@ impl VectorFlowApp {
         }
     }
 
+    // ── Export helpers ─────────────────────────────────────────────────
+
+    fn handle_exports(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // Image export dialog.
+        let img_action = export_dialog::show_image_export_dialog(ctx, &mut self.image_export_dialog);
+        if matches!(img_action, export_dialog::ImageDialogAction::Export) {
+            if let Some(render_state) = frame.wgpu_render_state() {
+                let config = export::ImageExportConfig {
+                    path: self.image_export_dialog.path.clone(),
+                    width: self.image_export_dialog.width,
+                    height: self.image_export_dialog.height,
+                    camera: self.image_export_dialog.camera,
+                };
+                // Ensure we have a scene to export.
+                let empty_scene = PreparedScene {
+                    vertices: Vec::new(),
+                    indices: Vec::new(),
+                    batches: Vec::new(),
+                    image_batches: Vec::new(),
+                };
+                let scene = self.prepared_scene.as_ref().unwrap_or(&empty_scene);
+                match export::export_canvas_image(
+                    &render_state.device,
+                    &render_state.queue,
+                    scene,
+                    &config,
+                    self.cam_state.current_center,
+                    self.cam_state.current_zoom,
+                ) {
+                    Ok(()) => {
+                        self.image_export_dialog.last_success =
+                            Some(format!("Exported to {}", config.path.display()));
+                    }
+                    Err(e) => {
+                        self.image_export_dialog.last_error = Some(e);
+                    }
+                }
+            } else {
+                self.image_export_dialog.last_error =
+                    Some("No render state available".to_string());
+            }
+        }
+
+        // Video export dialog.
+        let vid_action = export_dialog::show_video_export_dialog(
+            ctx,
+            &mut self.video_export_dialog,
+            &self.export_state,
+            self.transport.eval_ctx.fps,
+        );
+        match vid_action {
+            export_dialog::VideoDialogAction::Start => {
+                if let Some(render_state) = frame.wgpu_render_state() {
+                    let d = &self.video_export_dialog;
+                    let config = VideoExportConfig {
+                        output_dir: d.output_dir.clone(),
+                        mp4_path: if d.format == export::VideoFormat::Mp4 {
+                            Some(d.mp4_path.clone())
+                        } else {
+                            None
+                        },
+                        format: d.format,
+                        width: d.width,
+                        height: d.height,
+                        camera: d.camera,
+                        start_frame: d.start_frame,
+                        end_frame: d.end_frame,
+                        fps: self.transport.eval_ctx.fps,
+                    };
+                    self.export_state =
+                        export::start_video_export(&render_state.device, config);
+                    ctx.request_repaint();
+                }
+            }
+            export_dialog::VideoDialogAction::Cancel => {
+                if let Some(err) = export::finish_video_export(&mut self.export_state) {
+                    self.video_export_dialog.last_error = Some(err);
+                } else {
+                    self.video_export_dialog.last_success =
+                        Some("Export cancelled".to_string());
+                }
+            }
+            export_dialog::VideoDialogAction::None => {}
+        }
+
+        // Video export frame loop.
+        if let ExportState::ExportingVideo {
+            ref config,
+            current_frame,
+            ref error,
+            ..
+        } = self.export_state
+        {
+            if error.is_none() && current_frame <= config.end_frame {
+                // Set transport to current export frame and re-evaluate.
+                let export_frame = current_frame;
+                self.transport.eval_ctx.frame = export_frame;
+                self.transport.eval_ctx.time_secs =
+                    export_frame as f32 / self.transport.eval_ctx.fps;
+                self.evaluate();
+
+                // Build scene for all nodes (no selection filter for export).
+                let empty_scene;
+                let scene = if let Some(ref eval) = self.last_eval {
+                    let collected = collect_scene(eval, None);
+                    empty_scene = prepare_scene_full(&collected, 0.5);
+                    &empty_scene
+                } else {
+                    empty_scene = PreparedScene {
+                        vertices: Vec::new(),
+                        indices: Vec::new(),
+                        batches: Vec::new(),
+                        image_batches: Vec::new(),
+                    };
+                    &empty_scene
+                };
+
+                if let Some(render_state) = frame.wgpu_render_state() {
+                    let done = export::export_video_frame(
+                        &render_state.device,
+                        &render_state.queue,
+                        scene,
+                        &mut self.export_state,
+                        self.cam_state.current_center,
+                        self.cam_state.current_zoom,
+                    );
+
+                    if done {
+                        let result =
+                            export::finish_video_export(&mut self.export_state);
+                        if let Some(err) = result {
+                            self.video_export_dialog.last_error = Some(err);
+                        } else {
+                            self.video_export_dialog.last_success =
+                                Some("Video export complete".to_string());
+                        }
+                    } else {
+                        ctx.request_repaint();
+                    }
+                }
+            }
+        }
+    }
+
+    fn handle_graph_screenshot(&mut self, ctx: &egui::Context) {
+        if !self.pending_graph_screenshot {
+            return;
+        }
+
+        let screenshot = ctx.input(|i| {
+            i.events.iter().find_map(|e| {
+                if let egui::Event::Screenshot { image, .. } = e {
+                    Some(image.clone())
+                } else {
+                    None
+                }
+            })
+        });
+
+        if let Some(image) = screenshot {
+            self.pending_graph_screenshot = false;
+            if let Some(path) = self.graph_screenshot_path.take() {
+                // Convert graph_panel_rect from logical to physical pixels.
+                let ppp = ctx.pixels_per_point();
+                let crop = egui::Rect::from_min_max(
+                    egui::pos2(
+                        self.graph_panel_rect.min.x * ppp,
+                        self.graph_panel_rect.min.y * ppp,
+                    ),
+                    egui::pos2(
+                        self.graph_panel_rect.max.x * ppp,
+                        self.graph_panel_rect.max.y * ppp,
+                    ),
+                );
+                match export::save_graph_screenshot(&image, crop, &path) {
+                    Ok(()) => log::info!("Graph screenshot saved to {}", path.display()),
+                    Err(e) => log::error!("Failed to save graph screenshot: {e}"),
+                }
+            }
+        }
+    }
+
     /// Show the unsaved-changes dialog. Returns `true` if the pending action was resolved.
     fn show_unsaved_dialog(&mut self, ctx: &egui::Context) {
         let action = match self.pending_action {
@@ -1013,6 +1216,7 @@ impl eframe::App for VectorFlowApp {
         let text_editing = ctx.memory(|m| m.focused().is_some())
             && ctx.input(|i| !i.modifiers.command && !i.modifiers.ctrl && !i.modifiers.alt);
         let (do_save, do_save_as, do_open, do_new, do_close_file, do_duplicate, do_fit_all, do_quit,
+         do_export_image,
          do_align_left, do_align_right, do_align_top, do_align_bottom,
          do_dist_h, do_dist_v, nudge) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&egui::KeyboardShortcut::new(
@@ -1045,6 +1249,10 @@ impl eframe::App for VectorFlowApp {
                 egui::Modifiers::NONE,
                 egui::Key::F,
             ));
+            let export_image = i.consume_shortcut(&egui::KeyboardShortcut::new(
+                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+                egui::Key::E,
+            ));
             let quit = i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::COMMAND,
                 egui::Key::Q,
@@ -1076,6 +1284,7 @@ impl eframe::App for VectorFlowApp {
             }
 
             (save, save_as, open, new, close_file, duplicate, fit_all, quit,
+             export_image,
              false, false, false, false, false, false, nudge)
         });
         if do_save {
@@ -1110,6 +1319,9 @@ impl eframe::App for VectorFlowApp {
         let mut menu_open = false;
         let mut menu_new = false;
         let mut menu_close_file = false;
+        let mut menu_export_image = false;
+        let mut menu_export_video = false;
+        let mut menu_graph_screenshot = false;
         let mut menu_align: Option<AlignMode> = None;
         let mut menu_dist_h = false;
         let mut menu_dist_v = false;
@@ -1136,6 +1348,19 @@ impl eframe::App for VectorFlowApp {
                     if ui.button("Save As...  Ctrl+Shift+S").clicked() {
                         ui.close_menu();
                         menu_save_as = true;
+                    }
+                    ui.separator();
+                    if ui.button("Export Canvas Image...  Ctrl+Shift+E").clicked() {
+                        ui.close_menu();
+                        menu_export_image = true;
+                    }
+                    if ui.button("Export Canvas Video...").clicked() {
+                        ui.close_menu();
+                        menu_export_video = true;
+                    }
+                    if ui.button("Save Graph Screenshot...").clicked() {
+                        ui.close_menu();
+                        menu_graph_screenshot = true;
                     }
                     ui.separator();
                     if ui.button("Quit  Ctrl+Q").clicked() {
@@ -1199,6 +1424,25 @@ impl eframe::App for VectorFlowApp {
         if menu_save_as {
             self.save_project_as(ctx);
         }
+        if menu_export_image || do_export_image {
+            self.image_export_dialog.open = true;
+        }
+        if menu_export_video {
+            self.video_export_dialog.open = true;
+        }
+        if menu_graph_screenshot {
+            if let Some(path) = rfd::FileDialog::new()
+                .set_title("Save Graph Screenshot")
+                .add_filter("PNG Image", &["png"])
+                .save_file()
+            {
+                self.graph_screenshot_path = Some(path);
+                self.pending_graph_screenshot = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(
+                    egui::UserData::default(),
+                ));
+            }
+        }
 
         // 3. Left panel: node editor (fills full height).
         // Rendered first so snarl updates selection state before we query it.
@@ -1214,6 +1458,7 @@ impl eframe::App for VectorFlowApp {
                 snarl_viewport = ui.max_rect();
                 snarl_layer_id = ui.layer_id();
 
+                self.graph_panel_rect = ui.max_rect();
                 self.node_rects.clear();
                 let mut viewer = GraphViewer {
                     graph: &mut self.graph,
@@ -1566,7 +1811,13 @@ impl eframe::App for VectorFlowApp {
         // 7. Always update scene (selection may have changed visible nodes).
         self.update_scene(&selected_snarl);
 
-        // 8. Apply camera commands.
+        // 8. Export dialogs and video export loop.
+        self.handle_exports(ctx, frame);
+
+        // 9. Graph screenshot: check for captured image from previous frame.
+        self.handle_graph_screenshot(ctx);
+
+        // 10. Apply camera commands.
         if let Some(render_state) = frame.wgpu_render_state() {
             // Restore canvas camera if pending from a project load.
             if let Some((center, zoom)) = self.pending_canvas_restore.take() {

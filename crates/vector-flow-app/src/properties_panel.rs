@@ -131,6 +131,16 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             if ui.text_edit_singleline(&mut ipath).changed() {
                 path_changed = true;
             }
+            if ui.button("\u{1F4C2}").on_hover_text("Browse...").clicked() {
+                if let Some(picked) = rfd::FileDialog::new()
+                    .add_filter("Images", &["png", "jpg", "jpeg", "gif", "webp", "bmp"])
+                    .add_filter("All files", &["*"])
+                    .pick_file()
+                {
+                    ipath = picked.display().to_string();
+                    path_changed = true;
+                }
+            }
         });
         if path_changed {
             if let Some(node) = graph.node_mut(core_id) {

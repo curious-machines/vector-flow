@@ -1,5 +1,7 @@
 mod app;
 mod canvas_panel;
+mod export;
+mod export_dialog;
 mod id_map;
 mod project;
 mod properties_panel;
