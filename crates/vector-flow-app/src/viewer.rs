@@ -86,7 +86,7 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
         snarl: &mut Snarl<UiNode>,
     ) -> impl egui_snarl::ui::SnarlPin + 'static {
         let Some(ui_node) = snarl.get_node(pin.id.node) else {
-            ui.label("?");
+            ui.add(Label::new("?").selectable(false));
             return PinInfo::circle().with_fill(Color32::DARK_GRAY);
         };
         let core_id = ui_node.core_id;
@@ -94,12 +94,12 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
 
         if let Some(node_def) = self.graph.node(core_id) {
             if let Some(port) = node_def.inputs.get(idx) {
-                ui.label(&port.name);
+                ui.add(Label::new(&port.name).selectable(false));
                 let color = data_type_color(port.data_type);
                 return PinInfo::circle().with_fill(color);
             }
         }
-        ui.label("?");
+        ui.add(Label::new("?").selectable(false));
         PinInfo::circle().with_fill(Color32::DARK_GRAY)
     }
 
@@ -111,7 +111,7 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
         snarl: &mut Snarl<UiNode>,
     ) -> impl egui_snarl::ui::SnarlPin + 'static {
         let Some(ui_node) = snarl.get_node(pin.id.node) else {
-            ui.label("?");
+            ui.add(Label::new("?").selectable(false));
             return PinInfo::circle().with_fill(Color32::DARK_GRAY);
         };
         let core_id = ui_node.core_id;
@@ -119,12 +119,12 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
 
         if let Some(node_def) = self.graph.node(core_id) {
             if let Some(port) = node_def.outputs.get(idx) {
-                ui.label(&port.name);
+                ui.add(Label::new(&port.name).selectable(false));
                 let color = data_type_color(port.data_type);
                 return PinInfo::circle().with_fill(color);
             }
         }
-        ui.label("?");
+        ui.add(Label::new("?").selectable(false));
         PinInfo::circle().with_fill(Color32::DARK_GRAY)
     }
 
