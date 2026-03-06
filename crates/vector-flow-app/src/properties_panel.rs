@@ -69,6 +69,12 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get ColorParse text if applicable.
+    let color_parse_text = match &node.op {
+        NodeOp::ColorParse { text } => Some(text.clone()),
+        _ => None,
+    };
+
     ui.heading(label);
     ui.separator();
 
@@ -103,6 +109,27 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                         node.name = format!("Receive: {plabel}");
                     }
                     _ => {}
+                }
+                node.touch();
+                changed = true;
+            }
+        }
+        ui.separator();
+    }
+
+    // ColorParse text editor.
+    if let Some(mut ctext) = color_parse_text {
+        let mut text_changed = false;
+        ui.horizontal(|ui| {
+            ui.label("Color");
+            if ui.text_edit_singleline(&mut ctext).changed() {
+                text_changed = true;
+            }
+        });
+        if text_changed {
+            if let Some(node) = graph.node_mut(core_id) {
+                if let NodeOp::ColorParse { text } = &mut node.op {
+                    *text = ctext;
                 }
                 node.touch();
                 changed = true;

@@ -36,6 +36,7 @@ pub enum NodeCategory {
     Transforms,
     PathOps,
     Styling,
+    Color,
     Utility,
     GraphIO,
 }
@@ -47,6 +48,7 @@ impl NodeCategory {
             Self::Transforms => "Transforms",
             Self::PathOps => "Path Ops",
             Self::Styling => "Styling",
+            Self::Color => "Color",
             Self::Utility => "Utility",
             Self::GraphIO => "Graph I/O",
         }
@@ -67,6 +69,7 @@ fn cat_color(cat: NodeCategory) -> Color32 {
         NodeCategory::Transforms => Color32::from_rgb(80, 120, 200),
         NodeCategory::PathOps => Color32::from_rgb(200, 120, 60),
         NodeCategory::Styling => Color32::from_rgb(180, 80, 180),
+        NodeCategory::Color => Color32::from_rgb(220, 100, 200),
         NodeCategory::Utility => Color32::from_rgb(140, 140, 140),
         NodeCategory::GraphIO => Color32::from_rgb(200, 200, 80),
     }
@@ -130,6 +133,21 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         // Styling
         entry!("Set Fill", Styling, NodeDef::set_fill),
         entry!("Set Stroke", Styling, NodeDef::set_stroke),
+        // Color
+        entry!("Adjust Hue", Color, NodeDef::adjust_hue),
+        entry!("Adjust Saturation", Color, NodeDef::adjust_saturation),
+        entry!("Adjust Lightness", Color, NodeDef::adjust_lightness),
+        entry!("Adjust Luminance", Color, NodeDef::adjust_luminance),
+        entry!("Invert Color", Color, NodeDef::invert_color),
+        entry!("Grayscale", Color, NodeDef::grayscale),
+        entry!("Mix Colors", Color, NodeDef::mix_colors),
+        entry!("Set Alpha", Color, NodeDef::set_alpha),
+        CatalogEntry {
+            label: "Color Parse",
+            category: Color,
+            factory: |id| NodeDef::color_parse(id, "#FFFFFF".into()),
+            color: cat_color(Color),
+        },
         // Constants
         entry!("Constant Scalar", Utility, NodeDef::const_scalar),
         entry!("Constant Int", Utility, NodeDef::const_int),
@@ -151,6 +169,13 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         // Utility
         entry!("Merge", Utility, NodeDef::merge),
         entry!("Duplicate", Utility, NodeDef::duplicate),
+        // DSL
+        CatalogEntry {
+            label: "DSL Code",
+            category: Utility,
+            factory: |id| NodeDef::dsl_code(id, String::new()),
+            color: cat_color(Utility),
+        },
         // Graph I/O
         CatalogEntry {
             label: "Graph Output",
@@ -183,6 +208,15 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::ResamplePath => "Resample Path",
         NodeOp::SetFill => "Set Fill",
         NodeOp::SetStroke => "Set Stroke",
+        NodeOp::AdjustHue => "Adjust Hue",
+        NodeOp::AdjustSaturation => "Adjust Saturation",
+        NodeOp::AdjustLightness => "Adjust Lightness",
+        NodeOp::AdjustLuminance => "Adjust Luminance",
+        NodeOp::InvertColor => "Invert Color",
+        NodeOp::Grayscale => "Grayscale",
+        NodeOp::MixColors => "Mix Colors",
+        NodeOp::SetAlpha => "Set Alpha",
+        NodeOp::ColorParse { .. } => "Color Parse",
         NodeOp::ConstScalar => "Constant Scalar",
         NodeOp::ConstInt => "Constant Int",
         NodeOp::ConstVec2 => "Constant Vec2",

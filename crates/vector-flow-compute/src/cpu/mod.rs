@@ -1,3 +1,5 @@
+mod color_math;
+mod color_ops;
 mod generators;
 mod path_ops;
 mod styling;
@@ -202,6 +204,55 @@ impl ComputeBackend for CpuBackend {
                 styling::set_stroke(&shape, color, width)
             }
 
+            // ── Color operations ───────────────────────────────────────
+            NodeOp::AdjustHue => {
+                let data = get_any(inputs, 0);
+                let amount = get_scalar(inputs, 1);
+                let absolute = get_bool(inputs, 2);
+                color_ops::adjust_hue(&data, amount, absolute)
+            }
+            NodeOp::AdjustSaturation => {
+                let data = get_any(inputs, 0);
+                let amount = get_scalar(inputs, 1);
+                let absolute = get_bool(inputs, 2);
+                color_ops::adjust_saturation(&data, amount, absolute)
+            }
+            NodeOp::AdjustLightness => {
+                let data = get_any(inputs, 0);
+                let amount = get_scalar(inputs, 1);
+                let absolute = get_bool(inputs, 2);
+                color_ops::adjust_lightness(&data, amount, absolute)
+            }
+            NodeOp::AdjustLuminance => {
+                let data = get_any(inputs, 0);
+                let amount = get_scalar(inputs, 1);
+                let absolute = get_bool(inputs, 2);
+                color_ops::adjust_luminance(&data, amount, absolute)
+            }
+            NodeOp::InvertColor => {
+                let data = get_any(inputs, 0);
+                color_ops::invert_color(&data)
+            }
+            NodeOp::Grayscale => {
+                let data = get_any(inputs, 0);
+                color_ops::grayscale(&data)
+            }
+            NodeOp::MixColors => {
+                let a = get_color(inputs, 0);
+                let b = get_color(inputs, 1);
+                let factor = get_scalar(inputs, 2);
+                let lab_mode = get_bool(inputs, 3);
+                NodeData::Color(color_ops::mix_colors(a, b, factor, lab_mode))
+            }
+            NodeOp::SetAlpha => {
+                let data = get_any(inputs, 0);
+                let alpha = get_scalar(inputs, 1);
+                color_ops::set_alpha(&data, alpha)
+            }
+            NodeOp::ColorParse { text } => {
+                NodeData::Color(color_ops::color_parse(text))
+            }
+
             // ── Constants ───────────────────────────────────────────
             NodeOp::ConstScalar => NodeData::Scalar(get_scalar(inputs, 0)),
             NodeOp::ConstInt => NodeData::Int(get_int(inputs, 0)),
@@ -239,9 +290,20 @@ impl ComputeBackend for CpuBackend {
                 utility::duplicate(&geometry, count, &xform)
             }
             // ── DSL ─────────────────────────────────────────────────
-            NodeOp::DslCode { source } => {
+            NodeOp::DslCode { source, script_inputs, script_outputs } => {
                 let mut compiler = self.dsl_compiler.lock();
-                utility::dsl_code(source, &mut compiler, &self.dsl_cache, time_ctx)?
+                utility::dsl_code(
+                    source,
+                    script_inputs,
+                    script_outputs,
+                    inputs,
+                    &mut compiler,
+                    &self.dsl_cache,
+                    time_ctx,
+                    outputs,
+                )?;
+                // dsl_code writes outputs directly; skip the default assignment below.
+                return Ok(());
             }
 
             // ── Graph I/O ───────────────────────────────────────────
@@ -361,6 +423,14 @@ fn get_color(inputs: &ResolvedInputs, idx: usize) -> Color {
     match inputs.data.get(idx) {
         Some(NodeData::Color(c)) => *c,
         _ => Color::WHITE,
+    }
+}
+
+fn get_bool(inputs: &ResolvedInputs, idx: usize) -> bool {
+    match inputs.data.get(idx) {
+        Some(NodeData::Bool(v)) => *v,
+        Some(NodeData::Int(v)) => *v != 0,
+        _ => false,
     }
 }
 
@@ -495,6 +565,8 @@ mod tests {
         let mut outputs = NodeOutputs::new(1);
         let op = NodeOp::DslCode {
             source: "2.0 + 3.0".into(),
+            script_inputs: Vec::new(),
+            script_outputs: Vec::new(),
         };
         backend
             .evaluate_node(&op, &inputs, &time_ctx(), &mut outputs)

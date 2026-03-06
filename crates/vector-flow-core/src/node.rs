@@ -93,6 +93,16 @@ pub enum NodeOp {
     // Styling
     SetFill,
     SetStroke,
+    // Color operations
+    AdjustHue,
+    AdjustSaturation,
+    AdjustLightness,
+    AdjustLuminance,
+    InvertColor,
+    Grayscale,
+    MixColors,
+    SetAlpha,
+    ColorParse { text: String },
     // Constants
     ConstScalar,
     ConstInt,
@@ -106,7 +116,13 @@ pub enum NodeOp {
     Duplicate,
 
     // DSL
-    DslCode { source: String },
+    DslCode {
+        source: String,
+        /// Port definitions for the compiler (name, DataType).
+        /// Kept in sync with NodeDef.inputs / NodeDef.outputs by the UI.
+        script_inputs: Vec<(String, DataType)>,
+        script_outputs: Vec<(String, DataType)>,
+    },
     // Graph I/O
     GraphInput { name: String, data_type: DataType },
     GraphOutput { name: String, data_type: DataType },
@@ -459,9 +475,13 @@ impl NodeDef {
         Self {
             id,
             name: "DSL Code".into(),
-            op: NodeOp::DslCode { source },
-            inputs: vec![PortDef::new("input", DataType::Any).with_description("Input data")],
-            outputs: vec![PortDef::new("output", DataType::Any)],
+            op: NodeOp::DslCode {
+                source,
+                script_inputs: Vec::new(),
+                script_outputs: Vec::new(),
+            },
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             position: [0.0, 0.0],
             generation: 0,
         }
@@ -671,6 +691,182 @@ impl NodeDef {
                     .with_description("Color value"),
             ],
             outputs: vec![PortDef::new("value", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn adjust_hue(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Adjust Hue".into(),
+            op: NodeOp::AdjustHue,
+            inputs: vec![
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Input color"),
+                PortDef::new("amount", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Hue shift in degrees (or absolute hue)"),
+                PortDef::new("absolute", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("If true, set hue; if false, shift hue"),
+            ],
+            outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn adjust_saturation(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Adjust Saturation".into(),
+            op: NodeOp::AdjustSaturation,
+            inputs: vec![
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Input color"),
+                PortDef::new("amount", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Saturation adjustment (-1..1)"),
+                PortDef::new("absolute", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("If true, set saturation; if false, shift"),
+            ],
+            outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn adjust_lightness(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Adjust Lightness".into(),
+            op: NodeOp::AdjustLightness,
+            inputs: vec![
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Input color"),
+                PortDef::new("amount", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Lightness adjustment (-1..1)"),
+                PortDef::new("absolute", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("If true, set lightness; if false, shift"),
+            ],
+            outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn adjust_luminance(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Adjust Luminance".into(),
+            op: NodeOp::AdjustLuminance,
+            inputs: vec![
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Input color"),
+                PortDef::new("amount", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("CIE Lab L* adjustment (0..100)"),
+                PortDef::new("absolute", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("If true, set L*; if false, shift"),
+            ],
+            outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn invert_color(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Invert Color".into(),
+            op: NodeOp::InvertColor,
+            inputs: vec![
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Input color"),
+            ],
+            outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn grayscale(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Grayscale".into(),
+            op: NodeOp::Grayscale,
+            inputs: vec![
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Input color"),
+            ],
+            outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn mix_colors(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Mix Colors".into(),
+            op: NodeOp::MixColors,
+            inputs: vec![
+                PortDef::new("color_a", DataType::Color)
+                    .with_default(ParamValue::Color([0.0, 0.0, 0.0, 1.0]))
+                    .with_description("First color"),
+                PortDef::new("color_b", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Second color"),
+                PortDef::new("factor", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Mix factor (0=A, 1=B)"),
+                PortDef::new("lab_mode", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("If true, interpolate in CIE Lab space"),
+            ],
+            outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn set_alpha(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Set Alpha".into(),
+            op: NodeOp::SetAlpha,
+            inputs: vec![
+                PortDef::new("color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Input color"),
+                PortDef::new("alpha", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Alpha value (0..1)"),
+            ],
+            outputs: vec![PortDef::new("color", DataType::Color)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn color_parse(id: NodeId, text: String) -> Self {
+        Self {
+            id,
+            name: "Color Parse".into(),
+            op: NodeOp::ColorParse { text },
+            inputs: vec![],
+            outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
         }
