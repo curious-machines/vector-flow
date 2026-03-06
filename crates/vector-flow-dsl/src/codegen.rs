@@ -82,6 +82,154 @@ impl DslCompiler {
         self.compile_program_to_fn(&func_def, &type_table)
     }
 
+    /// Compile a bare script with externally-defined input/output port bindings.
+    /// Inputs are loaded from `ctx.slots[0..inputs.len()]`.
+    /// Outputs are written back to `ctx.slots[inputs.len()..inputs.len()+outputs.len()]`.
+    /// Signature: `extern "C" fn(ctx: *mut DslContext) -> f64`
+    pub fn compile_node_script(
+        &mut self,
+        source: &str,
+        inputs: &[(String, DslType)],
+        outputs: &[(String, DslType)],
+    ) -> Result<*const u8, DslError> {
+        let block = parser::parse_script(source)?;
+        let mut tc = TypeChecker::new();
+        let type_table = tc.check_script(&block, inputs, outputs)?;
+        self.compile_script_to_fn(&block, &type_table, inputs, outputs)
+    }
+
+    fn compile_script_to_fn(
+        &mut self,
+        block: &crate::ast::Block,
+        type_table: &[DslType],
+        inputs: &[(String, DslType)],
+        outputs: &[(String, DslType)],
+    ) -> Result<*const u8, DslError> {
+        let name = self.next_func_name();
+
+        let mut sig = self.module.make_signature();
+        sig.call_conv = CallConv::SystemV;
+        sig.params.push(AbiParam::new(self.module.target_config().pointer_type()));
+        sig.returns.push(AbiParam::new(types::F64));
+
+        let func_id = self.module
+            .declare_function(&name, Linkage::Local, &sig)
+            .map_err(|e| DslError::codegen(e.to_string()))?;
+
+        self.ctx.func.signature = sig;
+        self.ctx.func.name = UserFuncName::user(0, func_id.as_u32());
+
+        {
+            let mut builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.func_builder_ctx);
+            let entry_block = builder.create_block();
+            builder.append_block_params_for_function_params(entry_block);
+            builder.switch_to_block(entry_block);
+            builder.seal_block(entry_block);
+
+            let ctx_ptr = builder.block_params(entry_block)[0];
+
+            {
+                let mut cg = CodegenCtx {
+                    builder: &mut builder,
+                    module: &mut self.module,
+                    ctx_ptr,
+                    variables: HashMap::new(),
+                    runtime_funcs: &mut self.runtime_funcs,
+                    type_table,
+                };
+
+                // Load input variables from ctx.slots[0..n_inputs]
+                for (i, (param_name, param_type)) in inputs.iter().enumerate() {
+                    let offset = std::mem::offset_of!(DslContext, slots) + i * 8;
+                    let val = cg.builder.ins().load(
+                        types::F64,
+                        cranelift_codegen::ir::MemFlags::trusted(),
+                        ctx_ptr,
+                        offset as i32,
+                    );
+                    let var = cg.declare_variable(param_name, *param_type);
+                    let typed_val = match param_type {
+                        DslType::Int => cg.builder.ins().fcvt_to_sint_sat(types::I64, val),
+                        _ => val,
+                    };
+                    cg.builder.def_var(var, typed_val);
+                }
+
+                // Pre-declare output variables (initialized to 0)
+                for (out_name, out_type) in outputs.iter() {
+                    let var = cg.declare_variable(out_name, *out_type);
+                    let zero = match out_type {
+                        DslType::Int => cg.builder.ins().iconst(types::I64, 0),
+                        DslType::Bool => cg.builder.ins().iconst(types::I8, 0),
+                        _ => cg.builder.ins().f64const(0.0),
+                    };
+                    cg.builder.def_var(var, zero);
+                }
+
+                // Emit body
+                let tail_result = cg.emit_block(block)?;
+
+                // If there's a tail expression, assign it to the first output variable
+                // so the output writeback below picks it up.
+                if let (Some(tail_val), Some((out_name, out_type))) = (tail_result, outputs.first()) {
+                    if let Some(&(var, _)) = cg.variables.get(out_name.as_str()) {
+                        let coerced = match out_type {
+                            DslType::Int => cg.builder.ins().fcvt_to_sint_sat(types::I64, tail_val),
+                            _ => {
+                                // Ensure f64
+                                let val_type = cg.builder.func.dfg.value_type(tail_val);
+                                if val_type == types::I64 {
+                                    cg.builder.ins().fcvt_from_sint(types::F64, tail_val)
+                                } else {
+                                    tail_val
+                                }
+                            }
+                        };
+                        cg.builder.def_var(var, coerced);
+                    }
+                }
+
+                // Write all output variables back to ctx.slots[n_inputs..]
+                for (i, (out_name, out_type)) in outputs.iter().enumerate() {
+                    if let Some(&(var, _)) = cg.variables.get(out_name.as_str()) {
+                        let val = cg.builder.use_var(var);
+                        let out_offset = std::mem::offset_of!(DslContext, slots)
+                            + (inputs.len() + i) * 8;
+                        let f64_val = match out_type {
+                            DslType::Int => cg.builder.ins().fcvt_from_sint(types::F64, val),
+                            DslType::Bool => {
+                                let i64_val = cg.builder.ins().uextend(types::I64, val);
+                                cg.builder.ins().fcvt_from_sint(types::F64, i64_val)
+                            }
+                            _ => val,
+                        };
+                        cg.builder.ins().store(
+                            cranelift_codegen::ir::MemFlags::trusted(),
+                            f64_val,
+                            ctx_ptr,
+                            out_offset as i32,
+                        );
+                    }
+                }
+
+                // Return value (for compatibility, return 0)
+                let ret = cg.builder.ins().f64const(0.0);
+                cg.builder.ins().return_(&[ret]);
+            }
+            builder.finalize();
+        }
+
+        self.module
+            .define_function(func_id, &mut self.ctx)
+            .map_err(|e| DslError::codegen(e.to_string()))?;
+
+        self.module.clear_context(&mut self.ctx);
+        self.module.finalize_definitions()
+            .map_err(|e| DslError::codegen(e.to_string()))?;
+
+        Ok(self.module.get_finalized_function(func_id))
+    }
+
     fn next_func_name(&mut self) -> String {
         let name = format!("dsl_func_{}", self.func_counter);
         self.func_counter += 1;
@@ -883,5 +1031,112 @@ mod tests {
         let mut ctx = DslContext::new(&tc);
         let result = unsafe { func(&mut ctx) };
         assert!((result - 42.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn codegen_node_script_simple() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![("x".to_string(), DslType::Scalar)];
+        let outputs = vec![("result".to_string(), DslType::Scalar)];
+        let ptr = compiler.compile_node_script(
+            "result = x * 2.0;",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let mut ctx = DslContext::new(&tc);
+        ctx.slots[0] = 5.0; // x = 5.0
+
+        unsafe { func(&mut ctx) };
+
+        // Output at slots[1] (after 1 input)
+        assert!((ctx.slots[1] - 10.0).abs() < 1e-10, "expected 10.0, got {}", ctx.slots[1]);
+    }
+
+    #[test]
+    fn codegen_node_script_tail_expr() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![("x".to_string(), DslType::Scalar)];
+        let outputs = vec![("result".to_string(), DslType::Scalar)];
+        // Tail expression (no semicolon) should write to first output.
+        let ptr = compiler.compile_node_script(
+            "x + 100.0",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let mut ctx = DslContext::new(&tc);
+        ctx.slots[0] = 7.0;
+
+        unsafe { func(&mut ctx) };
+
+        assert!((ctx.slots[1] - 107.0).abs() < 1e-10, "expected 107.0, got {}", ctx.slots[1]);
+    }
+
+    #[test]
+    fn codegen_node_script_multiple_outputs() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![("x".to_string(), DslType::Scalar)];
+        let outputs = vec![
+            ("sum".to_string(), DslType::Scalar),
+            ("product".to_string(), DslType::Scalar),
+        ];
+        let ptr = compiler.compile_node_script(
+            "sum = x + 1.0;\nproduct = x * 2.0;",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let mut ctx = DslContext::new(&tc);
+        ctx.slots[0] = 3.0;
+
+        unsafe { func(&mut ctx) };
+
+        assert!((ctx.slots[1] - 4.0).abs() < 1e-10, "sum: expected 4.0, got {}", ctx.slots[1]);
+        assert!((ctx.slots[2] - 6.0).abs() < 1e-10, "product: expected 6.0, got {}", ctx.slots[2]);
+    }
+
+    #[test]
+    fn codegen_node_script_time_builtin() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![];
+        let outputs = vec![("result".to_string(), DslType::Scalar)];
+        let ptr = compiler.compile_node_script(
+            "result = sin(time);",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = TimeContext { frame: 0, time_secs: std::f32::consts::FRAC_PI_2, fps: 30.0 };
+        let mut ctx = DslContext::new(&tc);
+
+        unsafe { func(&mut ctx) };
+
+        assert!((ctx.slots[0] - 1.0).abs() < 0.01, "expected ~1.0, got {}", ctx.slots[0]);
+    }
+
+    #[test]
+    fn codegen_node_script_no_ports() {
+        // Empty ports, expression mode fallback (should still compile as script)
+        let mut compiler = DslCompiler::new().unwrap();
+        let ptr = compiler.compile_node_script(
+            "42.0",
+            &[],
+            &[],
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = TimeContext { frame: 0, time_secs: 0.0, fps: 30.0 };
+        let mut ctx = DslContext::new(&tc);
+        let result = unsafe { func(&mut ctx) };
+        // Returns 0.0 since no outputs, but shouldn't crash
+        assert!((result - 0.0).abs() < 1e-10);
     }
 }

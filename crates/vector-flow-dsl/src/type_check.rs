@@ -106,6 +106,32 @@ impl TypeChecker {
         Ok(std::mem::take(&mut self.types))
     }
 
+    /// Type-check a bare script block with externally-defined input/output variables.
+    pub fn check_script(
+        &mut self,
+        block: &Block,
+        inputs: &[(String, DslType)],
+        outputs: &[(String, DslType)],
+    ) -> Result<Vec<DslType>, DslError> {
+        self.define_time_builtins();
+
+        // Add input variables to scope.
+        for (name, ty) in inputs {
+            self.scopes.last_mut().unwrap().insert(name.clone(), *ty);
+        }
+
+        // Add output variables to scope (pre-declared, assignable).
+        for (name, ty) in outputs {
+            self.scopes.last_mut().unwrap().insert(name.clone(), *ty);
+        }
+
+        self.resolve_block(block, DslType::Scalar)?;
+        if let Some(err) = self.errors.pop() {
+            return Err(err);
+        }
+        Ok(std::mem::take(&mut self.types))
+    }
+
     fn define_time_builtins(&mut self) {
         let scope = self.scopes.last_mut().unwrap();
         scope.insert("time".to_string(), DslType::Scalar);

@@ -22,6 +22,28 @@ pub fn parse_program(source: &str) -> Result<FunctionDef, DslError> {
     Ok(func)
 }
 
+/// Parse a bare script (statements and optional tail expression, no `fn` wrapper).
+/// Used for DSL node bodies where inputs/outputs are defined externally.
+pub fn parse_script(source: &str) -> Result<Block, DslError> {
+    let tokens = tokenize(source)?;
+    let mut parser = Parser::new(tokens);
+    let mut statements = Vec::new();
+    let mut tail_expr = None;
+
+    while *parser.peek() != TokenKind::Eof {
+        let stmt_or_expr = parser.parse_statement_or_tail()?;
+        match stmt_or_expr {
+            StmtOrTail::Stmt(s) => statements.push(*s),
+            StmtOrTail::Tail(e) => {
+                tail_expr = Some(e);
+                break;
+            }
+        }
+    }
+    parser.expect(TokenKind::Eof)?;
+    Ok(Block { statements, tail_expr })
+}
+
 enum StmtOrTail {
     Stmt(Box<Spanned<Statement>>),
     Tail(Spanned<Expr>),
@@ -215,8 +237,8 @@ impl Parser {
                             id,
                         ))))
                     }
-                } else if *self.peek() == TokenKind::RBrace {
-                    // Tail expression (no semicolon before closing brace)
+                } else if *self.peek() == TokenKind::RBrace || *self.peek() == TokenKind::Eof {
+                    // Tail expression (no semicolon before closing brace or end of script)
                     Ok(StmtOrTail::Tail(expr))
                 } else {
                     // If expressions and if statements don't need semicolons
