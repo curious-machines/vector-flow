@@ -1,13 +1,9 @@
-use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use glam::Affine2;
 use lyon::math::point;
 use lyon::path::iterator::PathIterator;
 use lyon::path::Path as LyonPath;
-use lyon::tessellation::{
-    BuffersBuilder, StrokeOptions, StrokeTessellator, StrokeVertex, VertexBuffers,
-};
 
 use vector_flow_core::types::{
     Color, LineCap, LineJoin, NodeData, PathData, PathVerb, Point, Shape, StrokeStyle,
@@ -180,122 +176,144 @@ fn build_lyon_path(path: &PathData) -> LyonPath {
     builder.build()
 }
 
+/// Apply a dash pattern to a path, returning dashed sub-paths.
+/// Each contour in the input is dashed independently so that dashes don't
+/// bridge across disjoint sub-paths.
 fn apply_dash_pattern(path: &PathData, dash_array: &[f32], dash_offset: f32) -> Vec<PathData> {
     if dash_array.is_empty() {
+        return vec![path.clone()];
+    }
+
+    let total_pattern: f32 = dash_array.iter().sum();
+    if total_pattern <= 0.0 {
         return vec![path.clone()];
     }
 
     let lyon_path = build_lyon_path(path);
     let tolerance = 0.5;
 
-    // Flatten path to line segments and compute cumulative distances.
-    let mut segments: Vec<(Point, Point)> = Vec::new();
+    // Collect line segments grouped by sub-path.
+    let mut sub_paths: Vec<Vec<(Point, Point)>> = Vec::new();
+    let mut current_segments: Vec<(Point, Point)> = Vec::new();
     let mut current = Point { x: 0.0, y: 0.0 };
+    let mut first = Point { x: 0.0, y: 0.0 };
     for evt in lyon_path.iter().flattened(tolerance) {
         use lyon::path::Event;
         match evt {
             Event::Begin { at } => {
                 current = Point { x: at.x, y: at.y };
+                first = current;
             }
             Event::Line { from: _, to } => {
                 let to_pt = Point { x: to.x, y: to.y };
-                segments.push((current, to_pt));
+                current_segments.push((current, to_pt));
                 current = to_pt;
             }
-            Event::End { .. } => {}
+            Event::End { close, .. } => {
+                // For closed sub-paths, add the closing segment back to the start.
+                if close {
+                    let dx = first.x - current.x;
+                    let dy = first.y - current.y;
+                    if dx * dx + dy * dy > 1e-6 {
+                        current_segments.push((current, first));
+                    }
+                }
+                if !current_segments.is_empty() {
+                    sub_paths.push(std::mem::take(&mut current_segments));
+                }
+            }
             _ => {}
         }
     }
-
-    if segments.is_empty() {
-        return vec![path.clone()];
+    if !current_segments.is_empty() {
+        sub_paths.push(current_segments);
     }
 
-    // Walk segments applying dash pattern.
-    let total_pattern: f32 = dash_array.iter().sum();
-    if total_pattern <= 0.0 {
+    if sub_paths.is_empty() {
         return vec![path.clone()];
     }
 
     let mut result: Vec<PathData> = Vec::new();
-    let mut offset = dash_offset % total_pattern;
-    if offset < 0.0 {
-        offset += total_pattern;
-    }
 
-    // Find starting position in dash pattern.
-    let mut dash_idx = 0usize;
-    let mut dash_remaining = dash_array[0];
-    let mut drawing = true; // even indices are dashes (drawn), odd are gaps
-
-    // Consume offset.
-    let mut off = offset;
-    while off > 0.0 {
-        if off < dash_remaining {
-            dash_remaining -= off;
-            break;
-        }
-        off -= dash_remaining;
-        drawing = !drawing;
-        dash_idx = (dash_idx + 1) % dash_array.len();
-        dash_remaining = dash_array[dash_idx];
-    }
-
-    let mut current_path = PathData::new();
-    let mut needs_move = true;
-
-    for (from, to) in &segments {
-        let dx = to.x - from.x;
-        let dy = to.y - from.y;
-        let seg_len = (dx * dx + dy * dy).sqrt();
-        if seg_len < 1e-6 {
-            continue;
+    // Dash each sub-path independently, resetting dash state per contour.
+    for segments in &sub_paths {
+        let mut offset = dash_offset % total_pattern;
+        if offset < 0.0 {
+            offset += total_pattern;
         }
 
-        let mut consumed = 0.0f32;
-        while consumed < seg_len - 1e-6 {
-            let remaining_seg = seg_len - consumed;
-            let advance = remaining_seg.min(dash_remaining);
-            let t_start = consumed / seg_len;
-            let t_end = (consumed + advance) / seg_len;
-            let start_pt = Point {
-                x: from.x + dx * t_start,
-                y: from.y + dy * t_start,
-            };
-            let end_pt = Point {
-                x: from.x + dx * t_end,
-                y: from.y + dy * t_end,
-            };
+        let mut dash_idx = 0usize;
+        let mut dash_remaining = dash_array[0];
+        let mut drawing = true;
 
-            if drawing {
-                if needs_move {
-                    current_path.verbs.push(PathVerb::MoveTo(start_pt));
-                    needs_move = false;
-                }
-                current_path.verbs.push(PathVerb::LineTo(end_pt));
+        let mut off = offset;
+        while off > 0.0 {
+            if off < dash_remaining {
+                dash_remaining -= off;
+                break;
+            }
+            off -= dash_remaining;
+            drawing = !drawing;
+            dash_idx = (dash_idx + 1) % dash_array.len();
+            dash_remaining = dash_array[dash_idx];
+        }
+
+        let mut current_path = PathData::new();
+        let mut needs_move = true;
+
+        for (from, to) in segments {
+            let dx = to.x - from.x;
+            let dy = to.y - from.y;
+            let seg_len = (dx * dx + dy * dy).sqrt();
+            if seg_len < 1e-6 {
+                continue;
             }
 
-            consumed += advance;
-            dash_remaining -= advance;
+            let mut consumed = 0.0f32;
+            while consumed < seg_len - 1e-6 {
+                let remaining_seg = seg_len - consumed;
+                let advance = remaining_seg.min(dash_remaining);
+                let t_start = consumed / seg_len;
+                let t_end = (consumed + advance) / seg_len;
+                let start_pt = Point {
+                    x: from.x + dx * t_start,
+                    y: from.y + dy * t_start,
+                };
+                let end_pt = Point {
+                    x: from.x + dx * t_end,
+                    y: from.y + dy * t_end,
+                };
 
-            if dash_remaining < 1e-6 {
-                if drawing && !current_path.verbs.is_empty() {
-                    result.push(current_path);
-                    current_path = PathData::new();
-                    needs_move = true;
-                }
-                drawing = !drawing;
-                dash_idx = (dash_idx + 1) % dash_array.len();
-                dash_remaining = dash_array[dash_idx];
                 if drawing {
-                    needs_move = true;
+                    if needs_move {
+                        current_path.verbs.push(PathVerb::MoveTo(start_pt));
+                        needs_move = false;
+                    }
+                    current_path.verbs.push(PathVerb::LineTo(end_pt));
+                }
+
+                consumed += advance;
+                dash_remaining -= advance;
+
+                if dash_remaining < 1e-6 {
+                    if drawing && !current_path.verbs.is_empty() {
+                        result.push(current_path);
+                        current_path = PathData::new();
+                        needs_move = true;
+                    }
+                    drawing = !drawing;
+                    dash_idx = (dash_idx + 1) % dash_array.len();
+                    dash_remaining = dash_array[dash_idx];
+                    if drawing {
+                        needs_move = true;
+                    }
                 }
             }
         }
-    }
 
-    if !current_path.verbs.is_empty() {
-        result.push(current_path);
+        if !current_path.verbs.is_empty() {
+            result.push(current_path);
+        }
     }
 
     if result.is_empty() {
@@ -318,8 +336,7 @@ fn stroke_outline(path: &PathData, stroke: &StrokeStyle) -> PathData {
         if sub_path.verbs.is_empty() {
             continue;
         }
-        let lyon_path = build_lyon_path(sub_path);
-        let outline = tessellate_and_extract_boundary(&lyon_path, stroke);
+        let outline = polyline_stroke_outline(sub_path, stroke);
         all_verbs.extend(outline.verbs);
     }
 
@@ -329,119 +346,368 @@ fn stroke_outline(path: &PathData, stroke: &StrokeStyle) -> PathData {
     }
 }
 
-fn tessellate_and_extract_boundary(lyon_path: &LyonPath, stroke: &StrokeStyle) -> PathData {
-    let mut geometry: VertexBuffers<[f32; 2], u32> = VertexBuffers::new();
-    let mut tessellator = StrokeTessellator::new();
+/// Flatten a PathData into a list of polyline contours (each is a Vec of points + closed flag).
+fn flatten_to_polylines(path: &PathData) -> Vec<(Vec<Point>, bool)> {
+    let lyon_path = build_lyon_path(path);
+    let tolerance = 0.5;
 
-    let mut options = StrokeOptions::tolerance(0.5).with_line_width(stroke.width);
-    let cap = match stroke.line_cap {
-        LineCap::Butt => lyon::tessellation::LineCap::Butt,
-        LineCap::Round => lyon::tessellation::LineCap::Round,
-        LineCap::Square => lyon::tessellation::LineCap::Square,
-    };
-    options.start_cap = cap;
-    options.end_cap = cap;
-    options.line_join = match stroke.line_join {
-        LineJoin::Miter(limit) => {
-            options.miter_limit = limit;
-            lyon::tessellation::LineJoin::Miter
-        }
-        LineJoin::Round => lyon::tessellation::LineJoin::Round,
-        LineJoin::Bevel => lyon::tessellation::LineJoin::Bevel,
-    };
+    let mut contours: Vec<(Vec<Point>, bool)> = Vec::new();
+    let mut current_pts: Vec<Point> = Vec::new();
 
-    let result = tessellator.tessellate_path(
-        lyon_path,
-        &options,
-        &mut BuffersBuilder::new(&mut geometry, |vertex: StrokeVertex| {
-            let p = vertex.position();
-            [p.x, p.y]
-        }),
-    );
-
-    if result.is_err() || geometry.indices.is_empty() {
-        return PathData::new();
-    }
-
-    extract_boundary(&geometry.vertices, &geometry.indices)
-}
-
-/// Extract boundary edges from a triangle mesh and chain them into closed path loops.
-fn extract_boundary(vertices: &[[f32; 2]], indices: &[u32]) -> PathData {
-    // Count edge occurrences (boundary edges appear exactly once).
-    let mut edge_count: HashMap<(u32, u32), u32> = HashMap::new();
-    for tri in indices.chunks(3) {
-        if tri.len() < 3 {
-            continue;
-        }
-        let edges = [
-            (tri[0].min(tri[1]), tri[0].max(tri[1])),
-            (tri[1].min(tri[2]), tri[1].max(tri[2])),
-            (tri[0].min(tri[2]), tri[0].max(tri[2])),
-        ];
-        for e in &edges {
-            *edge_count.entry(*e).or_insert(0) += 1;
-        }
-    }
-
-    // Build adjacency for boundary edges.
-    let mut adjacency: HashMap<u32, Vec<u32>> = HashMap::new();
-    for (&(a, b), &count) in &edge_count {
-        if count == 1 {
-            adjacency.entry(a).or_default().push(b);
-            adjacency.entry(b).or_default().push(a);
-        }
-    }
-
-    // Chain boundary edges into loops.
-    let mut visited_edges: HashSet<(u32, u32)> = HashSet::new();
-    let mut verbs = Vec::new();
-
-    let boundary_verts: Vec<u32> = adjacency.keys().copied().collect();
-    for &start in &boundary_verts {
-        let Some(neighbors) = adjacency.get(&start) else { continue };
-        for &next in neighbors {
-            let edge_key = (start.min(next), start.max(next));
-            if !visited_edges.insert(edge_key) {
-                continue;
+    for evt in lyon_path.iter().flattened(tolerance) {
+        use lyon::path::Event;
+        match evt {
+            Event::Begin { at } => {
+                current_pts.clear();
+                current_pts.push(Point { x: at.x, y: at.y });
             }
-
-            // Walk a chain.
-            let mut chain = vec![start];
-            let mut curr = next;
-
-            loop {
-                chain.push(curr);
-                let Some(neighbors) = adjacency.get(&curr) else { break };
-                let mut found_next = false;
-                for &n in neighbors {
-                    let ek = (curr.min(n), curr.max(n));
-                    if visited_edges.insert(ek) {
-                        curr = n;
-                        found_next = true;
-                        break;
+            Event::Line { to, .. } => {
+                let p = Point { x: to.x, y: to.y };
+                // Avoid duplicate consecutive points.
+                if let Some(last) = current_pts.last() {
+                    if (last.x - p.x).abs() > 1e-6 || (last.y - p.y).abs() > 1e-6 {
+                        current_pts.push(p);
                     }
                 }
-                if !found_next || curr == start {
-                    break;
+            }
+            Event::End { close, .. } => {
+                if current_pts.len() >= 2 {
+                    contours.push((std::mem::take(&mut current_pts), close));
                 }
             }
-
-            if chain.len() >= 3 {
-                let v = vertices[chain[0] as usize];
-                verbs.push(PathVerb::MoveTo(Point { x: v[0], y: v[1] }));
-                for &idx in &chain[1..] {
-                    let v = vertices[idx as usize];
-                    verbs.push(PathVerb::LineTo(Point { x: v[0], y: v[1] }));
-                }
-                verbs.push(PathVerb::Close);
-            }
+            _ => {}
         }
+    }
+    if current_pts.len() >= 2 {
+        contours.push((current_pts, false));
+    }
+    contours
+}
+
+/// Build the stroke outline of a path directly using polyline offset.
+/// Much more robust than tessellation + boundary extraction.
+fn polyline_stroke_outline(path: &PathData, stroke: &StrokeStyle) -> PathData {
+    let contours = flatten_to_polylines(path);
+    let mut all_verbs: Vec<PathVerb> = Vec::new();
+
+    for (pts, closed) in &contours {
+        if pts.len() < 2 {
+            continue;
+        }
+        let verbs = if *closed {
+            outline_closed(pts, stroke)
+        } else {
+            outline_open(pts, stroke)
+        };
+        all_verbs.extend(verbs);
     }
 
     PathData {
-        verbs,
+        verbs: all_verbs,
         closed: true,
+    }
+}
+
+/// Compute per-segment unit normals (pointing left of the direction of travel).
+fn segment_normals(pts: &[Point]) -> Vec<(f32, f32)> {
+    let mut normals = Vec::with_capacity(pts.len() - 1);
+    for i in 0..pts.len() - 1 {
+        let dx = pts[i + 1].x - pts[i].x;
+        let dy = pts[i + 1].y - pts[i].y;
+        let len = (dx * dx + dy * dy).sqrt();
+        if len < 1e-6 {
+            normals.push((0.0, 1.0));
+        } else {
+            normals.push((-dy / len, dx / len));
+        }
+    }
+    normals
+}
+
+/// Compute the miter offset point at a joint between two segments.
+/// Returns (left_offset, right_offset) points at position `p` given
+/// incoming normal `n0` and outgoing normal `n1`.
+fn miter_offset(
+    p: Point,
+    n0: (f32, f32),
+    n1: (f32, f32),
+    half_w: f32,
+    join: &LineJoin,
+) -> (Vec<Point>, Vec<Point>) {
+    let mx = n0.0 + n1.0;
+    let my = n0.1 + n1.1;
+    let mlen = (mx * mx + my * my).sqrt();
+
+    if mlen < 1e-6 {
+        // Near-parallel segments — use either normal.
+        return (
+            vec![Point { x: p.x + n0.0 * half_w, y: p.y + n0.1 * half_w }],
+            vec![Point { x: p.x - n0.0 * half_w, y: p.y - n0.1 * half_w }],
+        );
+    }
+
+    let nmx = mx / mlen;
+    let nmy = my / mlen;
+    let cos_half = n0.0 * nmx + n0.1 * nmy;
+    let miter_len = if cos_half.abs() > 1e-6 {
+        half_w / cos_half
+    } else {
+        half_w
+    };
+
+    match join {
+        LineJoin::Miter(limit) => {
+            if miter_len.abs() / half_w > *limit {
+                // Exceed miter limit → bevel.
+                bevel_points(p, n0, n1, half_w)
+            } else {
+                (
+                    vec![Point { x: p.x + nmx * miter_len, y: p.y + nmy * miter_len }],
+                    vec![Point { x: p.x - nmx * miter_len, y: p.y - nmy * miter_len }],
+                )
+            }
+        }
+        LineJoin::Bevel => bevel_points(p, n0, n1, half_w),
+        LineJoin::Round => {
+            // Determine which side has the outer angle (needs the arc).
+            let cross = n0.0 * n1.1 - n0.1 * n1.0;
+            if cross.abs() < 1e-6 {
+                // Nearly straight.
+                return (
+                    vec![Point { x: p.x + nmx * miter_len, y: p.y + nmy * miter_len }],
+                    vec![Point { x: p.x - nmx * miter_len, y: p.y - nmy * miter_len }],
+                );
+            }
+            let arc_pts = round_join_arc(p, n0, n1, half_w, cross > 0.0);
+            if cross > 0.0 {
+                // Left side is outer — gets the arc, right side gets miter.
+                (
+                    arc_pts,
+                    vec![Point { x: p.x - nmx * miter_len, y: p.y - nmy * miter_len }],
+                )
+            } else {
+                // Right side is outer.
+                (
+                    vec![Point { x: p.x + nmx * miter_len, y: p.y + nmy * miter_len }],
+                    arc_pts.into_iter().rev().map(|pt| {
+                        // Mirror across the center.
+                        Point { x: 2.0 * p.x - pt.x, y: 2.0 * p.y - pt.y }
+                    }).collect(),
+                )
+            }
+        }
+    }
+}
+
+fn bevel_points(
+    p: Point,
+    n0: (f32, f32),
+    n1: (f32, f32),
+    half_w: f32,
+) -> (Vec<Point>, Vec<Point>) {
+    (
+        vec![
+            Point { x: p.x + n0.0 * half_w, y: p.y + n0.1 * half_w },
+            Point { x: p.x + n1.0 * half_w, y: p.y + n1.1 * half_w },
+        ],
+        vec![
+            Point { x: p.x - n0.0 * half_w, y: p.y - n0.1 * half_w },
+            Point { x: p.x - n1.0 * half_w, y: p.y - n1.1 * half_w },
+        ],
+    )
+}
+
+/// Generate arc points for a round join on the outer side.
+fn round_join_arc(
+    center: Point,
+    n0: (f32, f32),
+    n1: (f32, f32),
+    radius: f32,
+    left_is_outer: bool,
+) -> Vec<Point> {
+    let (sn, en) = if left_is_outer { (n0, n1) } else { (n0, n1) };
+    let start_angle = sn.1.atan2(sn.0);
+    let end_angle = en.1.atan2(en.0);
+
+    let mut sweep = end_angle - start_angle;
+    // Normalize sweep to the shorter arc.
+    if sweep > std::f32::consts::PI {
+        sweep -= 2.0 * std::f32::consts::PI;
+    } else if sweep < -std::f32::consts::PI {
+        sweep += 2.0 * std::f32::consts::PI;
+    }
+
+    let steps = ((sweep.abs() / (std::f32::consts::PI / 8.0)).ceil() as usize).max(2);
+    let mut pts = Vec::with_capacity(steps + 1);
+    for i in 0..=steps {
+        let t = i as f32 / steps as f32;
+        let angle = start_angle + sweep * t;
+        pts.push(Point {
+            x: center.x + angle.cos() * radius,
+            y: center.y + angle.sin() * radius,
+        });
+    }
+    pts
+}
+
+/// Build outline for an OPEN polyline (with end caps).
+fn outline_open(pts: &[Point], stroke: &StrokeStyle) -> Vec<PathVerb> {
+    let half_w = stroke.width / 2.0;
+    let normals = segment_normals(pts);
+
+    let mut left: Vec<Point> = Vec::new();
+    let mut right: Vec<Point> = Vec::new();
+
+    // Start point.
+    let n = normals[0];
+    left.push(Point { x: pts[0].x + n.0 * half_w, y: pts[0].y + n.1 * half_w });
+    right.push(Point { x: pts[0].x - n.0 * half_w, y: pts[0].y - n.1 * half_w });
+
+    // Interior joints.
+    for i in 1..pts.len() - 1 {
+        let (l, r) = miter_offset(pts[i], normals[i - 1], normals[i], half_w, &stroke.line_join);
+        left.extend(l);
+        right.extend(r);
+    }
+
+    // End point.
+    let n = *normals.last().unwrap();
+    let last = *pts.last().unwrap();
+    left.push(Point { x: last.x + n.0 * half_w, y: last.y + n.1 * half_w });
+    right.push(Point { x: last.x - n.0 * half_w, y: last.y - n.1 * half_w });
+
+    // Build the outline: left forward → end cap → right backward → start cap → close.
+    let mut verbs = Vec::new();
+    verbs.push(PathVerb::MoveTo(left[0]));
+    for p in &left[1..] {
+        verbs.push(PathVerb::LineTo(*p));
+    }
+
+    // End cap.
+    add_cap(&mut verbs, last, n, half_w, stroke.line_cap, true);
+
+    // Right side in reverse.
+    for p in right.iter().rev() {
+        verbs.push(PathVerb::LineTo(*p));
+    }
+
+    // Start cap.
+    add_cap(&mut verbs, pts[0], normals[0], half_w, stroke.line_cap, false);
+
+    verbs.push(PathVerb::Close);
+    verbs
+}
+
+/// Build outline for a CLOSED polyline (no end caps, just joins).
+fn outline_closed(pts: &[Point], stroke: &StrokeStyle) -> Vec<PathVerb> {
+    let half_w = stroke.width / 2.0;
+
+    // For closed paths, the last point may equal the first. Build segments
+    // treating the path as a loop.
+    let n = pts.len();
+    if n < 2 {
+        return vec![];
+    }
+
+    // Build normals for each segment in the loop.
+    let mut normals: Vec<(f32, f32)> = Vec::with_capacity(n);
+    for i in 0..n {
+        let next = (i + 1) % n;
+        let dx = pts[next].x - pts[i].x;
+        let dy = pts[next].y - pts[i].y;
+        let len = (dx * dx + dy * dy).sqrt();
+        if len < 1e-6 {
+            normals.push((0.0, 1.0));
+        } else {
+            normals.push((-dy / len, dx / len));
+        }
+    }
+
+    let mut left: Vec<Point> = Vec::new();
+    let mut right: Vec<Point> = Vec::new();
+
+    for i in 0..n {
+        let prev_n = normals[(i + n - 1) % n];
+        let curr_n = normals[i];
+        let (l, r) = miter_offset(pts[i], prev_n, curr_n, half_w, &stroke.line_join);
+        left.extend(l);
+        right.extend(r);
+    }
+
+    let mut verbs = Vec::new();
+
+    // Left side as one closed loop.
+    if !left.is_empty() {
+        verbs.push(PathVerb::MoveTo(left[0]));
+        for p in &left[1..] {
+            verbs.push(PathVerb::LineTo(*p));
+        }
+        verbs.push(PathVerb::Close);
+    }
+
+    // Right side as another closed loop (reversed winding).
+    if !right.is_empty() {
+        verbs.push(PathVerb::MoveTo(*right.last().unwrap()));
+        for p in right.iter().rev().skip(1) {
+            verbs.push(PathVerb::LineTo(*p));
+        }
+        verbs.push(PathVerb::Close);
+    }
+
+    verbs
+}
+
+/// Add an end cap to the outline path.
+fn add_cap(
+    verbs: &mut Vec<PathVerb>,
+    tip: Point,
+    normal: (f32, f32),
+    half_w: f32,
+    cap: LineCap,
+    is_end: bool,
+) {
+    match cap {
+        LineCap::Butt => {
+            // No extra geometry — the left→right connection is the butt cap.
+        }
+        LineCap::Square => {
+            // Extend by half_w in the direction of travel.
+            let dir = if is_end { (normal.1, -normal.0) } else { (-normal.1, normal.0) };
+            let ext = Point {
+                x: tip.x + dir.0 * half_w,
+                y: tip.y + dir.1 * half_w,
+            };
+            // Two corner points of the square extension.
+            let c1 = Point {
+                x: ext.x + normal.0 * half_w,
+                y: ext.y + normal.1 * half_w,
+            };
+            let c2 = Point {
+                x: ext.x - normal.0 * half_w,
+                y: ext.y - normal.1 * half_w,
+            };
+            if is_end {
+                verbs.push(PathVerb::LineTo(c1));
+                verbs.push(PathVerb::LineTo(c2));
+            } else {
+                verbs.push(PathVerb::LineTo(c2));
+                verbs.push(PathVerb::LineTo(c1));
+            }
+        }
+        LineCap::Round => {
+            // Semicircle approximation.
+            let dir = if is_end { 1.0f32 } else { -1.0 };
+            let start_angle = normal.1.atan2(normal.0);
+            let steps = 8;
+            for i in 1..steps {
+                let t = i as f32 / steps as f32;
+                let angle = start_angle + dir * std::f32::consts::PI * t;
+                verbs.push(PathVerb::LineTo(Point {
+                    x: tip.x + angle.cos() * half_w,
+                    y: tip.y + angle.sin() * half_w,
+                }));
+            }
+        }
     }
 }
 
@@ -663,5 +929,56 @@ mod tests {
         let dashes = apply_dash_pattern(&path, &[], 0.0);
         assert_eq!(dashes.len(), 1);
         assert_eq!(dashes[0], path);
+    }
+
+    #[test]
+    fn stroke_to_path_is_deterministic() {
+        let path = make_square_path();
+        let data = NodeData::Path(Arc::new(path));
+        let stroke = StrokeStyle {
+            color: Color::BLACK,
+            width: 4.0,
+            line_cap: LineCap::Butt,
+            line_join: LineJoin::Miter(4.0),
+            dash_array: vec![],
+            dash_offset: 0.0,
+        };
+        let result1 = stroke_to_path(&data, &stroke);
+        let result2 = stroke_to_path(&data, &stroke);
+        if let (NodeData::Path(p1), NodeData::Path(p2)) = (&result1, &result2) {
+            assert_eq!(p1.verbs.len(), p2.verbs.len(), "verb count differs across calls");
+            for (i, (v1, v2)) in p1.verbs.iter().zip(p2.verbs.iter()).enumerate() {
+                assert_eq!(v1, v2, "verb {i} differs across calls");
+            }
+        } else {
+            panic!("expected Path outputs");
+        }
+    }
+
+    #[test]
+    fn stroke_to_path_with_dashes_is_deterministic() {
+        let path = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: 0.0, y: 0.0 }),
+                PathVerb::LineTo(Point { x: 100.0, y: 0.0 }),
+            ],
+            closed: false,
+        };
+        let data = NodeData::Path(Arc::new(path));
+        let stroke = StrokeStyle {
+            color: Color::BLACK,
+            width: 20.0,
+            line_cap: LineCap::Butt,
+            line_join: LineJoin::Miter(4.0),
+            dash_array: vec![12.0],
+            dash_offset: 0.0,
+        };
+        let result1 = stroke_to_path(&data, &stroke);
+        let result2 = stroke_to_path(&data, &stroke);
+        if let (NodeData::Path(p1), NodeData::Path(p2)) = (&result1, &result2) {
+            assert_eq!(p1.verbs, p2.verbs, "dashed stroke outline differs across calls");
+        } else {
+            panic!("expected Path outputs");
+        }
     }
 }

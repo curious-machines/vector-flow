@@ -413,6 +413,8 @@ fn tessellate_stroke_simple(
 }
 
 /// Apply a dash pattern to a path, returning dashed sub-paths.
+/// Each sub-path in the input is dashed independently so that dashes don't
+/// bridge across disjoint contours.
 fn apply_dash_pattern(
     path: &PathData,
     dash_array: &[f32],
@@ -429,107 +431,129 @@ fn apply_dash_pattern(
 
     let lyon_path = build_lyon_path(path);
 
-    // Flatten to line segments.
-    let mut segments: Vec<(Point, Point)> = Vec::new();
+    // Collect line segments grouped by sub-path.
+    let mut sub_paths: Vec<Vec<(Point, Point)>> = Vec::new();
+    let mut current_segments: Vec<(Point, Point)> = Vec::new();
     let mut current = Point { x: 0.0, y: 0.0 };
+    let mut first = Point { x: 0.0, y: 0.0 };
     for evt in lyon_path.iter().flattened(tolerance) {
         use lyon::path::Event;
         match evt {
             Event::Begin { at } => {
                 current = Point { x: at.x, y: at.y };
+                first = current;
             }
             Event::Line { to, .. } => {
                 let to_pt = Point { x: to.x, y: to.y };
-                segments.push((current, to_pt));
+                current_segments.push((current, to_pt));
                 current = to_pt;
             }
-            Event::End { .. } => {}
+            Event::End { close, .. } => {
+                // For closed sub-paths, add the closing segment back to the start.
+                if close {
+                    let dx = first.x - current.x;
+                    let dy = first.y - current.y;
+                    if dx * dx + dy * dy > 1e-6 {
+                        current_segments.push((current, first));
+                    }
+                }
+                if !current_segments.is_empty() {
+                    sub_paths.push(std::mem::take(&mut current_segments));
+                }
+            }
             _ => {}
         }
     }
+    if !current_segments.is_empty() {
+        sub_paths.push(current_segments);
+    }
 
-    if segments.is_empty() {
+    if sub_paths.is_empty() {
         return vec![path.clone()];
     }
 
-    let mut offset = dash_offset % total_pattern;
-    if offset < 0.0 {
-        offset += total_pattern;
-    }
-
-    let mut dash_idx = 0usize;
-    let mut dash_remaining = dash_array[0];
-    let mut drawing = true;
-
-    // Consume offset.
-    let mut off = offset;
-    while off > 0.0 {
-        if off < dash_remaining {
-            dash_remaining -= off;
-            break;
-        }
-        off -= dash_remaining;
-        drawing = !drawing;
-        dash_idx = (dash_idx + 1) % dash_array.len();
-        dash_remaining = dash_array[dash_idx];
-    }
-
     let mut result: Vec<PathData> = Vec::new();
-    let mut current_path = PathData::new();
-    let mut needs_move = true;
 
-    for (from, to) in &segments {
-        let dx = to.x - from.x;
-        let dy = to.y - from.y;
-        let seg_len = (dx * dx + dy * dy).sqrt();
-        if seg_len < 1e-6 {
-            continue;
+    // Dash each sub-path independently, resetting dash state per contour.
+    for segments in &sub_paths {
+        let mut offset = dash_offset % total_pattern;
+        if offset < 0.0 {
+            offset += total_pattern;
         }
 
-        let mut consumed = 0.0f32;
-        while consumed < seg_len - 1e-6 {
-            let remaining_seg = seg_len - consumed;
-            let advance = remaining_seg.min(dash_remaining);
-            let t_start = consumed / seg_len;
-            let t_end = (consumed + advance) / seg_len;
-            let start_pt = Point {
-                x: from.x + dx * t_start,
-                y: from.y + dy * t_start,
-            };
-            let end_pt = Point {
-                x: from.x + dx * t_end,
-                y: from.y + dy * t_end,
-            };
+        let mut dash_idx = 0usize;
+        let mut dash_remaining = dash_array[0];
+        let mut drawing = true;
 
-            if drawing {
-                if needs_move {
-                    current_path.verbs.push(PathVerb::MoveTo(start_pt));
-                    needs_move = false;
-                }
-                current_path.verbs.push(PathVerb::LineTo(end_pt));
+        // Consume offset.
+        let mut off = offset;
+        while off > 0.0 {
+            if off < dash_remaining {
+                dash_remaining -= off;
+                break;
+            }
+            off -= dash_remaining;
+            drawing = !drawing;
+            dash_idx = (dash_idx + 1) % dash_array.len();
+            dash_remaining = dash_array[dash_idx];
+        }
+
+        let mut current_path = PathData::new();
+        let mut needs_move = true;
+
+        for (from, to) in segments {
+            let dx = to.x - from.x;
+            let dy = to.y - from.y;
+            let seg_len = (dx * dx + dy * dy).sqrt();
+            if seg_len < 1e-6 {
+                continue;
             }
 
-            consumed += advance;
-            dash_remaining -= advance;
+            let mut consumed = 0.0f32;
+            while consumed < seg_len - 1e-6 {
+                let remaining_seg = seg_len - consumed;
+                let advance = remaining_seg.min(dash_remaining);
+                let t_start = consumed / seg_len;
+                let t_end = (consumed + advance) / seg_len;
+                let start_pt = Point {
+                    x: from.x + dx * t_start,
+                    y: from.y + dy * t_start,
+                };
+                let end_pt = Point {
+                    x: from.x + dx * t_end,
+                    y: from.y + dy * t_end,
+                };
 
-            if dash_remaining < 1e-6 {
-                if drawing && !current_path.verbs.is_empty() {
-                    result.push(current_path);
-                    current_path = PathData::new();
-                    needs_move = true;
-                }
-                drawing = !drawing;
-                dash_idx = (dash_idx + 1) % dash_array.len();
-                dash_remaining = dash_array[dash_idx];
                 if drawing {
-                    needs_move = true;
+                    if needs_move {
+                        current_path.verbs.push(PathVerb::MoveTo(start_pt));
+                        needs_move = false;
+                    }
+                    current_path.verbs.push(PathVerb::LineTo(end_pt));
+                }
+
+                consumed += advance;
+                dash_remaining -= advance;
+
+                if dash_remaining < 1e-6 {
+                    if drawing && !current_path.verbs.is_empty() {
+                        result.push(current_path);
+                        current_path = PathData::new();
+                        needs_move = true;
+                    }
+                    drawing = !drawing;
+                    dash_idx = (dash_idx + 1) % dash_array.len();
+                    dash_remaining = dash_array[dash_idx];
+                    if drawing {
+                        needs_move = true;
+                    }
                 }
             }
         }
-    }
 
-    if !current_path.verbs.is_empty() {
-        result.push(current_path);
+        if !current_path.verbs.is_empty() {
+            result.push(current_path);
+        }
     }
 
     if result.is_empty() {

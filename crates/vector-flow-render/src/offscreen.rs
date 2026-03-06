@@ -9,7 +9,7 @@ use crate::renderer::CanvasRenderer;
 const COPY_BYTES_PER_ROW_ALIGNMENT: u32 = 256;
 
 /// Texture format used for offscreen rendering.
-const OFFSCREEN_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+const OFFSCREEN_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 /// MSAA sample count for anti-aliased offscreen rendering.
 const MSAA_SAMPLE_COUNT: u32 = 4;
