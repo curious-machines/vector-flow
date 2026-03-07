@@ -7,6 +7,7 @@ mod project;
 mod properties_panel;
 mod transport_panel;
 mod ui_node;
+mod undo;
 mod viewer;
 
 use app::VectorFlowApp;

@@ -25,6 +25,7 @@ use crate::project::{self, ProjectFile, ViewState, WindowGeometry};
 use crate::properties_panel;
 use crate::transport_panel::{self, TransportState};
 use crate::ui_node::{node_catalog, CatalogEntry, UiNode};
+use crate::undo::UndoHistory;
 use crate::viewer::{GraphViewer, ViewerActions};
 
 const NODE_EDITOR_ID: &str = "node_editor";
@@ -130,6 +131,9 @@ pub struct VectorFlowApp {
     graph_screenshot_path: Option<PathBuf>,
     /// Rect of the node editor panel in screen pixels (for cropping screenshots).
     graph_panel_rect: egui::Rect,
+
+    /// Undo/redo history.
+    undo: UndoHistory,
 }
 
 impl VectorFlowApp {
@@ -190,6 +194,7 @@ impl VectorFlowApp {
             close_confirmed: false,
             node_rects: HashMap::new(),
             selected_box: None,
+            undo: UndoHistory::new(),
         }
     }
 
@@ -690,6 +695,27 @@ impl VectorFlowApp {
         );
     }
 
+    /// Compute a fingerprint combining graph generation and node positions.
+    fn state_fingerprint(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.graph.generation().hash(&mut hasher);
+        Self::node_position_hash(&self.snarl).hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn apply_undo_redo_restore(&mut self, graph: Graph, snarl: Snarl<UiNode>, id_map: IdMap) {
+        self.graph = graph;
+        self.snarl = snarl;
+        self.id_map = id_map;
+        self.last_eval_gen = u64::MAX; // force re-eval
+        self.last_eval_frame = u64::MAX;
+        self.node_rects.clear();
+        // Update undo fingerprint to the restored state so end_frame doesn't
+        // treat the restore itself as a new change.
+        self.undo.sync_fingerprint(self.state_fingerprint());
+    }
+
     fn needs_eval(&self) -> bool {
         let gen = self.graph.generation();
         let frame = self.transport.eval_ctx.frame;
@@ -840,6 +866,7 @@ impl VectorFlowApp {
         self.cam_state.do_reset = true;
         self.selected_box = None;
         self.saved_window_geom = None;
+        self.undo.clear();
     }
 
     /// Request a new file, prompting for unsaved changes if dirty.
@@ -914,6 +941,7 @@ impl VectorFlowApp {
                 // Restore view state (graph editor + canvas camera).
                 self.pending_view_restore = pf.view_state;
 
+                self.undo.clear();
                 log::info!("Loaded project from {}", path.display());
             }
             Err(e) => log::error!("Failed to load: {e}"),
@@ -1244,6 +1272,9 @@ impl eframe::App for VectorFlowApp {
             ctx.request_repaint();
         }
 
+        // Undo: capture pre-frame snapshot before any mutations.
+        self.undo.begin_frame(&self.graph, &self.snarl);
+
         // Update window title to reflect dirty state.
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(self.window_title(ctx)));
 
@@ -1265,7 +1296,7 @@ impl eframe::App for VectorFlowApp {
         let text_editing = ctx.memory(|m| m.focused().is_some())
             && ctx.input(|i| !i.modifiers.command && !i.modifiers.ctrl && !i.modifiers.alt);
         let (do_save, do_save_as, do_open, do_new, do_close_file, do_duplicate, do_fit_all, do_quit,
-         do_export_image,
+         do_export_image, do_undo, do_redo,
          do_align_left, do_align_right, do_align_top, do_align_bottom,
          do_dist_h, do_dist_v, nudge) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&egui::KeyboardShortcut::new(
@@ -1306,6 +1337,14 @@ impl eframe::App for VectorFlowApp {
                 egui::Modifiers::COMMAND,
                 egui::Key::Q,
             ));
+            let redo = i.consume_shortcut(&egui::KeyboardShortcut::new(
+                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+                egui::Key::Z,
+            ));
+            let undo = !redo && i.consume_shortcut(&egui::KeyboardShortcut::new(
+                egui::Modifiers::COMMAND,
+                egui::Key::Z,
+            ));
             // Arrow key nudge — only when no text widget has focus.
             let mut nudge = egui::Vec2::ZERO;
             if !text_editing {
@@ -1333,7 +1372,7 @@ impl eframe::App for VectorFlowApp {
             }
 
             (save, save_as, open, new, close_file, duplicate, fit_all, quit,
-             export_image,
+             export_image, undo, redo,
              false, false, false, false, false, false, nudge)
         });
         if do_save {
@@ -1355,6 +1394,18 @@ impl eframe::App for VectorFlowApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
 
+        // Undo / Redo.
+        if do_undo {
+            if let Some((graph, snarl, id_map)) = self.undo.undo(&self.graph, &self.snarl) {
+                self.apply_undo_redo_restore(graph, snarl, id_map);
+            }
+        }
+        if do_redo {
+            if let Some((graph, snarl, id_map)) = self.undo.redo(&self.graph, &self.snarl) {
+                self.apply_undo_redo_restore(graph, snarl, id_map);
+            }
+        }
+
         // 1. Transport tick — advance time if playing.
         let time_changed = self.transport.tick();
         if self.transport.playback == transport_panel::PlaybackState::Playing {
@@ -1371,6 +1422,8 @@ impl eframe::App for VectorFlowApp {
         let mut menu_export_image = false;
         let mut menu_export_video = false;
         let mut menu_graph_screenshot = false;
+        let mut menu_undo = false;
+        let mut menu_redo = false;
         let mut menu_align: Option<AlignMode> = None;
         let mut menu_dist_h = false;
         let mut menu_dist_v = false;
@@ -1415,6 +1468,16 @@ impl eframe::App for VectorFlowApp {
                     if ui.button("Quit  Ctrl+Q").clicked() {
                         ui.close_menu();
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                });
+                ui.menu_button("Edit", |ui| {
+                    if ui.add_enabled(self.undo.can_undo(), egui::Button::new("Undo  Ctrl+Z")).clicked() {
+                        ui.close_menu();
+                        menu_undo = true;
+                    }
+                    if ui.add_enabled(self.undo.can_redo(), egui::Button::new("Redo  Ctrl+Shift+Z")).clicked() {
+                        ui.close_menu();
+                        menu_redo = true;
                     }
                 });
                 ui.menu_button("Arrange", |ui| {
@@ -1472,6 +1535,16 @@ impl eframe::App for VectorFlowApp {
         }
         if menu_save_as {
             self.save_project_as(ctx);
+        }
+        if menu_undo {
+            if let Some((graph, snarl, id_map)) = self.undo.undo(&self.graph, &self.snarl) {
+                self.apply_undo_redo_restore(graph, snarl, id_map);
+            }
+        }
+        if menu_redo {
+            if let Some((graph, snarl, id_map)) = self.undo.redo(&self.graph, &self.snarl) {
+                self.apply_undo_redo_restore(graph, snarl, id_map);
+            }
         }
         if menu_export_image || do_export_image {
             self.image_export_dialog.open = true;
@@ -1889,5 +1962,8 @@ impl eframe::App for VectorFlowApp {
             }
             canvas_panel::apply_camera_commands(render_state, &mut self.cam_state);
         }
+
+        // Undo: detect changes and auto-push undo entries.
+        self.undo.end_frame(self.state_fingerprint());
     }
 }
