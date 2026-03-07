@@ -1937,6 +1937,29 @@ impl eframe::App for VectorFlowApp {
                             if ui.button("Show All").on_hover_text("Fit all nodes in view (F)").clicked() {
                                 fit_requested = true;
                             }
+                            ui.separator();
+                            let (current_offset, current_scale) = Snarl::<UiNode>::get_view_state(
+                                NODE_EDITOR_ID,
+                                self.node_editor_ui_id,
+                                ctx,
+                            ).unwrap_or((egui::Vec2::ZERO, 1.0));
+                            let mut zoom_pct = current_scale * 100.0;
+                            let resp = ui.add(
+                                egui::DragValue::new(&mut zoom_pct)
+                                    .range(1.0..=10000.0)
+                                    .suffix("%")
+                                    .speed(1.0)
+                            );
+                            if resp.changed() {
+                                let new_scale = (zoom_pct / 100.0).clamp(0.01, 100.0);
+                                Snarl::<UiNode>::set_view_state(
+                                    NODE_EDITOR_ID,
+                                    self.node_editor_ui_id,
+                                    ctx,
+                                    current_offset,
+                                    new_scale,
+                                );
+                            }
                         });
                     });
             }
@@ -2110,6 +2133,17 @@ impl eframe::App for VectorFlowApp {
                         }
                         if ui.button("Show All").on_hover_text("Fit all content in view").clicked() {
                             self.cam_state.do_show_all = true;
+                        }
+                        ui.separator();
+                        let mut zoom_pct = self.cam_state.current_zoom * 100.0;
+                        let resp = ui.add(
+                            egui::DragValue::new(&mut zoom_pct)
+                                .range(1.0..=100000.0)
+                                .suffix("%")
+                                .speed(1.0)
+                        );
+                        if resp.changed() {
+                            self.cam_state.set_zoom = Some((zoom_pct / 100.0).clamp(0.01, 1000.0));
                         }
                     });
                 });

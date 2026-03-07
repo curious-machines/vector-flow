@@ -13,6 +13,8 @@ pub struct CameraState {
     pub viewport_size: Vec2,
     pub do_reset: bool,
     pub do_show_all: bool,
+    /// When set, override the camera zoom to this absolute value (centered on viewport).
+    pub set_zoom: Option<f32>,
     /// Content bounds from the last prepared scene, used by show_all.
     pub content_bounds: Option<(Vec2, Vec2)>,
     /// Current camera center in world coordinates (read back after apply).
@@ -30,6 +32,7 @@ impl Default for CameraState {
             viewport_size: Vec2::new(640.0, 480.0),
             do_reset: false,
             do_show_all: false,
+            set_zoom: None,
             content_bounds: None,
             current_center: Vec2::ZERO,
             current_zoom: 1.0,
@@ -157,6 +160,10 @@ pub fn apply_camera_commands(
     if cam_state.pan_delta != Vec2::ZERO {
         res.camera.pan(cam_state.pan_delta);
         cam_state.pan_delta = Vec2::ZERO;
+    }
+
+    if let Some(z) = cam_state.set_zoom.take() {
+        res.camera.zoom = z.clamp(0.01, 1000.0);
     }
 
     if cam_state.zoom_delta.abs() > 0.001 {
