@@ -7,60 +7,60 @@ This document describes every node type available in Vector Flow, organized by c
 - [Data Types](#data-types)
 - [Generators](#generators)
   - [Circle](#circle)
+  - [Line](#line)
+  - [Load Image](#load-image)
+  - [Point Grid](#point-grid)
   - [Rectangle](#rectangle)
   - [Regular Polygon](#regular-polygon)
-  - [Line](#line)
-  - [Point Grid](#point-grid)
   - [Scatter Points](#scatter-points)
-  - [Load Image](#load-image)
   - [SVG Path](#svg-path)
 - [Transforms](#transforms)
-  - [Translate](#translate)
+  - [Apply Transform](#apply-transform)
   - [Rotate](#rotate)
   - [Scale](#scale)
-  - [Apply Transform](#apply-transform)
+  - [Translate](#translate)
 - [Path Operations](#path-operations)
-  - [Path Union](#path-union)
-  - [Path Intersect](#path-intersect)
   - [Path Difference](#path-difference)
+  - [Path Intersect](#path-intersect)
   - [Path Offset](#path-offset)
-  - [Path Subdivide](#path-subdivide)
   - [Path Reverse](#path-reverse)
+  - [Path Subdivide](#path-subdivide)
+  - [Path Union](#path-union)
   - [Resample Path](#resample-path)
 - [Styling](#styling)
   - [Set Fill](#set-fill)
   - [Set Stroke](#set-stroke)
   - [Stroke to Path](#stroke-to-path)
 - [Color](#color)
+  - [Adjust Alpha](#adjust-alpha)
   - [Adjust Hue](#adjust-hue)
-  - [Adjust Saturation](#adjust-saturation)
   - [Adjust Lightness](#adjust-lightness)
   - [Adjust Luminance](#adjust-luminance)
-  - [Invert Color](#invert-color)
-  - [Grayscale](#grayscale)
-  - [Mix Colors](#mix-colors)
-  - [Adjust Alpha](#adjust-alpha)
+  - [Adjust Saturation](#adjust-saturation)
   - [Color Parse](#color-parse)
+  - [Grayscale](#grayscale)
+  - [Invert Color](#invert-color)
+  - [Mix Colors](#mix-colors)
 - [Text](#text)
   - [Text](#text-1)
   - [Text to Path](#text-to-path)
 - [Constants](#constants)
-  - [Constant Scalar](#constant-scalar)
-  - [Constant Int](#constant-int)
-  - [Constant Vec2](#constant-vec2)
   - [Constant Color](#constant-color)
+  - [Constant Int](#constant-int)
+  - [Constant Scalar](#constant-scalar)
+  - [Constant Vec2](#constant-vec2)
 - [Utility](#utility)
   - [Copy to Points](#copy-to-points)
-  - [Merge](#merge)
   - [Duplicate](#duplicate)
-  - [Portal Send](#portal-send)
+  - [Merge](#merge)
   - [Portal Receive](#portal-receive)
+  - [Portal Send](#portal-send)
 - [Code](#code)
-  - [VFS Code](#vfs-code)
   - [Map](#map)
+  - [VFS Code](#vfs-code)
 - [Graph I/O](#graph-io)
-  - [Graph Output](#graph-output)
   - [Graph Input](#graph-input)
+  - [Graph Output](#graph-output)
 
 ---
 
@@ -119,6 +119,92 @@ Example patch: Circle (radius: 50) -> Set Fill (color: red) -> Graph Output
 
 ---
 
+### Line
+
+Creates a straight line segment between two points.
+
+**Inputs:**
+
+| Name | Type | Default         | Description |
+|------|------|-----------------|-------------|
+| from | Vec2 | (-100.0, 0.0)  | Start point |
+| to   | Vec2 | (100.0, 0.0)   | End point   |
+
+**Outputs:**
+
+| Name | Type | Description                  |
+|------|------|------------------------------|
+| path | Path | Open path with two vertices  |
+
+**Notes:** The output is an open path (not closed). To make it visible, connect it through a Set Stroke node. Unlike other generators, Line does not auto-iterate on Points batches.
+
+```
+Example patch: Line -> Set Stroke (white, 3px) -> Graph Output
+```
+
+---
+
+### Load Image
+
+Loads an image file from disk and outputs it as an Image.
+
+**Inputs:**
+
+| Name     | Type   | Default    | Description                                     |
+|----------|--------|------------|-------------------------------------------------|
+| position | Vec2   | (0.0, 0.0) | Center position of the image                   |
+| width    | Scalar | 0.0        | Display width (0 = use native pixel width)      |
+| height   | Scalar | 0.0        | Display height (0 = use native pixel height)    |
+| opacity  | Scalar | 1.0        | Opacity from 0.0 (transparent) to 1.0 (opaque) |
+
+**Outputs:**
+
+| Name          | Type   | Description                      |
+|---------------|--------|----------------------------------|
+| image         | Image  | The loaded image with transforms |
+| native_width  | Scalar | Native pixel width of the image  |
+| native_height | Scalar | Native pixel height of the image |
+
+**Properties:**
+
+| Name | Description                                              |
+|------|----------------------------------------------------------|
+| Path | File path to the image (text field + file browser button) |
+
+**Notes:** Supported formats: PNG, JPEG, GIF, WebP, and BMP. Relative paths are resolved relative to the project file's directory. The file browser button opens a native file dialog for selecting images. Images are cached after first load. When both width and height are 0, the image displays at its native pixel size. The image can be further transformed by connecting it through Translate, Rotate, or Scale nodes.
+
+```
+Example patch: Load Image ("logo.png", width: 200) -> Graph Output
+```
+
+---
+
+### Point Grid
+
+Generates a rectangular grid of evenly-spaced points.
+
+**Inputs:**
+
+| Name    | Type   | Default | Description                     |
+|---------|--------|---------|---------------------------------|
+| columns | Int    | 10      | Number of columns               |
+| rows    | Int    | 10      | Number of rows                  |
+| spacing | Scalar | 20.0    | Distance between adjacent points |
+
+**Outputs:**
+
+| Name   | Type   | Description              |
+|--------|--------|--------------------------|
+| points | Points | Grid of points           |
+
+**Notes:** The grid is centered at the origin. A 10x10 grid with spacing 20 extends from -90 to +90 on each axis. Feed the output into a generator's `center` input to instance geometry at each grid point.
+
+```
+Example patch: Point Grid (5x5, spacing: 40) -> Circle (radius: 15) -> Set Fill -> Graph Output
+```
+
+---
+
 ### Rectangle
 
 Creates an axis-aligned rectangular path.
@@ -171,57 +257,6 @@ Example patch: Regular Polygon (sides: 5) -> Set Fill (gold) -> Graph Output
 
 ---
 
-### Line
-
-Creates a straight line segment between two points.
-
-**Inputs:**
-
-| Name | Type | Default         | Description |
-|------|------|-----------------|-------------|
-| from | Vec2 | (-100.0, 0.0)  | Start point |
-| to   | Vec2 | (100.0, 0.0)   | End point   |
-
-**Outputs:**
-
-| Name | Type | Description                  |
-|------|------|------------------------------|
-| path | Path | Open path with two vertices  |
-
-**Notes:** The output is an open path (not closed). To make it visible, connect it through a Set Stroke node. Unlike other generators, Line does not auto-iterate on Points batches.
-
-```
-Example patch: Line -> Set Stroke (white, 3px) -> Graph Output
-```
-
----
-
-### Point Grid
-
-Generates a rectangular grid of evenly-spaced points.
-
-**Inputs:**
-
-| Name    | Type   | Default | Description                     |
-|---------|--------|---------|---------------------------------|
-| columns | Int    | 10      | Number of columns               |
-| rows    | Int    | 10      | Number of rows                  |
-| spacing | Scalar | 20.0    | Distance between adjacent points |
-
-**Outputs:**
-
-| Name   | Type   | Description              |
-|--------|--------|--------------------------|
-| points | Points | Grid of points           |
-
-**Notes:** The grid is centered at the origin. A 10x10 grid with spacing 20 extends from -90 to +90 on each axis. Feed the output into a generator's `center` input to instance geometry at each grid point.
-
-```
-Example patch: Point Grid (5x5, spacing: 40) -> Circle (radius: 15) -> Set Fill -> Graph Output
-```
-
----
-
 ### Scatter Points
 
 Generates randomly distributed points within a rectangular region.
@@ -245,41 +280,6 @@ Generates randomly distributed points within a rectangular region.
 
 ```
 Example patch: Scatter Points (50, seed: 42) -> Circle (radius: 5) -> Set Fill -> Graph Output
-```
-
----
-
-### Load Image
-
-Loads an image file from disk and outputs it as an Image.
-
-**Inputs:**
-
-| Name     | Type   | Default    | Description                                     |
-|----------|--------|------------|-------------------------------------------------|
-| position | Vec2   | (0.0, 0.0) | Center position of the image                   |
-| width    | Scalar | 0.0        | Display width (0 = use native pixel width)      |
-| height   | Scalar | 0.0        | Display height (0 = use native pixel height)    |
-| opacity  | Scalar | 1.0        | Opacity from 0.0 (transparent) to 1.0 (opaque) |
-
-**Outputs:**
-
-| Name          | Type   | Description                      |
-|---------------|--------|----------------------------------|
-| image         | Image  | The loaded image with transforms |
-| native_width  | Scalar | Native pixel width of the image  |
-| native_height | Scalar | Native pixel height of the image |
-
-**Properties:**
-
-| Name | Description                                              |
-|------|----------------------------------------------------------|
-| Path | File path to the image (text field + file browser button) |
-
-**Notes:** Supported formats: PNG, JPEG, GIF, WebP, and BMP. Relative paths are resolved relative to the project file's directory. The file browser button opens a native file dialog for selecting images. Images are cached after first load. When both width and height are 0, the image displays at its native pixel size. The image can be further transformed by connecting it through Translate, Rotate, or Scale nodes.
-
-```
-Example patch: Load Image ("logo.png", width: 200) -> Graph Output
 ```
 
 ---
@@ -314,28 +314,24 @@ Example: SVG Path ("M0,0 L100,0 L100,100 Z") -> Set Fill (red) -> Graph Output
 
 Transform nodes apply 2D affine transformations to any geometry type, including paths, shapes, images, and point batches.
 
-### Translate
+### Apply Transform
 
-Moves geometry by an offset.
+Applies a pre-computed affine transform matrix to geometry.
 
 **Inputs:**
 
-| Name     | Type | Default    | Description                 |
-|----------|------|------------|-----------------------------|
-| geometry | Any  | --         | Input geometry to translate |
-| offset   | Vec2 | (0.0, 0.0) | Translation offset (x, y) |
+| Name      | Type      | Default  | Description                    |
+|-----------|-----------|----------|--------------------------------|
+| geometry  | Any       | --       | Input geometry                 |
+| transform | Transform | Identity | Affine2 transform matrix       |
 
 **Outputs:**
 
 | Name     | Type | Description          |
 |----------|------|----------------------|
-| geometry | Any  | Translated geometry  |
+| geometry | Any  | Transformed geometry |
 
-**Notes:** Applies to all geometry types (Path, Shape, Image, Points, and their batch variants). Non-geometry types pass through unchanged.
-
-```
-Example patch: Circle -> Translate (offset: 100, 50) -> Graph Output
-```
+**Notes:** This node applies a Transform value directly. It is useful when a transform is computed by another node or VFS expression and you want to apply it to geometry.
 
 ---
 
@@ -391,30 +387,140 @@ Example patch: Circle -> Scale (factor: 2.0, 0.5) -> Set Stroke -> Graph Output
 
 ---
 
-### Apply Transform
+### Translate
 
-Applies a pre-computed affine transform matrix to geometry.
+Moves geometry by an offset.
 
 **Inputs:**
 
-| Name      | Type      | Default  | Description                    |
-|-----------|-----------|----------|--------------------------------|
-| geometry  | Any       | --       | Input geometry                 |
-| transform | Transform | Identity | Affine2 transform matrix       |
+| Name     | Type | Default    | Description                 |
+|----------|------|------------|-----------------------------|
+| geometry | Any  | --         | Input geometry to translate |
+| offset   | Vec2 | (0.0, 0.0) | Translation offset (x, y) |
 
 **Outputs:**
 
 | Name     | Type | Description          |
 |----------|------|----------------------|
-| geometry | Any  | Transformed geometry |
+| geometry | Any  | Translated geometry  |
 
-**Notes:** This node applies a Transform value directly. It is useful when a transform is computed by another node or VFS expression and you want to apply it to geometry.
+**Notes:** Applies to all geometry types (Path, Shape, Image, Points, and their batch variants). Non-geometry types pass through unchanged.
+
+```
+Example patch: Circle -> Translate (offset: 100, 50) -> Graph Output
+```
 
 ---
 
 ## Path Operations
 
 Path operation nodes modify or combine geometric paths.
+
+### Path Difference
+
+Subtracts one path from another.
+
+**Inputs:**
+
+| Name | Type | Default | Description       |
+|------|------|---------|-------------------|
+| a    | Path | --      | Base path         |
+| b    | Path | --      | Path to subtract  |
+
+**Outputs:**
+
+| Name   | Type | Description        |
+|--------|------|--------------------|
+| result | Path | Difference (a - b) |
+
+**Notes:** Currently stubbed -- passes through the first input path.
+
+---
+
+### Path Intersect
+
+Computes the intersection of two paths.
+
+**Inputs:**
+
+| Name | Type | Default | Description  |
+|------|------|---------|--------------|
+| a    | Path | --      | First path   |
+| b    | Path | --      | Second path  |
+
+**Outputs:**
+
+| Name   | Type | Description         |
+|--------|------|---------------------|
+| result | Path | Intersection result |
+
+**Notes:** Boolean path operations are currently stubbed -- the node passes through the first input path. Full boolean geometry is planned for a future release.
+
+---
+
+### Path Offset
+
+Expands or contracts a path by a given distance.
+
+**Inputs:**
+
+| Name     | Type   | Default | Description                                 |
+|----------|--------|---------|---------------------------------------------|
+| path     | Path   | --      | Input path                                  |
+| distance | Scalar | 10.0    | Offset distance (positive = outward, negative = inward) |
+
+**Outputs:**
+
+| Name   | Type | Description  |
+|--------|------|--------------|
+| result | Path | Offset path  |
+
+```
+Example patch: Circle (50) -> Path Offset (distance: 10) -> Set Stroke -> Graph Output
+```
+
+---
+
+### Path Reverse
+
+Reverses the winding direction of a path.
+
+**Inputs:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| path | Path | --      | Input path  |
+
+**Outputs:**
+
+| Name   | Type | Description   |
+|--------|------|---------------|
+| result | Path | Reversed path |
+
+**Notes:** The path's closed/open status is preserved. This is useful for controlling fill rules or combining paths where winding direction matters.
+
+---
+
+### Path Subdivide
+
+Adds midpoints to path segments, increasing vertex density.
+
+**Inputs:**
+
+| Name   | Type | Default | Description                               |
+|--------|------|---------|-------------------------------------------|
+| path   | Path | --      | Input path                                |
+| levels | Int  | 1       | Number of subdivision levels              |
+
+**Outputs:**
+
+| Name   | Type | Description     |
+|--------|------|-----------------|
+| result | Path | Subdivided path |
+
+**Notes:** Each level doubles the number of segments by inserting a midpoint between each pair of consecutive vertices. For curves, De Casteljau splitting at t=0.5 is used. Multiple levels compound: level 2 produces 4x the original segments.
+
+---
 
 ### Path Union
 
@@ -442,112 +548,6 @@ Example patch:
   Circle -> Set Fill (red)  -> Path Union
   Rectangle -> Set Fill (blue) -> Path Union -> Graph Output
 ```
-
----
-
-### Path Intersect
-
-Computes the intersection of two paths.
-
-**Inputs:**
-
-| Name | Type | Default | Description  |
-|------|------|---------|--------------|
-| a    | Path | --      | First path   |
-| b    | Path | --      | Second path  |
-
-**Outputs:**
-
-| Name   | Type | Description         |
-|--------|------|---------------------|
-| result | Path | Intersection result |
-
-**Notes:** Boolean path operations are currently stubbed -- the node passes through the first input path. Full boolean geometry is planned for a future release.
-
----
-
-### Path Difference
-
-Subtracts one path from another.
-
-**Inputs:**
-
-| Name | Type | Default | Description       |
-|------|------|---------|-------------------|
-| a    | Path | --      | Base path         |
-| b    | Path | --      | Path to subtract  |
-
-**Outputs:**
-
-| Name   | Type | Description        |
-|--------|------|--------------------|
-| result | Path | Difference (a - b) |
-
-**Notes:** Currently stubbed -- passes through the first input path.
-
----
-
-### Path Offset
-
-Expands or contracts a path by a given distance.
-
-**Inputs:**
-
-| Name     | Type   | Default | Description                                 |
-|----------|--------|---------|---------------------------------------------|
-| path     | Path   | --      | Input path                                  |
-| distance | Scalar | 10.0    | Offset distance (positive = outward, negative = inward) |
-
-**Outputs:**
-
-| Name   | Type | Description  |
-|--------|------|--------------|
-| result | Path | Offset path  |
-
-```
-Example patch: Circle (50) -> Path Offset (distance: 10) -> Set Stroke -> Graph Output
-```
-
----
-
-### Path Subdivide
-
-Adds midpoints to path segments, increasing vertex density.
-
-**Inputs:**
-
-| Name   | Type | Default | Description                               |
-|--------|------|---------|-------------------------------------------|
-| path   | Path | --      | Input path                                |
-| levels | Int  | 1       | Number of subdivision levels              |
-
-**Outputs:**
-
-| Name   | Type | Description     |
-|--------|------|-----------------|
-| result | Path | Subdivided path |
-
-**Notes:** Each level doubles the number of segments by inserting a midpoint between each pair of consecutive vertices. For curves, De Casteljau splitting at t=0.5 is used. Multiple levels compound: level 2 produces 4x the original segments.
-
----
-
-### Path Reverse
-
-Reverses the winding direction of a path.
-
-**Inputs:**
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| path | Path | --      | Input path  |
-
-**Outputs:**
-
-| Name   | Type | Description   |
-|--------|------|---------------|
-| result | Path | Reversed path |
-
-**Notes:** The path's closed/open status is preserved. This is useful for controlling fill rules or combining paths where winding direction matters.
 
 ---
 
@@ -670,6 +670,28 @@ Example patch: Circle -> Stroke to Path (width: 5, cap: Round) -> Set Fill (gold
 
 Color operation nodes manipulate color values. All color nodes handle both single Color values and batched Colors transparently.
 
+### Adjust Alpha
+
+Adjusts the alpha (transparency) channel of a color.
+
+**Inputs:**
+
+| Name     | Type   | Default | Description                                            |
+|----------|--------|---------|--------------------------------------------------------|
+| color    | Color  | White   | Input color                                            |
+| amount   | Scalar | 0.0     | Alpha adjustment (-1.0 to 1.0)                        |
+| absolute | Bool   | false   | If true, set alpha directly; if false, shift alpha     |
+
+**Outputs:**
+
+| Name  | Type  | Description              |
+|-------|-------|--------------------------|
+| color | Color | Color with adjusted alpha |
+
+**Notes:** In the default relative mode, the amount is added to the existing alpha (e.g., -0.3 on a color with alpha 0.8 gives 0.5). In absolute mode, the amount replaces the alpha directly. The result is clamped to [0, 1]. RGB channels are preserved.
+
+---
+
 ### Adjust Hue
 
 Shifts or sets the hue of a color.
@@ -693,28 +715,6 @@ Shifts or sets the hue of a color.
 ```
 Example patch: Color Parse ("#FF6600") -> Adjust Hue (amount: 120) -> Set Fill
 ```
-
----
-
-### Adjust Saturation
-
-Adjusts the saturation of a color.
-
-**Inputs:**
-
-| Name     | Type   | Default | Description                                    |
-|----------|--------|---------|------------------------------------------------|
-| color    | Color  | White   | Input color                                    |
-| amount   | Scalar | 0.0     | Saturation adjustment (-1.0 to 1.0)           |
-| absolute | Bool   | false   | If true, set saturation directly (0.0 to 1.0) |
-
-**Outputs:**
-
-| Name  | Type  | Description    |
-|-------|-------|----------------|
-| color | Color | Adjusted color |
-
-**Notes:** Operates in HSL space. An amount of -1.0 in shift mode fully desaturates (grayscale). The result is clamped to [0, 1].
 
 ---
 
@@ -762,23 +762,52 @@ Adjusts the perceptual luminance of a color using CIE Lab color space.
 
 ---
 
-### Invert Color
+### Adjust Saturation
 
-Inverts the RGB channels of a color.
+Adjusts the saturation of a color.
 
 **Inputs:**
 
-| Name  | Type  | Default | Description |
-|-------|-------|---------|-------------|
-| color | Color | White   | Input color |
+| Name     | Type   | Default | Description                                    |
+|----------|--------|---------|------------------------------------------------|
+| color    | Color  | White   | Input color                                    |
+| amount   | Scalar | 0.0     | Saturation adjustment (-1.0 to 1.0)           |
+| absolute | Bool   | false   | If true, set saturation directly (0.0 to 1.0) |
 
 **Outputs:**
 
 | Name  | Type  | Description    |
 |-------|-------|----------------|
-| color | Color | Inverted color |
+| color | Color | Adjusted color |
 
-**Notes:** Each RGB channel is inverted: (r, g, b, a) becomes (1-r, 1-g, 1-b, a). The alpha channel is preserved.
+**Notes:** Operates in HSL space. An amount of -1.0 in shift mode fully desaturates (grayscale). The result is clamped to [0, 1].
+
+---
+
+### Color Parse
+
+Parses a color from a hex string or CSS color name.
+
+**Inputs:** None
+
+**Outputs:**
+
+| Name  | Type  | Description   |
+|-------|-------|---------------|
+| color | Color | Parsed color  |
+
+**Properties:**
+
+| Name  | Description                                            |
+|-------|--------------------------------------------------------|
+| Color | Text field for hex code or CSS color name               |
+
+**Notes:** Accepts hex codes (`#RRGGBB` or `#RRGGBBAA`) and approximately 148 CSS named colors (e.g., `red`, `cornflowerblue`, `tomato`, `darkslategray`). Parsing is case-insensitive. If the text cannot be parsed, the output defaults to black.
+
+```
+Example patch: Color Parse ("tomato") -> Set Fill
+              Color Parse ("#3366CCAA") -> Set Fill  // with alpha
+```
 
 ---
 
@@ -799,6 +828,26 @@ Converts a color to grayscale using perceptual luminance weighting.
 | color | Color | Grayscale color  |
 
 **Notes:** Uses the BT.709 luminance formula: L = 0.2126R + 0.7152G + 0.0722B. The result is (L, L, L, alpha). This weights green most heavily, matching human brightness perception.
+
+---
+
+### Invert Color
+
+Inverts the RGB channels of a color.
+
+**Inputs:**
+
+| Name  | Type  | Default | Description |
+|-------|-------|---------|-------------|
+| color | Color | White   | Input color |
+
+**Outputs:**
+
+| Name  | Type  | Description    |
+|-------|-------|----------------|
+| color | Color | Inverted color |
+
+**Notes:** Each RGB channel is inverted: (r, g, b, a) becomes (1-r, 1-g, 1-b, a). The alpha channel is preserved.
 
 ---
 
@@ -826,55 +875,6 @@ Blends two colors together.
 ```
 Example patch: Color Parse ("red") -> Mix Colors (factor: 0.5, lab_mode: true)
               Color Parse ("blue") -> Mix Colors -> Set Fill
-```
-
----
-
-### Adjust Alpha
-
-Adjusts the alpha (transparency) channel of a color.
-
-**Inputs:**
-
-| Name     | Type   | Default | Description                                            |
-|----------|--------|---------|--------------------------------------------------------|
-| color    | Color  | White   | Input color                                            |
-| amount   | Scalar | 0.0     | Alpha adjustment (-1.0 to 1.0)                        |
-| absolute | Bool   | false   | If true, set alpha directly; if false, shift alpha     |
-
-**Outputs:**
-
-| Name  | Type  | Description              |
-|-------|-------|--------------------------|
-| color | Color | Color with adjusted alpha |
-
-**Notes:** In the default relative mode, the amount is added to the existing alpha (e.g., -0.3 on a color with alpha 0.8 gives 0.5). In absolute mode, the amount replaces the alpha directly. The result is clamped to [0, 1]. RGB channels are preserved.
-
----
-
-### Color Parse
-
-Parses a color from a hex string or CSS color name.
-
-**Inputs:** None
-
-**Outputs:**
-
-| Name  | Type  | Description   |
-|-------|-------|---------------|
-| color | Color | Parsed color  |
-
-**Properties:**
-
-| Name  | Description                                            |
-|-------|--------------------------------------------------------|
-| Color | Text field for hex code or CSS color name               |
-
-**Notes:** Accepts hex codes (`#RRGGBB` or `#RRGGBBAA`) and approximately 148 CSS named colors (e.g., `red`, `cornflowerblue`, `tomato`, `darkslategray`). Parsing is case-insensitive. If the text cannot be parsed, the output defaults to black.
-
-```
-Example patch: Color Parse ("tomato") -> Set Fill
-              Color Parse ("#3366CCAA") -> Set Fill  // with alpha
 ```
 
 ---
@@ -956,23 +956,23 @@ Example patch: Text ("VFS") -> Text to Path -> Set Fill (red) -> Set Stroke (bla
 
 Constant nodes output fixed values that can be edited in the properties panel. They serve as configurable parameters for your graph.
 
-### Constant Scalar
+### Constant Color
 
-Outputs a floating-point number.
+Outputs a color value.
 
 **Inputs:**
 
-| Name  | Type   | Default | Description     |
-|-------|--------|---------|-----------------|
-| value | Scalar | 0.0     | The scalar value |
+| Name  | Type  | Default | Description |
+|-------|-------|---------|-------------|
+| color | Color | White   | The color   |
 
 **Outputs:**
 
-| Name  | Type   | Description      |
-|-------|--------|------------------|
-| value | Scalar | The scalar value |
+| Name  | Type  | Description |
+|-------|-------|-------------|
+| value | Color | The color   |
 
-**Notes:** Edited via a drag-value slider in the properties panel.
+**Notes:** Edited via an interactive color picker in the properties panel.
 
 ---
 
@@ -994,6 +994,26 @@ Outputs an integer.
 
 ---
 
+### Constant Scalar
+
+Outputs a floating-point number.
+
+**Inputs:**
+
+| Name  | Type   | Default | Description     |
+|-------|--------|---------|-----------------|
+| value | Scalar | 0.0     | The scalar value |
+
+**Outputs:**
+
+| Name  | Type   | Description      |
+|-------|--------|------------------|
+| value | Scalar | The scalar value |
+
+**Notes:** Edited via a drag-value slider in the properties panel.
+
+---
+
 ### Constant Vec2
 
 Outputs a 2D vector from separate X and Y components.
@@ -1010,26 +1030,6 @@ Outputs a 2D vector from separate X and Y components.
 | Name  | Type | Description       |
 |-------|------|-------------------|
 | value | Vec2 | The 2D vector     |
-
----
-
-### Constant Color
-
-Outputs a color value.
-
-**Inputs:**
-
-| Name  | Type  | Default | Description |
-|-------|-------|---------|-------------|
-| color | Color | White   | The color   |
-
-**Outputs:**
-
-| Name  | Type  | Description |
-|-------|-------|-------------|
-| value | Color | The color   |
-
-**Notes:** Edited via an interactive color picker in the properties panel.
 
 ---
 
@@ -1061,6 +1061,32 @@ Places copies of geometry at evenly-spaced points along a target path.
 
 ```
 Example patch: Regular Polygon (sides: 3, radius: 10) -> Set Fill -> Copy to Points (target: Circle, count: 12) -> Graph Output
+```
+
+---
+
+### Duplicate
+
+Creates multiple copies of geometry with a cumulative transform applied to each copy.
+
+**Inputs:**
+
+| Name      | Type      | Default  | Description                              |
+|-----------|-----------|----------|------------------------------------------|
+| geometry  | Any       | --       | Geometry to duplicate                    |
+| count     | Int       | 5        | Number of copies                         |
+| transform | Transform | Identity | Transform applied cumulatively per copy  |
+
+**Outputs:**
+
+| Name     | Type | Description               |
+|----------|------|---------------------------|
+| geometry | Any  | All copies merged         |
+
+**Notes:** The transform is applied cumulatively -- copy 1 gets the transform once, copy 2 gets it applied twice, copy 3 three times, and so on. This makes it easy to create radial arrays, linear sequences, or spirals. If count is 0, the input passes through unchanged.
+
+```
+Example patch: Rectangle (40x40) -> Duplicate (count: 10, transform: Translate 45,0 + Rotate 15) -> Set Fill -> Graph Output
 ```
 
 ---
@@ -1098,28 +1124,31 @@ Example patch:
 
 ---
 
-### Duplicate
+### Portal Receive
 
-Creates multiple copies of geometry with a cumulative transform applied to each copy.
+Receives a value from a matching Portal Send node.
 
-**Inputs:**
-
-| Name      | Type      | Default  | Description                              |
-|-----------|-----------|----------|------------------------------------------|
-| geometry  | Any       | --       | Geometry to duplicate                    |
-| count     | Int       | 5        | Number of copies                         |
-| transform | Transform | Identity | Transform applied cumulatively per copy  |
+**Inputs:** None
 
 **Outputs:**
 
-| Name     | Type | Description               |
-|----------|------|---------------------------|
-| geometry | Any  | All copies merged         |
+| Name  | Type | Description    |
+|-------|------|----------------|
+| value | Any  | Received value |
 
-**Notes:** The transform is applied cumulatively -- copy 1 gets the transform once, copy 2 gets it applied twice, copy 3 three times, and so on. This makes it easy to create radial arrays, linear sequences, or spirals. If count is 0, the input passes through unchanged.
+**Properties:**
+
+| Name  | Description                            |
+|-------|----------------------------------------|
+| Label | Name to match against Portal Send nodes |
+
+**Notes:** Outputs the value from the Portal Send node with the same label. If no matching send exists, outputs a default value (0.0 Scalar). The node title displays as "Receive: {label}".
 
 ```
-Example patch: Rectangle (40x40) -> Duplicate (count: 10, transform: Translate 45,0 + Rotate 15) -> Set Fill -> Graph Output
+Example:
+  Circle -> Set Fill -> Portal Send (label: "my_shape")
+  ... elsewhere in graph ...
+  Portal Receive (label: "my_shape") -> Translate -> Graph Output
 ```
 
 ---
@@ -1150,80 +1179,9 @@ Sends a value to matching Portal Receive nodes anywhere in the graph.
 
 ---
 
-### Portal Receive
-
-Receives a value from a matching Portal Send node.
-
-**Inputs:** None
-
-**Outputs:**
-
-| Name  | Type | Description    |
-|-------|------|----------------|
-| value | Any  | Received value |
-
-**Properties:**
-
-| Name  | Description                            |
-|-------|----------------------------------------|
-| Label | Name to match against Portal Send nodes |
-
-**Notes:** Outputs the value from the Portal Send node with the same label. If no matching send exists, outputs a default value (0.0 Scalar). The node title displays as "Receive: {label}".
-
-```
-Example:
-  Circle -> Set Fill -> Portal Send (label: "my_shape")
-  ... elsewhere in graph ...
-  Portal Receive (label: "my_shape") -> Translate -> Graph Output
-```
-
----
-
 ## Code
 
 Code nodes let you write custom logic using Vector Flow Script (VFS). See the [VFS Reference](vfs-reference.md) for the full language documentation.
-
-### VFS Code
-
-A programmable node with user-defined inputs, outputs, and script logic.
-
-**Inputs:** Defined by the user in the properties panel (Scalar, Int, and Color types supported).
-
-**Outputs:** Defined by the user in the properties panel (Scalar, Int, and Color types supported).
-
-**Properties:**
-
-| Name         | Description                                    |
-|--------------|------------------------------------------------|
-| Source       | Multiline code editor for the VFS script       |
-| Input Ports  | Add/remove/rename input ports with type selection |
-| Output Ports | Add/remove/rename output ports with type selection |
-
-**Notes:** The VFS Code node lets you write custom computation logic using Vector Flow Script. The script runs in **script mode** -- bare statements without a function wrapper. Input port values are available as pre-declared variables matching the port names. Assign to output port names, or use a tail expression (no semicolon on the last line) to set the first output.
-
-The code is compiled to native machine code via Cranelift JIT and cached by source+port signature. Compilation errors are displayed in red below the code editor. The global variables `time`, `frame`, and `fps` are available for animation.
-
-**Example -- oscillator:**
-
-Inputs: `freq` (Scalar), `amp` (Scalar)
-Outputs: `value` (Scalar)
-
-```
-sin(time * freq * TAU) * amp
-```
-
-**Example -- step counter:**
-
-Inputs: `steps` (Int), `spread` (Scalar)
-Outputs: `x` (Scalar), `y` (Scalar)
-
-```
-let angle = frame as Scalar * TAU / steps as Scalar;
-x = cos(angle) * spread;
-y = sin(angle) * spread;
-```
-
----
 
 ### Map
 
@@ -1282,9 +1240,67 @@ result = set_hue(element, t);
 
 ---
 
+### VFS Code
+
+A programmable node with user-defined inputs, outputs, and script logic.
+
+**Inputs:** Defined by the user in the properties panel (Scalar, Int, and Color types supported).
+
+**Outputs:** Defined by the user in the properties panel (Scalar, Int, and Color types supported).
+
+**Properties:**
+
+| Name         | Description                                    |
+|--------------|------------------------------------------------|
+| Source       | Multiline code editor for the VFS script       |
+| Input Ports  | Add/remove/rename input ports with type selection |
+| Output Ports | Add/remove/rename output ports with type selection |
+
+**Notes:** The VFS Code node lets you write custom computation logic using Vector Flow Script. The script runs in **script mode** -- bare statements without a function wrapper. Input port values are available as pre-declared variables matching the port names. Assign to output port names, or use a tail expression (no semicolon on the last line) to set the first output.
+
+The code is compiled to native machine code via Cranelift JIT and cached by source+port signature. Compilation errors are displayed in red below the code editor. The global variables `time`, `frame`, and `fps` are available for animation.
+
+**Example -- oscillator:**
+
+Inputs: `freq` (Scalar), `amp` (Scalar)
+Outputs: `value` (Scalar)
+
+```
+sin(time * freq * TAU) * amp
+```
+
+**Example -- step counter:**
+
+Inputs: `steps` (Int), `spread` (Scalar)
+Outputs: `x` (Scalar), `y` (Scalar)
+
+```
+let angle = frame as Scalar * TAU / steps as Scalar;
+x = cos(angle) * spread;
+y = sin(angle) * spread;
+```
+
+---
+
 ## Graph I/O
 
 Graph I/O nodes define the interface between the node graph and the canvas output.
+
+### Graph Input
+
+Declares a typed input to the graph for external value injection.
+
+**Inputs:** None
+
+**Outputs:**
+
+| Name   | Type       | Description                  |
+|--------|------------|------------------------------|
+| {name} | (declared) | The externally-provided value |
+
+**Notes:** Graph Input nodes are created programmatically. They allow external code or a parent graph to feed values into the node network.
+
+---
 
 ### Graph Output
 
@@ -1308,16 +1324,3 @@ Example patch:
 
 ---
 
-### Graph Input
-
-Declares a typed input to the graph for external value injection.
-
-**Inputs:** None
-
-**Outputs:**
-
-| Name   | Type       | Description                  |
-|--------|------------|------------------------------|
-| {name} | (declared) | The externally-provided value |
-
-**Notes:** Graph Input nodes are created programmatically. They allow external code or a parent graph to feed values into the node network.

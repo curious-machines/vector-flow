@@ -155,6 +155,7 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         entry!("Set Stroke", Styling, NodeDef::set_stroke),
         entry!("Stroke to Path", Styling, NodeDef::stroke_to_path),
         // Color
+        entry!("Adjust Alpha", Color, NodeDef::adjust_alpha),
         entry!("Adjust Hue", Color, NodeDef::adjust_hue),
         entry!("Adjust Lightness", Color, NodeDef::adjust_lightness),
         entry!("Adjust Luminance", Color, NodeDef::adjust_luminance),
@@ -168,7 +169,6 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         entry!("Grayscale", Color, NodeDef::grayscale),
         entry!("Invert Color", Color, NodeDef::invert_color),
         entry!("Mix Colors", Color, NodeDef::mix_colors),
-        entry!("Adjust Alpha", Color, NodeDef::adjust_alpha),
         // Text
         CatalogEntry {
             label: "Text",
