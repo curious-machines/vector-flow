@@ -462,9 +462,19 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                     .and_then(|er| er.outputs.get(&edge.from.node))
                     .and_then(|outputs| outputs.get(edge.from.port.0))
                 {
-                    if let NodeData::Color(c) = color {
-                        let rgba = [c.r, c.g, c.b, c.a];
-                        show_connected_color(ui, &name, &rgba);
+                    match color {
+                        NodeData::Color(c) => {
+                            let rgba = [c.r, c.g, c.b, c.a];
+                            show_connected_color(ui, &name, &rgba);
+                        }
+                        NodeData::Colors(colors) => {
+                            if let Some(c) = colors.first() {
+                                let rgba = [c.r, c.g, c.b, c.a];
+                                let batch_name = format!("{name} ({} colors)", colors.len());
+                                show_connected_color(ui, &batch_name, &rgba);
+                            }
+                        }
+                        _ => {}
                     }
                 }
                 continue;
