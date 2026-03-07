@@ -303,14 +303,15 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
 
         // Group catalog by category.
         let categories = [
+            NodeCategory::Code,
+            NodeCategory::Color,
             NodeCategory::Generators,
-            NodeCategory::Transforms,
+            NodeCategory::GraphIO,
             NodeCategory::PathOps,
             NodeCategory::Styling,
-            NodeCategory::Color,
             NodeCategory::Text,
+            NodeCategory::Transforms,
             NodeCategory::Utility,
-            NodeCategory::GraphIO,
         ];
 
         for cat in categories {

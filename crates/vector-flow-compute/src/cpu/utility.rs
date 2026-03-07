@@ -320,7 +320,7 @@ fn compile_catching_panics(
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
         Ok(result) => result.map_err(|e| ComputeError::DslError(e.to_string())),
         Err(_) => Err(ComputeError::DslError(
-            "DSL compilation panicked (likely invalid source)".to_string(),
+            "VFS compilation panicked (likely invalid source)".to_string(),
         )),
     }
 }

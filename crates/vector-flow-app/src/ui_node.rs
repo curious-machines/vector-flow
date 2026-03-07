@@ -38,6 +38,7 @@ pub enum NodeCategory {
     Styling,
     Color,
     Text,
+    Code,
     Utility,
     GraphIO,
 }
@@ -51,6 +52,7 @@ impl NodeCategory {
             Self::Styling => "Styling",
             Self::Color => "Color",
             Self::Text => "Text",
+            Self::Code => "Code",
             Self::Utility => "Utility",
             Self::GraphIO => "Graph I/O",
         }
@@ -73,6 +75,7 @@ fn cat_color(cat: NodeCategory) -> Color32 {
         NodeCategory::Styling => Color32::from_rgb(180, 80, 180),
         NodeCategory::Color => Color32::from_rgb(220, 100, 200),
         NodeCategory::Text => Color32::from_rgb(100, 180, 220),
+        NodeCategory::Code => Color32::from_rgb(120, 200, 160),
         NodeCategory::Utility => Color32::from_rgb(140, 140, 140),
         NodeCategory::GraphIO => Color32::from_rgb(200, 200, 80),
     }
@@ -174,19 +177,20 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
             color: cat_color(Text),
         },
         entry!("Text to Path", Text, NodeDef::text_to_path),
+        // Code
+        entry!("Map", Code, NodeDef::map),
+        CatalogEntry {
+            label: "VFS Code",
+            category: Code,
+            factory: |id| NodeDef::dsl_code(id, String::new()),
+            color: cat_color(Code),
+        },
         // Utility
         entry!("Constant Color", Utility, NodeDef::const_color),
         entry!("Constant Int", Utility, NodeDef::const_int),
         entry!("Constant Scalar", Utility, NodeDef::const_scalar),
         entry!("Constant Vec2", Utility, NodeDef::const_vec2),
         entry!("Copy to Points", Utility, NodeDef::copy_to_points),
-        CatalogEntry {
-            label: "DSL Code",
-            category: Utility,
-            factory: |id| NodeDef::dsl_code(id, String::new()),
-            color: cat_color(Utility),
-        },
-        entry!("Map", Utility, NodeDef::map),
         entry!("Duplicate", Utility, NodeDef::duplicate),
         entry!("Merge", Utility, NodeDef::merge),
         CatalogEntry {
@@ -256,7 +260,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::LoadImage { .. } => "Load Image",
         NodeOp::Text { .. } => "Text",
         NodeOp::TextToPath => "Text to Path",
-        NodeOp::DslCode { .. } => "DSL Code",
+        NodeOp::DslCode { .. } => "VFS Code",
         NodeOp::Map { .. } => "Map",
         NodeOp::GraphInput { .. } => "Graph Input",
         NodeOp::GraphOutput { .. } => "Graph Output",

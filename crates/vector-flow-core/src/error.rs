@@ -23,7 +23,7 @@ pub enum ComputeError {
     #[error("evaluation failed for node {node:?}: {reason}")]
     NodeEvalFailed { node: NodeId, reason: String },
 
-    #[error("DSL error: {0}")]
+    #[error("VFS error: {0}")]
     DslError(String),
 
     #[error("backend error: {0}")]

@@ -565,7 +565,7 @@ impl NodeDef {
     pub fn dsl_code(id: NodeId, source: String) -> Self {
         Self {
             id,
-            name: "DSL Code".into(),
+            name: "VFS Code".into(),
             op: NodeOp::DslCode {
                 source,
                 script_inputs: Vec::new(),

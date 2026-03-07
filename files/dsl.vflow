@@ -121,7 +121,7 @@
       },
       "1": {
         "id": 1,
-        "name": "DSL Code",
+        "name": "VFS Code",
         "op": {
           "DslCode": {
             "source": "out1 = sin(time * TAU / 30.0) * 50.0 + 75.0;",
@@ -191,7 +191,7 @@
       "0": {
         "value": {
           "core_id": 1,
-          "display_name": "DSL Code",
+          "display_name": "VFS Code",
           "color": [
             140,
             140,
