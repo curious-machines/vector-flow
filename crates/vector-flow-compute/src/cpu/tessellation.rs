@@ -1,11 +1,11 @@
-use lyon::math::point;
-use lyon::path::Path;
 use lyon::tessellation::{
     BuffersBuilder, FillOptions, FillTessellator, FillVertex, VertexBuffers,
 };
 
 use vector_flow_core::compute::TessellationOutput;
-use vector_flow_core::types::{PathData, PathVerb};
+use vector_flow_core::types::PathData;
+
+use super::path_ops;
 
 /// Tessellate a PathData into triangles using lyon.
 pub fn tessellate_path_lyon(path: &PathData, fill: bool, tolerance: f32) -> TessellationOutput {
@@ -16,7 +16,7 @@ pub fn tessellate_path_lyon(path: &PathData, fill: bool, tolerance: f32) -> Tess
         };
     }
 
-    let lyon_path = build_lyon_path(path);
+    let lyon_path = path_ops::build_lyon_path(path);
 
     let mut geometry: VertexBuffers<[f32; 2], u32> = VertexBuffers::new();
     let mut tessellator = FillTessellator::new();
@@ -46,65 +46,10 @@ pub fn tessellate_path_lyon(path: &PathData, fill: bool, tolerance: f32) -> Tess
     }
 }
 
-fn build_lyon_path(path: &PathData) -> Path {
-    let mut builder = Path::builder();
-    let mut in_subpath = false;
-
-    for v in &path.verbs {
-        match *v {
-            PathVerb::MoveTo(p) => {
-                if in_subpath {
-                    builder.end(false);
-                }
-                builder.begin(point(p.x, p.y));
-                in_subpath = true;
-            }
-            PathVerb::LineTo(p) => {
-                if !in_subpath {
-                    builder.begin(point(p.x, p.y));
-                    in_subpath = true;
-                } else {
-                    builder.line_to(point(p.x, p.y));
-                }
-            }
-            PathVerb::QuadTo { ctrl, to } => {
-                if !in_subpath {
-                    builder.begin(point(ctrl.x, ctrl.y));
-                    in_subpath = true;
-                }
-                builder.quadratic_bezier_to(point(ctrl.x, ctrl.y), point(to.x, to.y));
-            }
-            PathVerb::CubicTo { ctrl1, ctrl2, to } => {
-                if !in_subpath {
-                    builder.begin(point(ctrl1.x, ctrl1.y));
-                    in_subpath = true;
-                }
-                builder.cubic_bezier_to(
-                    point(ctrl1.x, ctrl1.y),
-                    point(ctrl2.x, ctrl2.y),
-                    point(to.x, to.y),
-                );
-            }
-            PathVerb::Close => {
-                if in_subpath {
-                    builder.end(true);
-                    in_subpath = false;
-                }
-            }
-        }
-    }
-
-    if in_subpath {
-        builder.end(false);
-    }
-
-    builder.build()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vector_flow_core::types::Point;
+    use vector_flow_core::types::{PathVerb, Point};
 
     #[test]
     fn circle_tessellates_to_nonempty_mesh() {

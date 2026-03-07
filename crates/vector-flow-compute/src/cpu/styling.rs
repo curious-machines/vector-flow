@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use glam::Affine2;
-use lyon::math::point;
 use lyon::path::iterator::PathIterator;
-use lyon::path::Path as LyonPath;
 
 use vector_flow_core::types::{
     Color, LineCap, LineJoin, NodeData, PathData, PathVerb, Point, Shape, StrokeStyle,
 };
+
+use super::path_ops;
 
 /// Set fill color on geometry. Handles single and batch types.
 pub fn set_fill(data: &NodeData, color: Color) -> NodeData {
@@ -145,57 +145,6 @@ pub fn stroke_to_path(data: &NodeData, stroke: &StrokeStyle) -> NodeData {
     }
 }
 
-fn build_lyon_path(path: &PathData) -> LyonPath {
-    let mut builder = LyonPath::builder();
-    let mut in_subpath = false;
-    for verb in &path.verbs {
-        match *verb {
-            PathVerb::MoveTo(p) => {
-                if in_subpath {
-                    builder.end(false);
-                }
-                builder.begin(point(p.x, p.y));
-                in_subpath = true;
-            }
-            PathVerb::LineTo(p) => {
-                if !in_subpath {
-                    builder.begin(point(p.x, p.y));
-                    in_subpath = true;
-                } else {
-                    builder.line_to(point(p.x, p.y));
-                }
-            }
-            PathVerb::QuadTo { ctrl, to } => {
-                if !in_subpath {
-                    builder.begin(point(ctrl.x, ctrl.y));
-                    in_subpath = true;
-                }
-                builder.quadratic_bezier_to(point(ctrl.x, ctrl.y), point(to.x, to.y));
-            }
-            PathVerb::CubicTo { ctrl1, ctrl2, to } => {
-                if !in_subpath {
-                    builder.begin(point(ctrl1.x, ctrl1.y));
-                    in_subpath = true;
-                }
-                builder.cubic_bezier_to(
-                    point(ctrl1.x, ctrl1.y),
-                    point(ctrl2.x, ctrl2.y),
-                    point(to.x, to.y),
-                );
-            }
-            PathVerb::Close => {
-                if in_subpath {
-                    builder.close();
-                    in_subpath = false;
-                }
-            }
-        }
-    }
-    if in_subpath {
-        builder.end(false);
-    }
-    builder.build()
-}
 
 /// Apply a dash pattern to a path, returning dashed sub-paths.
 /// Each contour in the input is dashed independently so that dashes don't
@@ -210,7 +159,7 @@ fn apply_dash_pattern(path: &PathData, dash_array: &[f32], dash_offset: f32) -> 
         return vec![path.clone()];
     }
 
-    let lyon_path = build_lyon_path(path);
+    let lyon_path = path_ops::build_lyon_path(path);
     let tolerance = 0.5;
 
     // Collect line segments grouped by sub-path.
@@ -369,7 +318,7 @@ fn stroke_outline(path: &PathData, stroke: &StrokeStyle) -> PathData {
 
 /// Flatten a PathData into a list of polyline contours (each is a Vec of points + closed flag).
 fn flatten_to_polylines(path: &PathData) -> Vec<(Vec<Point>, bool)> {
-    let lyon_path = build_lyon_path(path);
+    let lyon_path = path_ops::build_lyon_path(path);
     let tolerance = 0.5;
 
     let mut contours: Vec<(Vec<Point>, bool)> = Vec::new();

@@ -1,7 +1,7 @@
 mod color_math;
 mod color_ops;
 mod generators;
-mod path_ops;
+pub(crate) mod path_ops;
 mod styling;
 pub(crate) mod svg_path;
 pub(crate) mod text;

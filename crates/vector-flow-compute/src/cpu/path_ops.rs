@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use lyon::math::point as lyon_point;
+use lyon::path::iterator::PathIterator;
+use lyon::path::Path as LyonPath;
+
 use vector_flow_core::types::{NodeData, PathData, PathVerb, Point, PointBatch};
 
 /// Reverse the direction of a path.
@@ -249,78 +253,94 @@ pub fn resample_with_tangents(path: &PathData, count: i64) -> (PointBatch, Vec<f
     (PointBatch { xs, ys }, angles)
 }
 
-/// Number of line segments used to approximate each curve.
-const CURVE_FLATTEN_STEPS: usize = 16;
+/// Tolerance for lyon's adaptive curve flattening.
+const FLATTEN_TOLERANCE: f32 = 0.5;
 
-/// Flatten path to line segments, subdividing curves for accuracy.
-fn flatten_to_segments(path: &PathData) -> Vec<(Point, Point)> {
-    let mut segs = Vec::new();
-    let mut last = Point { x: 0.0, y: 0.0 };
-    let mut first = last;
-
-    for v in &path.verbs {
-        match *v {
+/// Convert our PathData to a lyon Path.
+pub(crate) fn build_lyon_path(path: &PathData) -> LyonPath {
+    let mut builder = LyonPath::builder();
+    let mut in_subpath = false;
+    for verb in &path.verbs {
+        match *verb {
             PathVerb::MoveTo(p) => {
-                first = p;
-                last = p;
+                if in_subpath {
+                    builder.end(false);
+                }
+                builder.begin(lyon_point(p.x, p.y));
+                in_subpath = true;
             }
             PathVerb::LineTo(p) => {
-                segs.push((last, p));
-                last = p;
+                if !in_subpath {
+                    builder.begin(lyon_point(p.x, p.y));
+                    in_subpath = true;
+                } else {
+                    builder.line_to(lyon_point(p.x, p.y));
+                }
             }
             PathVerb::QuadTo { ctrl, to } => {
-                flatten_quad(last, ctrl, to, &mut segs);
-                last = to;
+                if !in_subpath {
+                    builder.begin(lyon_point(ctrl.x, ctrl.y));
+                    in_subpath = true;
+                }
+                builder.quadratic_bezier_to(lyon_point(ctrl.x, ctrl.y), lyon_point(to.x, to.y));
             }
             PathVerb::CubicTo { ctrl1, ctrl2, to } => {
-                flatten_cubic(last, ctrl1, ctrl2, to, &mut segs);
-                last = to;
+                if !in_subpath {
+                    builder.begin(lyon_point(ctrl1.x, ctrl1.y));
+                    in_subpath = true;
+                }
+                builder.cubic_bezier_to(
+                    lyon_point(ctrl1.x, ctrl1.y),
+                    lyon_point(ctrl2.x, ctrl2.y),
+                    lyon_point(to.x, to.y),
+                );
             }
             PathVerb::Close => {
-                if (last.x - first.x).abs() > 1e-10 || (last.y - first.y).abs() > 1e-10 {
-                    segs.push((last, first));
+                if in_subpath {
+                    builder.close();
+                    in_subpath = false;
                 }
-                last = first;
             }
         }
     }
+    if in_subpath {
+        builder.end(false);
+    }
+    builder.build()
+}
+
+/// Flatten path to line segments using lyon's adaptive subdivision.
+fn flatten_to_segments(path: &PathData) -> Vec<(Point, Point)> {
+    let lyon_path = build_lyon_path(path);
+    let mut segs = Vec::new();
+    let mut last = Point { x: 0.0, y: 0.0 };
+
+    for evt in lyon_path.iter().flattened(FLATTEN_TOLERANCE) {
+        use lyon::path::Event;
+        match evt {
+            Event::Begin { at } => {
+                last = Point { x: at.x, y: at.y };
+            }
+            Event::Line { from: _, to } => {
+                let to_pt = Point { x: to.x, y: to.y };
+                segs.push((last, to_pt));
+                last = to_pt;
+            }
+            Event::End { last: end, first, close } => {
+                if close {
+                    let end_pt = Point { x: end.x, y: end.y };
+                    let first_pt = Point { x: first.x, y: first.y };
+                    if (end_pt.x - first_pt.x).abs() > 1e-10
+                        || (end_pt.y - first_pt.y).abs() > 1e-10
+                    {
+                        segs.push((end_pt, first_pt));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
     segs
-}
-
-fn lerp_pt(a: Point, b: Point, t: f32) -> Point {
-    Point {
-        x: a.x + (b.x - a.x) * t,
-        y: a.y + (b.y - a.y) * t,
-    }
-}
-
-fn flatten_quad(p0: Point, p1: Point, p2: Point, segs: &mut Vec<(Point, Point)>) {
-    let n = CURVE_FLATTEN_STEPS;
-    let mut prev = p0;
-    for i in 1..=n {
-        let t = i as f32 / n as f32;
-        let a = lerp_pt(p0, p1, t);
-        let b = lerp_pt(p1, p2, t);
-        let pt = lerp_pt(a, b, t);
-        segs.push((prev, pt));
-        prev = pt;
-    }
-}
-
-fn flatten_cubic(p0: Point, p1: Point, p2: Point, p3: Point, segs: &mut Vec<(Point, Point)>) {
-    let n = CURVE_FLATTEN_STEPS;
-    let mut prev = p0;
-    for i in 1..=n {
-        let t = i as f32 / n as f32;
-        let a = lerp_pt(p0, p1, t);
-        let b = lerp_pt(p1, p2, t);
-        let c = lerp_pt(p2, p3, t);
-        let d = lerp_pt(a, b, t);
-        let e = lerp_pt(b, c, t);
-        let pt = lerp_pt(d, e, t);
-        segs.push((prev, pt));
-        prev = pt;
-    }
 }
 
 /// Approximate path offset: move each vertex along its estimated normal.
