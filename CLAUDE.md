@@ -12,6 +12,11 @@
 - The scripting language is called **Vector Flow Script (VFS)**, not DSL. The code node is called **VFS Code**.
 - The language reference is `docs/vfs-reference.md`.
 
+## Testing
+
+- All new features must include tests.
+- All bug fixes must include a test that verifies the fix to prevent regressions.
+
 ## Building
 
 - Cargo and rustc are at `~/.cargo/bin/cargo`.
