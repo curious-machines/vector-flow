@@ -1,6 +1,6 @@
-# Vector Flow DSL Reference
+# Vector Flow Script (VFS) Reference
 
-The Vector Flow DSL is a small, statically-typed scripting language designed for writing custom node logic. It compiles to native machine code via Cranelift JIT for fast evaluation every frame.
+Vector Flow Script (VFS) is a small, statically-typed scripting language designed for writing custom node logic. It compiles to native machine code via Cranelift JIT for fast evaluation every frame.
 
 ## Table of Contents
 
@@ -42,22 +42,25 @@ The Vector Flow DSL is a small, statically-typed scripting language designed for
   - [Other Math Functions](#other-math-functions)
   - [Integer Functions](#integer-functions)
   - [Procedural Functions](#procedural-functions)
+  - [Color Construction Functions](#color-construction-functions)
+  - [Color Component Functions](#color-component-functions)
+  - [Color Modification Functions](#color-modification-functions)
 - [Entry Points](#entry-points)
   - [Expression Mode](#expression-mode)
   - [Program Mode](#program-mode)
-  - [Script Mode (DSL Node)](#script-mode-dsl-node)
+  - [Script Mode (VFS Code Node)](#script-mode-vfs-code-node)
 - [Grammar (BNF)](#grammar-bnf)
 
 ---
 
 ## Overview
 
-The DSL is used in two main contexts within Vector Flow:
+VFS is used in two main contexts within Vector Flow:
 
 1. **Port expressions** -- standalone expressions that compute a value for a single node input (e.g., `sin(time * 2.0) * 50.0`).
-2. **DSL Code nodes** -- multi-statement scripts with user-defined inputs and outputs, written in the properties panel.
+2. **VFS Code nodes** -- multi-statement scripts with user-defined inputs and outputs, written in the properties panel.
 
-The language supports integers, floating-point scalars, and booleans, with arithmetic, comparison, logical operators, for-loops, if/else branching, and a library of built-in math functions.
+The language supports integers, floating-point scalars, booleans, and colors, with arithmetic, comparison, logical operators, for-loops, if/else branching, and a library of built-in math and color functions.
 
 ---
 
@@ -160,13 +163,16 @@ The following words are reserved and cannot be used as identifiers:
 
 ## Types
 
-The DSL has three core types:
+VFS has four core types:
 
 | Type     | Description                    | Example Values        |
 |----------|--------------------------------|-----------------------|
 | `Scalar` | 64-bit floating-point number   | `3.14`, `0.0`, `-1.5` |
 | `Int`    | 64-bit signed integer          | `0`, `42`, `-10`       |
 | `Bool`   | Boolean                        | `true`, `false`        |
+| `Color`  | RGBA color (4 x f64 channels)  | `rgb(1.0, 0.0, 0.0)` |
+
+**Color** values occupy 4 consecutive slots internally (r, g, b, a). They cannot be used in arithmetic expressions directly -- use the [color functions](#color-construction-functions) to create and manipulate them.
 
 ### Type Promotion
 
@@ -335,6 +341,7 @@ Declare a new variable with `let`. Type annotations are optional -- the type is 
 let x = 5.0;              // inferred as Scalar
 let n: Int = 10;           // explicit type
 let flag: Bool = true;     // explicit Bool
+let c: Color = rgb(1.0, 0.0, 0.0);  // explicit Color
 ```
 
 Variables are scoped to the enclosing block.
@@ -436,7 +443,7 @@ let result = {
 
 If a block has no tail expression (all statements end with `;`), it evaluates to `0.0` (Scalar) by default.
 
-This tail expression rule is how DSL Code nodes return their output -- the last expression in the script becomes the value of the first output port.
+This tail expression rule is how VFS Code nodes return their output -- the last expression in the script becomes the value of the first output port.
 
 ---
 
@@ -586,11 +593,71 @@ let animated = noise(x * 0.01, time);    // animated noise
 
 `noise` produces smooth, continuous values suitable for organic motion and textures.
 
+### Color Construction Functions
+
+These functions create Color values from channel components.
+
+| Function            | Signature                                    | Description                          |
+|---------------------|----------------------------------------------|--------------------------------------|
+| `rgb(r, g, b)`      | Scalar, Scalar, Scalar -> Color              | Create color from RGB (alpha = 1.0)  |
+| `rgba(r, g, b, a)`  | Scalar, Scalar, Scalar, Scalar -> Color      | Create color from RGBA               |
+| `hsl(h, s, l)`      | Scalar, Scalar, Scalar -> Color              | Create color from HSL (alpha = 1.0)  |
+| `hsla(h, s, l, a)`  | Scalar, Scalar, Scalar, Scalar -> Color      | Create color from HSLA               |
+
+```
+let red = rgb(1.0, 0.0, 0.0);
+let semi_blue = rgba(0.0, 0.0, 1.0, 0.5);
+let warm = hsl(0.08, 0.9, 0.5);        // h in [0,1], not degrees
+let faded = hsla(0.6, 0.7, 0.5, 0.3);
+```
+
+**Notes:** For `hsl`/`hsla`, the hue is a fraction in [0, 1] (not degrees). Saturation and lightness are also [0, 1]. RGB channels are [0, 1].
+
+### Color Component Functions
+
+Extract individual channels from a Color value.
+
+| Function           | Signature        | Description                              |
+|--------------------|------------------|------------------------------------------|
+| `color_r(c)`       | Color -> Scalar  | Red channel (0..1)                       |
+| `color_g(c)`       | Color -> Scalar  | Green channel (0..1)                     |
+| `color_b(c)`       | Color -> Scalar  | Blue channel (0..1)                      |
+| `color_a(c)`       | Color -> Scalar  | Alpha channel (0..1)                     |
+| `color_hue(c)`     | Color -> Scalar  | Hue in [0, 1] (HSL)                     |
+| `color_sat(c)`     | Color -> Scalar  | Saturation in [0, 1] (HSL)              |
+| `color_light(c)`   | Color -> Scalar  | Lightness in [0, 1] (HSL)               |
+
+```
+let c = rgb(0.8, 0.2, 0.1);
+let r = color_r(c);           // 0.8
+let h = color_hue(c);         // hue fraction
+let is_bright = color_light(c) > 0.5;
+```
+
+### Color Modification Functions
+
+Return a new Color with one property changed.
+
+| Function                  | Signature              | Description                                 |
+|---------------------------|------------------------|---------------------------------------------|
+| `set_hue(c, h)`           | Color, Scalar -> Color | Set hue to h (fraction in [0, 1])          |
+| `set_saturation(c, s)`    | Color, Scalar -> Color | Set saturation to s ([0, 1])               |
+| `set_lightness(c, l)`     | Color, Scalar -> Color | Set lightness to l ([0, 1])                |
+| `set_alpha_color(c, a)`   | Color, Scalar -> Color | Set alpha to a ([0, 1])                    |
+
+```
+let c = rgb(1.0, 0.0, 0.0);
+let pastel = set_saturation(c, 0.3);
+let dark = set_lightness(c, 0.2);
+let ghost = set_alpha_color(c, 0.1);
+let shifted = set_hue(c, color_hue(c) + 0.333);  // shift hue by 1/3
+```
+
 ---
 
 ## Entry Points
 
-The DSL has three parsing modes, each suited to different contexts.
+VFS has three parsing modes, each suited to different contexts.
 
 ### Expression Mode
 
@@ -614,9 +681,9 @@ fn wave(freq: Scalar, amp: Scalar) -> Scalar {
 }
 ```
 
-### Script Mode (DSL Node)
+### Script Mode (VFS Code Node)
 
-Parses bare statements without a function wrapper. This is the mode used by the **DSL Code** node. Inputs and outputs are defined externally in the node's port editor.
+Parses bare statements without a function wrapper. This is the mode used by the **VFS Code** node. Inputs and outputs are defined externally in the node's port editor.
 
 Inputs are available as pre-declared variables. Outputs are assigned by name, or the tail expression is assigned to the first output.
 
@@ -667,11 +734,22 @@ if value > threshold {
 }
 ```
 
+**Example -- color manipulation:**
+
+Inputs: `element` (Color)
+Outputs: `result` (Color)
+
+```
+let h = color_hue(element);
+let shifted = set_hue(element, h + 0.5);
+result = set_alpha_color(shifted, 0.8);
+```
+
 ---
 
 ## Grammar (BNF)
 
-The following is the formal grammar of the Vector Flow DSL in BNF notation.
+The following is the formal grammar of Vector Flow Script in BNF notation.
 
 ### Top-Level
 
@@ -690,7 +768,7 @@ The following is the formal grammar of the Vector Flow DSL in BNF notation.
 
 <param>      ::= <ident> ":" <type>
 
-<type>       ::= "Scalar" | "Int" | "Bool"
+<type>       ::= "Scalar" | "Int" | "Bool" | "Color"
 ```
 
 ### Blocks and Statements

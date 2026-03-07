@@ -22,7 +22,7 @@ This document describes the Vector Flow desktop application from a user's perspe
   - [What the Canvas Shows](#what-the-canvas-shows)
 - [Properties Panel](#properties-panel)
   - [Standard Node Properties](#standard-node-properties)
-  - [DSL Code Node Properties](#dsl-code-node-properties)
+  - [VFS Code Node Properties](#vfs-code-node-properties)
   - [Load Image Node Properties](#load-image-node-properties)
   - [SVG Path Node Properties](#svg-path-node-properties)
   - [Color Parse Node Properties](#color-parse-node-properties)
@@ -130,9 +130,11 @@ Right-click on the graph background to open the **Add Node** context menu. Nodes
 - **Generators** — Circle, Rectangle, Regular Polygon, Line, Point Grid, Scatter Points, Load Image, SVG Path
 - **Transforms** — Translate, Rotate, Scale, Apply Transform
 - **Path Ops** — Path Union, Path Intersect, Path Difference, Path Offset, Path Subdivide, Path Reverse, Resample Path
-- **Styling** — Set Fill, Set Stroke
+- **Styling** — Set Fill, Set Stroke, Stroke to Path
 - **Color** — Adjust Hue, Adjust Saturation, Adjust Lightness, Adjust Luminance, Adjust Alpha, Invert Color, Grayscale, Mix Colors, Color Parse
-- **Utility** — Constant Scalar, Constant Int, Constant Vec2, Constant Color, Portal Send, Portal Receive, Merge, Duplicate, DSL Code
+- **Text** — Text, Text to Path
+- **Code** — VFS Code, Map
+- **Utility** — Constant Scalar, Constant Int, Constant Vec2, Constant Color, Portal Send, Portal Receive, Merge, Duplicate, Copy to Points
 - **Graph I/O** — Graph Output
 
 A new node is placed at your cursor position.
@@ -232,17 +234,17 @@ When multiple nodes are selected, the panel shows "{N} nodes selected" with no e
 
 When nothing is selected, the panel shows "No selection".
 
-### DSL Code Node Properties
+### VFS Code Node Properties
 
-The DSL Code node has a special editor:
+The VFS Code node has a special editor:
 
 - **Expression** heading with a multiline text area for your script source code.
 - A hint: "e.g. sin(time * 3.14)".
 - If the script fails to compile, the error is shown in red below the editor.
-- **Inputs** section: Add, remove, rename, and change the type (Scalar or Int) of input ports.
+- **Inputs** section: Add, remove, rename, and change the type (Scalar, Int, or Color) of input ports.
 - **Outputs** section: Same controls for output ports.
 
-See the [DSL Reference](dsl-reference.md) for the scripting language.
+See the [VFS Reference](vfs-reference.md) for the scripting language.
 
 ### Load Image Node Properties
 

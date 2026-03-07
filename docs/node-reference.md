@@ -50,7 +50,7 @@ This document describes every node type available in Vector Flow, organized by c
   - [Duplicate](#duplicate)
   - [Portal Send](#portal-send)
   - [Portal Receive](#portal-receive)
-  - [DSL Code](#dsl-code)
+  - [VFS Code](#vfs-code)
 - [Graph I/O](#graph-io)
   - [Graph Output](#graph-output)
   - [Graph Input](#graph-input)
@@ -400,7 +400,7 @@ Applies a pre-computed affine transform matrix to geometry.
 |----------|------|----------------------|
 | geometry | Any  | Transformed geometry |
 
-**Notes:** This node applies a Transform value directly. It is useful when a transform is computed by another node or DSL expression and you want to apply it to geometry.
+**Notes:** This node applies a Transform value directly. It is useful when a transform is computed by another node or VFS expression and you want to apply it to geometry.
 
 ---
 
@@ -1033,27 +1033,27 @@ Example:
 
 ---
 
-### DSL Code
+### VFS Code
 
 A programmable node with user-defined inputs, outputs, and script logic.
 
-**Inputs:** Defined by the user in the properties panel (Scalar and Int types supported).
+**Inputs:** Defined by the user in the properties panel (Scalar, Int, and Color types supported).
 
-**Outputs:** Defined by the user in the properties panel (Scalar and Int types supported).
+**Outputs:** Defined by the user in the properties panel (Scalar, Int, and Color types supported).
 
 **Properties:**
 
 | Name         | Description                                    |
 |--------------|------------------------------------------------|
-| Source       | Multiline code editor for the DSL script       |
+| Source       | Multiline code editor for the VFS script       |
 | Input Ports  | Add/remove/rename input ports with type selection |
 | Output Ports | Add/remove/rename output ports with type selection |
 
-**Notes:** The DSL Code node lets you write custom computation logic using the Vector Flow DSL. The script runs in **script mode** -- bare statements without a function wrapper. Input port values are available as pre-declared variables matching the port names. Assign to output port names, or use a tail expression (no semicolon on the last line) to set the first output.
+**Notes:** The VFS Code node lets you write custom computation logic using Vector Flow Script. The script runs in **script mode** -- bare statements without a function wrapper. Input port values are available as pre-declared variables matching the port names. Assign to output port names, or use a tail expression (no semicolon on the last line) to set the first output.
 
 The code is compiled to native machine code via Cranelift JIT and cached by source+port signature. Compilation errors are displayed in red below the code editor. The global variables `time`, `frame`, and `fps` are available for animation.
 
-See the [DSL Reference](dsl-reference.md) for the full language documentation.
+See the [VFS Reference](vfs-reference.md) for the full language documentation.
 
 **Example -- oscillator:**
 
