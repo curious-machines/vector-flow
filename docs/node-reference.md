@@ -30,6 +30,7 @@ This document describes every node type available in Vector Flow, organized by c
 - [Styling](#styling)
   - [Set Fill](#set-fill)
   - [Set Stroke](#set-stroke)
+  - [Stroke to Path](#stroke-to-path)
 - [Color](#color)
   - [Adjust Hue](#adjust-hue)
   - [Adjust Saturation](#adjust-saturation)
@@ -40,17 +41,23 @@ This document describes every node type available in Vector Flow, organized by c
   - [Mix Colors](#mix-colors)
   - [Adjust Alpha](#adjust-alpha)
   - [Color Parse](#color-parse)
+- [Text](#text)
+  - [Text](#text-1)
+  - [Text to Path](#text-to-path)
 - [Constants](#constants)
   - [Constant Scalar](#constant-scalar)
   - [Constant Int](#constant-int)
   - [Constant Vec2](#constant-vec2)
   - [Constant Color](#constant-color)
 - [Utility](#utility)
+  - [Copy to Points](#copy-to-points)
   - [Merge](#merge)
   - [Duplicate](#duplicate)
   - [Portal Send](#portal-send)
   - [Portal Receive](#portal-receive)
+- [Code](#code)
   - [VFS Code](#vfs-code)
+  - [Map](#map)
 - [Graph I/O](#graph-io)
   - [Graph Output](#graph-output)
   - [Graph Input](#graph-input)
@@ -75,6 +82,7 @@ Before diving into nodes, here is a summary of the data types that flow between 
 | Transform | 2D affine transformation matrix                |
 | Color     | RGBA color (each channel 0.0 to 1.0)          |
 | Image     | Loaded image with position, size, and opacity  |
+| Text      | Styled text with font, layout, and color       |
 | Any       | Accepts any of the above types                 |
 
 **Automatic type promotion:** Some nodes accept broader types than their inputs strictly require. For example, a node expecting a Shape will accept a Path (promoted to a Shape with default styling). A node expecting Scalar will accept Int (promoted to float).
@@ -623,6 +631,41 @@ Example patch: Circle -> Set Fill (red) -> Set Stroke (black, 3px) -> Graph Outp
 
 ---
 
+### Stroke to Path
+
+Converts a stroke outline into a filled path. The resulting path traces the outline of what the stroke would look like, allowing it to be used as geometry for further operations.
+
+**Inputs:**
+
+| Name         | Type   | Default | Description                                |
+|--------------|--------|---------|--------------------------------------------|
+| shape        | Any    | --      | Input shape or path                        |
+| width        | Scalar | 2.0     | Stroke width                               |
+| cap          | Int    | 0       | End cap style: 0=Butt, 1=Round, 2=Square  |
+| join         | Int    | 0       | Line join style: 0=Miter, 1=Round, 2=Bevel|
+| miter_limit  | Scalar | 4.0     | Miter limit (only applies to Miter join)   |
+| dash_offset  | Scalar | 0.0     | Dash pattern offset                        |
+
+**Outputs:**
+
+| Name | Type | Description                         |
+|------|------|-------------------------------------|
+| path | Path | Filled path tracing the stroke outline |
+
+**Properties:**
+
+| Name         | Description                                                     |
+|--------------|-----------------------------------------------------------------|
+| Dash Pattern | Comma or space-separated dash/gap lengths (e.g., "10 5" or "10,5,2,5") |
+
+**Notes:** This node tessellates the stroke into a triangle mesh, then extracts the boundary edges to produce a closed path. It supports all stroke parameters including dashes. An empty dash pattern produces a solid stroke outline. This is useful for creating outlined text effects, converting strokes into cuttable paths, or applying further path operations to a stroke shape.
+
+```
+Example patch: Circle -> Stroke to Path (width: 5, cap: Round) -> Set Fill (gold) -> Graph Output
+```
+
+---
+
 ## Color
 
 Color operation nodes manipulate color values. All color nodes handle both single Color values and batched Colors transparently.
@@ -836,6 +879,79 @@ Example patch: Color Parse ("tomato") -> Set Fill
 
 ---
 
+## Text
+
+Text nodes create and manipulate text content on the canvas.
+
+### Text
+
+Creates a text element that renders on the canvas.
+
+**Inputs:**
+
+| Name           | Type   | Default    | Description                                     |
+|----------------|--------|------------|-------------------------------------------------|
+| position       | Vec2   | (0.0, 0.0) | Text anchor position                           |
+| font_size      | Scalar | 24.0       | Font size in canvas units                       |
+| font_weight    | Int    | 400        | Font weight (100-900; 400=Regular, 700=Bold)    |
+| font_style     | Int    | 0          | Font style: 0=Normal, 1=Italic, 2=Oblique      |
+| letter_spacing | Scalar | 0.0        | Extra spacing between glyphs                    |
+| line_height    | Scalar | 1.2        | Line height multiplier                          |
+| alignment      | Int    | 0          | Text alignment: 0=Left, 1=Center, 2=Right      |
+| box_width      | Scalar | 0.0        | Text box width (0 = unconstrained)              |
+| box_height     | Scalar | 0.0        | Text box height (0 = unconstrained)             |
+| wrap           | Bool   | true       | Enable word wrapping                            |
+| color          | Color  | White      | Text color                                      |
+| opacity        | Scalar | 1.0        | Opacity (0.0 to 1.0)                           |
+
+**Outputs:**
+
+| Name   | Type   | Description                    |
+|--------|--------|--------------------------------|
+| text   | Text   | The text instance              |
+| width  | Scalar | Measured width of the text     |
+| height | Scalar | Measured height of the text    |
+
+**Properties:**
+
+| Name        | Description                                              |
+|-------------|----------------------------------------------------------|
+| Text        | Multiline text content                                   |
+| Font Family | System font family name (e.g., "Arial", "Helvetica")    |
+| Font Path   | Path to a .ttf or .otf font file (overrides font family) |
+
+**Notes:** Font resolution priority: font path (if set) > font family (system lookup) > bundled Noto Sans. The text is rasterized at a zoom-aware resolution for crisp rendering at any zoom level. When box_width is 0, the text is unconstrained horizontally. Set box_width and enable wrap for paragraph-style text layout. The text instance can be further transformed by connecting it through Translate, Rotate, or Scale nodes.
+
+```
+Example patch: Text ("Hello World", font_size: 48) -> Graph Output
+```
+
+---
+
+### Text to Path
+
+Converts a text instance into vector path outlines of the glyphs.
+
+**Inputs:**
+
+| Name | Type | Default | Description         |
+|------|------|---------|---------------------|
+| text | Text | --      | Input text instance |
+
+**Outputs:**
+
+| Name | Type | Description                  |
+|------|------|------------------------------|
+| path | Path | Glyph outlines as a path     |
+
+**Notes:** Extracts the outline curves of each glyph from the font and converts them to a path. This is useful for applying path operations (offset, boolean, etc.) to text, or for getting resolution-independent text that can be filled and stroked like any other path. The resulting path inherits the text's position and transform.
+
+```
+Example patch: Text ("VFS") -> Text to Path -> Set Fill (red) -> Set Stroke (black, 2) -> Graph Output
+```
+
+---
+
 ## Constants
 
 Constant nodes output fixed values that can be edited in the properties panel. They serve as configurable parameters for your graph.
@@ -918,6 +1034,36 @@ Outputs a color value.
 ---
 
 ## Utility
+
+### Copy to Points
+
+Places copies of geometry at evenly-spaced points along a target path.
+
+**Inputs:**
+
+| Name        | Type | Default | Description                                      |
+|-------------|------|---------|--------------------------------------------------|
+| geometry    | Any  | --      | Shape to copy to each point                      |
+| target_path | Path | --      | Path whose sampled points receive copies         |
+| count       | Int  | 10      | Number of copies along the path                  |
+| align       | Bool | true    | Rotate copies to align with the path tangent     |
+
+**Outputs:**
+
+| Name           | Type   | Description                                |
+|----------------|--------|--------------------------------------------|
+| geometry       | Shapes | All copies merged into a batch             |
+| tangent_angles | Scalars| Tangent angle in degrees at each point     |
+| indices        | Scalars| Index of each copy (0 to count-1)         |
+| count          | Scalar | Total number of copies                     |
+
+**Notes:** Points are distributed by arc length, so copies are evenly spaced regardless of the path's vertex distribution. When `align` is true, each copy is rotated to follow the path's direction at that point. The `tangent_angles` and `indices` outputs are useful for driving per-copy variations via downstream nodes.
+
+```
+Example patch: Regular Polygon (sides: 3, radius: 10) -> Set Fill -> Copy to Points (target: Circle, count: 12) -> Graph Output
+```
+
+---
 
 ### Merge
 
@@ -1033,6 +1179,10 @@ Example:
 
 ---
 
+## Code
+
+Code nodes let you write custom logic using Vector Flow Script (VFS). See the [VFS Reference](vfs-reference.md) for the full language documentation.
+
 ### VFS Code
 
 A programmable node with user-defined inputs, outputs, and script logic.
@@ -1053,8 +1203,6 @@ A programmable node with user-defined inputs, outputs, and script logic.
 
 The code is compiled to native machine code via Cranelift JIT and cached by source+port signature. Compilation errors are displayed in red below the code editor. The global variables `time`, `frame`, and `fps` are available for animation.
 
-See the [VFS Reference](vfs-reference.md) for the full language documentation.
-
 **Example -- oscillator:**
 
 Inputs: `freq` (Scalar), `amp` (Scalar)
@@ -1073,6 +1221,63 @@ Outputs: `x` (Scalar), `y` (Scalar)
 let angle = frame as Scalar * TAU / steps as Scalar;
 x = cos(angle) * spread;
 y = sin(angle) * spread;
+```
+
+---
+
+### Map
+
+Iterates over a batch of elements, running a VFS script on each one to produce transformed output batches.
+
+**Inputs:**
+
+| Name  | Type | Default | Description                              |
+|-------|------|---------|------------------------------------------|
+| batch | Any  | --      | Batch to iterate over (Scalars, Colors, etc.) |
+
+Additional inputs can be added in the properties panel to pass extra data into the script.
+
+**Outputs:** Defined by the user in the properties panel. Each script output produces a corresponding graph output collecting all per-element results into a batch.
+
+**Properties:**
+
+| Name          | Description                                    |
+|---------------|------------------------------------------------|
+| Source        | Multiline code editor for the VFS script       |
+| Script Inputs | Configure inputs available inside the script  |
+| Script Outputs| Configure outputs collected into batches      |
+
+**Notes:** The Map node provides three built-in script variables that are automatically populated for each element:
+
+| Variable  | Type   | Description                              |
+|-----------|--------|------------------------------------------|
+| `element` | (varies) | The current element from the batch     |
+| `index`   | Int    | Zero-based index of the current element  |
+| `count`   | Int    | Total number of elements in the batch    |
+
+The `element` variable's type matches the element type of the input batch (e.g., Scalar for a Scalars batch, Color for a Colors batch). You can change its type in the script inputs editor.
+
+User-added script inputs beyond the three built-ins get corresponding graph input ports (starting at port 1), allowing you to pass external values into the per-element script.
+
+A single `DslContext` is reused across iterations for efficiency. Scripts in Map nodes require semicolons -- use explicit assignment rather than tail expressions.
+
+**Example -- scale each value:**
+
+Script inputs: `element` (Scalar), `index` (Int), `count` (Int)
+Script outputs: `result` (Scalar)
+
+```
+result = element * 2.0;
+```
+
+**Example -- color shift per element:**
+
+Script inputs: `element` (Color), `index` (Int), `count` (Int)
+Script outputs: `result` (Color)
+
+```
+let t = index as Scalar / count as Scalar;
+result = set_hue(element, t);
 ```
 
 ---
