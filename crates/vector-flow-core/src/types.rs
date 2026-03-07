@@ -345,6 +345,7 @@ impl DataType {
                 | (DataType::Paths, DataType::Path)
                 | (DataType::Scalar, DataType::Vec2)
                 | (DataType::Int, DataType::Scalar)
+                | (DataType::Scalar, DataType::Int)
                 | (DataType::Points, DataType::Vec2)
                 | (DataType::Scalars, DataType::Scalar)
                 | (DataType::Ints, DataType::Int)
@@ -412,6 +413,7 @@ mod tests {
         assert!(DataType::Shape.can_promote_to(&DataType::Shapes));
         assert!(DataType::Scalar.can_promote_to(&DataType::Vec2));
         assert!(DataType::Int.can_promote_to(&DataType::Scalar));
+        assert!(DataType::Scalar.can_promote_to(&DataType::Int));
 
         // Identity
         assert!(DataType::Scalar.can_promote_to(&DataType::Scalar));

@@ -56,6 +56,7 @@ This document describes every node type available in Vector Flow, organized by c
   - [Portal Receive](#portal-receive)
   - [Portal Send](#portal-send)
 - [Code](#code)
+  - [Generate](#generate)
   - [Map](#map)
   - [VFS Code](#vfs-code)
 - [Graph I/O](#graph-io)
@@ -1182,6 +1183,61 @@ Sends a value to matching Portal Receive nodes anywhere in the graph.
 ## Code
 
 Code nodes let you write custom logic using Vector Flow Script (VFS). See the [VFS Reference](vfs-reference.md) for the full language documentation.
+
+### Generate
+
+Runs a VFS script for each index in a range (`start..end`), collecting results into output batches. Unlike Map, Generate does not require a batch input — it generates data from scratch based on the range.
+
+**Inputs:**
+
+| Name  | Type | Default | Description                |
+|-------|------|---------|----------------------------|
+| start | Int  | 0       | Range start (inclusive)     |
+| end   | Int  | 10      | Range end (exclusive)      |
+
+Additional inputs can be added in the properties panel to pass extra data into the script.
+
+**Outputs:** Defined by the user in the properties panel. Each script output produces a corresponding graph output collecting all per-index results into a batch.
+
+**Properties:**
+
+| Name          | Description                                    |
+|---------------|------------------------------------------------|
+| Source        | Multiline code editor for the VFS script       |
+| Script Inputs | Configure inputs available inside the script  |
+| Script Outputs| Configure outputs collected into batches      |
+
+**Notes:** The Generate node provides two built-in script variables:
+
+| Variable  | Type | Description                              |
+|-----------|------|------------------------------------------|
+| `index`   | Int  | Current value in `start..end`            |
+| `count`   | Int  | Total number of iterations (`end - start`) |
+
+If `start >= end`, the node produces empty batches. User-added script inputs get graph input ports starting at port 2.
+
+A single `DslContext` is reused across iterations for efficiency. Scripts require semicolons — use explicit assignment rather than tail expressions.
+
+**Example — generate indices:**
+
+Script inputs: `index` (Int), `count` (Int)
+Script outputs: `result` (Scalar)
+
+```
+result = index;
+```
+
+**Example — generate rainbow colors:**
+
+Script inputs: `index` (Int), `count` (Int)
+Script outputs: `result` (Color)
+
+```
+let hue = index * 360.0 / count;
+result = hsl(hue, 100.0, 50.0);
+```
+
+---
 
 ### Map
 

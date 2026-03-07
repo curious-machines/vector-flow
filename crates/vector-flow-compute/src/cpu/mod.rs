@@ -402,6 +402,21 @@ impl ComputeBackend for CpuBackend {
                 return Ok(());
             }
 
+            NodeOp::Generate { source, script_inputs, script_outputs } => {
+                let mut compiler = self.dsl_compiler.lock();
+                utility::generate_range(
+                    source,
+                    script_inputs,
+                    script_outputs,
+                    inputs,
+                    &mut compiler,
+                    &self.dsl_cache,
+                    time_ctx,
+                    outputs,
+                )?;
+                return Ok(());
+            }
+
             // ── Image ───────────────────────────────────────────────
             NodeOp::LoadImage { path } => {
                 let position = get_vec2(inputs, 0);
@@ -1071,6 +1086,155 @@ mod tests {
             assert_eq!(v.len(), 2);
             assert!((v[0] - 101.0).abs() < 1e-10);
             assert!((v[1] - 102.0).abs() < 1e-10);
+        } else {
+            panic!("expected Scalars output");
+        }
+    }
+
+    #[test]
+    fn generate_basic() {
+        // Generate 0..5, output = index as scalar.
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Int(0),  // start
+                NodeData::Int(5),  // end
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Generate {
+                    source: "result = index;".into(),
+                    script_inputs: vec![
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Scalar)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 5);
+            for i in 0..5 {
+                assert!((v[i] - i as f64).abs() < 1e-10);
+            }
+        } else {
+            panic!("expected Scalars output, got {:?}", outputs.data[0]);
+        }
+    }
+
+    #[test]
+    fn generate_empty_range() {
+        // start >= end → empty batch.
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Int(5),  // start
+                NodeData::Int(5),  // end
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Generate {
+                    source: "result = index;".into(),
+                    script_inputs: vec![
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Scalar)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 0);
+        } else {
+            panic!("expected empty Scalars output, got {:?}", outputs.data[0]);
+        }
+    }
+
+    #[test]
+    fn generate_negative_start() {
+        // Generate -2..3 → produces indices [-2, -1, 0, 1, 2].
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Int(-2), // start
+                NodeData::Int(3),  // end
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Generate {
+                    source: "result = index;".into(),
+                    script_inputs: vec![
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Scalar)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 5);
+            assert!((v[0] - (-2.0)).abs() < 1e-10);
+            assert!((v[1] - (-1.0)).abs() < 1e-10);
+            assert!((v[2] - 0.0).abs() < 1e-10);
+            assert!((v[3] - 1.0).abs() < 1e-10);
+            assert!((v[4] - 2.0).abs() < 1e-10);
+        } else {
+            panic!("expected Scalars output");
+        }
+    }
+
+    #[test]
+    fn generate_with_extra_input() {
+        // Generate 0..3 with extra input "scale" = 10.0.
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Int(0),      // start
+                NodeData::Int(3),      // end
+                NodeData::Scalar(10.0), // extra input: scale (graph port 2)
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Generate {
+                    source: "result = index * scale;".into(),
+                    script_inputs: vec![
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                        ("scale".into(), DataType::Scalar),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Scalar)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 3);
+            assert!((v[0] - 0.0).abs() < 1e-10);
+            assert!((v[1] - 10.0).abs() < 1e-10);
+            assert!((v[2] - 20.0).abs() < 1e-10);
         } else {
             panic!("expected Scalars output");
         }

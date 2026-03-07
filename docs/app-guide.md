@@ -133,7 +133,7 @@ Right-click on the graph background to open the **Add Node** context menu. Nodes
 - **Styling** — Set Fill, Set Stroke, Stroke to Path
 - **Color** — Adjust Hue, Adjust Saturation, Adjust Lightness, Adjust Luminance, Adjust Alpha, Invert Color, Grayscale, Mix Colors, Color Parse
 - **Text** — Text, Text to Path
-- **Code** — VFS Code, Map
+- **Code** — Generate, Map, VFS Code
 - **Utility** — Constant Scalar, Constant Int, Constant Vec2, Constant Color, Portal Send, Portal Receive, Merge, Duplicate, Copy to Points
 - **Graph I/O** — Graph Output
 

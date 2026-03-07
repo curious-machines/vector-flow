@@ -520,6 +520,139 @@ fn collect_into_batch(results: Vec<NodeData>, dt: &DataType) -> NodeData {
     }
 }
 
+/// Generate: run DSL code for each index in start..end, collect results.
+#[allow(clippy::too_many_arguments)]
+pub fn generate_range(
+    source: &str,
+    script_inputs: &[(String, DataType)],
+    script_outputs: &[(String, DataType)],
+    inputs: &ResolvedInputs,
+    compiler: &mut DslCompiler,
+    cache: &DslFunctionCache,
+    time_ctx: &EvalContext,
+    outputs: &mut NodeOutputs,
+) -> Result<(), ComputeError> {
+    if source.trim().is_empty() {
+        return Ok(());
+    }
+
+    // Graph input port 0 = start, port 1 = end.
+    let start = match &inputs.data[0] {
+        NodeData::Int(v) => *v,
+        NodeData::Scalar(v) => *v as i64,
+        _ => 0,
+    };
+    let end = match &inputs.data[1] {
+        NodeData::Int(v) => *v,
+        NodeData::Scalar(v) => *v as i64,
+        _ => 0,
+    };
+    let count = (end - start).max(0) as usize;
+
+    if count == 0 {
+        // Write empty batches for all outputs.
+        for (i, (_, dt)) in script_outputs.iter().enumerate() {
+            if i < outputs.data.len() {
+                outputs.data[i] = Some(collect_into_batch(Vec::new(), dt));
+            }
+        }
+        return Ok(());
+    }
+
+    // Build DSL compiler port lists.
+    let dsl_inputs: Vec<(String, DslType)> = script_inputs
+        .iter()
+        .map(|(name, dt)| (name.clone(), data_type_to_dsl(dt)))
+        .collect();
+    let dsl_outputs: Vec<(String, DslType)> = script_outputs
+        .iter()
+        .map(|(name, dt)| (name.clone(), data_type_to_dsl(dt)))
+        .collect();
+
+    // Compile (cached).
+    let ptr = match compile_catching_panics(|| {
+        cache.get_or_compile_node_script(source, &dsl_inputs, &dsl_outputs, compiler)
+    }) {
+        Ok(p) => p,
+        Err(e) => {
+            outputs.error = Some(e.to_string());
+            return Ok(());
+        }
+    };
+
+    let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+
+    // Compute slot layout.
+    let input_slot_count: usize = dsl_inputs.iter().map(|(_, t)| slots_for_dsl_type(*t)).sum();
+    let output_slot_count: usize = dsl_outputs.iter().map(|(_, t)| slots_for_dsl_type(*t)).sum();
+    let total_slots = input_slot_count + output_slot_count;
+
+    let mut ctx = DslContext::new(time_ctx);
+    let _overflow = if total_slots > 16 {
+        Some(ctx.alloc_overflow(total_slots - 16))
+    } else {
+        None
+    };
+
+    // Compute slot offsets for each script input.
+    let mut script_input_slots: Vec<usize> = Vec::with_capacity(script_inputs.len());
+    {
+        let mut slot = 0;
+        for (_, dt) in script_inputs.iter() {
+            script_input_slots.push(slot);
+            slot += slots_for_dsl_type(data_type_to_dsl(dt));
+        }
+    }
+
+    let index_idx = script_inputs.iter().position(|(n, _)| n == "index");
+    let count_idx = script_inputs.iter().position(|(n, _)| n == "count");
+
+    // Pre-load extra graph inputs (ports 2+) into their script input slots.
+    let mut graph_port = 2usize; // ports 0,1 are start/end
+    for (si, (name, _dt)) in script_inputs.iter().enumerate() {
+        if name == "index" || name == "count" {
+            continue;
+        }
+        if graph_port < inputs.data.len() {
+            let slot = script_input_slots[si];
+            load_value_into_slots(&mut ctx, slot, &inputs.data[graph_port]);
+        }
+        graph_port += 1;
+    }
+
+    // Load count once.
+    if let Some(ci) = count_idx {
+        ctx.slots[script_input_slots[ci]] = count as f64;
+    }
+
+    let output_slot_offset = input_slot_count;
+
+    // Iterate.
+    let mut results = Vec::with_capacity(count);
+    for i in 0..count {
+        let index_value = start + i as i64;
+
+        if let Some(ii) = index_idx {
+            ctx.slots[script_input_slots[ii]] = index_value as f64;
+        }
+
+        unsafe { func(&mut ctx) };
+
+        if !script_outputs.is_empty() {
+            let result = read_value_from_slots(&ctx, output_slot_offset, &script_outputs[0].1);
+            results.push(result);
+        }
+    }
+
+    // Write collected output.
+    if !outputs.data.is_empty() && !script_outputs.is_empty() {
+        let out_dt = &script_outputs[0].1;
+        outputs.data[0] = Some(collect_into_batch(results, out_dt));
+    }
+
+    Ok(())
+}
+
 /// Map: iterate a batch, run DSL code per element, collect results.
 #[allow(clippy::too_many_arguments)]
 pub fn map_batch(

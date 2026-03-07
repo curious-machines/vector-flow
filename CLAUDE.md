@@ -1,5 +1,9 @@
 # Vector Flow - Project Conventions
 
+## Workflow
+
+- **Do not make code changes unless explicitly asked.** When the user is discussing how things work, asking questions, or exploring design options, respond with explanations only. Wait for a clear instruction to implement before editing any files.
+
 ## Ordering
 
 - **Menu entries** (node catalog in `ui_node.rs`) must be sorted alphabetically within each category.

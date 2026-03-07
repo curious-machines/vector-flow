@@ -111,13 +111,14 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
 
     // Get DSL info if this is a DSL Code or Map node.
     let dsl_source = match &node.op {
-        NodeOp::DslCode { source, .. } | NodeOp::Map { source, .. } => Some(source.clone()),
+        NodeOp::DslCode { source, .. } | NodeOp::Map { source, .. } | NodeOp::Generate { source, .. } => Some(source.clone()),
         _ => None,
     };
     // Snapshot current script port definitions for the editor.
     let dsl_port_info = match &node.op {
         NodeOp::DslCode { script_inputs, script_outputs, .. }
-        | NodeOp::Map { script_inputs, script_outputs, .. } => {
+        | NodeOp::Map { script_inputs, script_outputs, .. }
+        | NodeOp::Generate { script_inputs, script_outputs, .. } => {
             Some((script_inputs.clone(), script_outputs.clone()))
         }
         _ => None,
@@ -427,7 +428,8 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             if let Some(node) = graph.node_mut(core_id) {
                 match &mut node.op {
                     NodeOp::DslCode { source: ref mut s, .. }
-                    | NodeOp::Map { source: ref mut s, .. } => {
+                    | NodeOp::Map { source: ref mut s, .. }
+                    | NodeOp::Generate { source: ref mut s, .. } => {
                         *s = source;
                     }
                     _ => {}
@@ -445,8 +447,8 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
 
     // DSL port editor (inputs and outputs).
     if let Some((script_inputs, script_outputs)) = dsl_port_info {
-        let is_map = matches!(&graph.node(core_id).map(|n| &n.op), Some(NodeOp::Map { .. }));
-        changed |= show_dsl_port_editor(ui, graph, core_id, "Inputs", &script_inputs, true, is_map);
+        let has_builtins = matches!(&graph.node(core_id).map(|n| &n.op), Some(NodeOp::Map { .. } | NodeOp::Generate { .. }));
+        changed |= show_dsl_port_editor(ui, graph, core_id, "Inputs", &script_inputs, true, has_builtins);
         changed |= show_dsl_port_editor(ui, graph, core_id, "Outputs", &script_outputs, false, false);
         ui.separator();
     }
@@ -625,6 +627,13 @@ fn is_map_builtin_input(name: &str) -> bool {
     MAP_BUILTIN_INPUTS.contains(&name)
 }
 
+const GENERATE_BUILTIN_INPUTS: &[&str] = &["index", "count"];
+
+/// Check if a Generate script input is a built-in (index/count).
+fn is_generate_builtin_input(name: &str) -> bool {
+    GENERATE_BUILTIN_INPUTS.contains(&name)
+}
+
 /// For a Map node, compute the graph port index for script input at position `script_idx`.
 /// Built-in inputs (element/index/count) return None. Others map to graph ports 1, 2, 3, ...
 fn map_script_input_to_graph_port(ports: &[(String, DataType)], script_idx: usize) -> Option<usize> {
@@ -638,8 +647,31 @@ fn map_script_input_to_graph_port(ports: &[(String, DataType)], script_idx: usiz
     Some(1 + extra_idx) // graph port 0 is "batch"
 }
 
+/// For a Generate node, compute the graph port index for script input at position `script_idx`.
+/// Built-in inputs (index/count) return None. Others map to graph ports 2, 3, 4, ...
+fn generate_script_input_to_graph_port(ports: &[(String, DataType)], script_idx: usize) -> Option<usize> {
+    if is_generate_builtin_input(&ports[script_idx].0) {
+        return None;
+    }
+    let extra_idx = ports[..script_idx].iter()
+        .filter(|(n, _)| !is_generate_builtin_input(n))
+        .count();
+    Some(2 + extra_idx) // graph ports 0,1 are start/end
+}
+
+/// Compute the graph port index for a script input, taking into account
+/// the node type (Map has builtins element/index/count; Generate has index/count).
+/// For plain DslCode nodes or outputs, returns Some(script_idx) directly.
+fn script_input_to_graph_port(op: &NodeOp, ports: &[(String, DataType)], script_idx: usize) -> Option<usize> {
+    match op {
+        NodeOp::Map { .. } => map_script_input_to_graph_port(ports, script_idx),
+        NodeOp::Generate { .. } => generate_script_input_to_graph_port(ports, script_idx),
+        _ => Some(script_idx),
+    }
+}
+
 /// Show port editor for DSL node inputs or outputs.
-/// `is_map_input`: true when editing Map node's script inputs (special handling for builtins).
+/// `has_builtins`: true when editing Map/Generate node's script inputs (special handling for builtins).
 /// Returns true if anything changed.
 fn show_dsl_port_editor(
     ui: &mut Ui,
@@ -648,10 +680,13 @@ fn show_dsl_port_editor(
     section_label: &str,
     ports: &[(String, DataType)],
     is_input: bool,
-    is_map_input: bool,
+    has_builtins: bool,
 ) -> bool {
     let mut changed = false;
     let mut remove_idx: Option<usize> = None;
+
+    // Snapshot the op kind for builtin checks.
+    let op_snapshot = graph.node(core_id).map(|n| n.op.clone());
 
     ui.strong(section_label);
 
@@ -685,9 +720,14 @@ fn show_dsl_port_editor(
                     }
                 });
 
-            // Delete button (Map: can't delete "element").
-            let can_delete = !(is_map_input && name == "element");
-            if can_delete && ui.small_button("\u{2715}").clicked() {
+            // Delete button — can't delete built-in script variables.
+            let is_non_deletable = has_builtins && op_snapshot.as_ref()
+                .map(|op| match op {
+                    NodeOp::Map { .. } => is_map_builtin_input(name),
+                    _ => false,
+                })
+                .unwrap_or(false);
+            if !is_non_deletable && ui.small_button("\u{2715}").clicked() {
                 remove_idx = Some(i);
             }
 
@@ -702,7 +742,8 @@ fn show_dsl_port_editor(
             if let Some(node) = graph.node_mut(core_id) {
                 let op_list = match &mut node.op {
                     NodeOp::DslCode { script_inputs, script_outputs, .. }
-                    | NodeOp::Map { script_inputs, script_outputs, .. } => {
+                    | NodeOp::Map { script_inputs, script_outputs, .. }
+                    | NodeOp::Generate { script_inputs, script_outputs, .. } => {
                         Some(if is_input { script_inputs } else { script_outputs })
                     }
                     _ => None,
@@ -714,12 +755,13 @@ fn show_dsl_port_editor(
                     }
                 }
                 // Sync NodeDef graph ports.
-                if is_map_input {
-                    // Map: only sync non-builtin inputs to graph ports.
-                    if let Some(gp) = map_script_input_to_graph_port(ports, i) {
-                        if let Some(port) = node.inputs.get_mut(gp) {
-                            port.name = port_name;
-                            port.data_type = port_type;
+                if has_builtins {
+                    if let Some(ref op) = op_snapshot {
+                        if let Some(gp) = script_input_to_graph_port(op, ports, i) {
+                            if let Some(port) = node.inputs.get_mut(gp) {
+                                port.name = port_name;
+                                port.data_type = port_type;
+                            }
                         }
                     }
                 } else {
@@ -737,9 +779,8 @@ fn show_dsl_port_editor(
 
     // Handle deletion.
     if let Some(idx) = remove_idx {
-        // For Map inputs, compute the graph port index before removing.
-        let graph_port_idx = if is_map_input {
-            map_script_input_to_graph_port(ports, idx)
+        let graph_port_idx = if has_builtins {
+            op_snapshot.as_ref().and_then(|op| script_input_to_graph_port(op, ports, idx))
         } else {
             Some(idx)
         };
@@ -748,7 +789,8 @@ fn show_dsl_port_editor(
             {
                 let op_list = match &mut node.op {
                     NodeOp::DslCode { script_inputs, script_outputs, .. }
-                    | NodeOp::Map { script_inputs, script_outputs, .. } => {
+                    | NodeOp::Map { script_inputs, script_outputs, .. }
+                    | NodeOp::Generate { script_inputs, script_outputs, .. } => {
                         Some(if is_input { script_inputs } else { script_outputs })
                     }
                     _ => None,
@@ -790,7 +832,8 @@ fn show_dsl_port_editor(
             {
                 let op_list = match &mut node.op {
                     NodeOp::DslCode { script_inputs, script_outputs, .. }
-                    | NodeOp::Map { script_inputs, script_outputs, .. } => {
+                    | NodeOp::Map { script_inputs, script_outputs, .. }
+                    | NodeOp::Generate { script_inputs, script_outputs, .. } => {
                         Some(if is_input { script_inputs } else { script_outputs })
                     }
                     _ => None,

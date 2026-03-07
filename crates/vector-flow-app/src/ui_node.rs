@@ -178,6 +178,7 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         },
         entry!("Text to Path", Text, NodeDef::text_to_path),
         // Code
+        entry!("Generate", Code, NodeDef::generate),
         entry!("Map", Code, NodeDef::map),
         CatalogEntry {
             label: "VFS Code",
@@ -262,6 +263,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::TextToPath => "Text to Path",
         NodeOp::DslCode { .. } => "VFS Code",
         NodeOp::Map { .. } => "Map",
+        NodeOp::Generate { .. } => "Generate",
         NodeOp::GraphInput { .. } => "Graph Input",
         NodeOp::GraphOutput { .. } => "Graph Output",
     }

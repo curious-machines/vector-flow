@@ -132,6 +132,12 @@ pub enum NodeOp {
         script_inputs: Vec<(String, DataType)>,
         script_outputs: Vec<(String, DataType)>,
     },
+    /// Generate: run DSL code for each index in start..end, collect results.
+    Generate {
+        source: String,
+        script_inputs: Vec<(String, DataType)>,
+        script_outputs: Vec<(String, DataType)>,
+    },
     // Image
     LoadImage { path: String },
     // Text
@@ -604,6 +610,43 @@ impl NodeDef {
             inputs: vec![
                 PortDef::new("batch", DataType::Any)
                     .with_description("Batch to iterate over"),
+            ],
+            outputs: vec![
+                PortDef::new("result", DataType::Any)
+                    .with_description("Collected output batch"),
+            ],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn generate(id: NodeId) -> Self {
+        // script_inputs: index and count are built-in (populated from range).
+        // They appear in script_inputs so the DSL compiler sees them, but they
+        // do NOT have corresponding graph input ports.
+        // Any user-added script inputs beyond these two get graph ports (starting at port 2).
+        //
+        // Graph input port 0 is "start" (Int), port 1 is "end" (Int).
+        Self {
+            id,
+            name: "Generate".into(),
+            op: NodeOp::Generate {
+                source: "result = index;".into(),
+                script_inputs: vec![
+                    ("index".into(), DataType::Int),
+                    ("count".into(), DataType::Int),
+                ],
+                script_outputs: vec![
+                    ("result".into(), DataType::Scalar),
+                ],
+            },
+            inputs: vec![
+                PortDef::new("start", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Range start (inclusive)"),
+                PortDef::new("end", DataType::Int)
+                    .with_default(ParamValue::Int(10))
+                    .with_description("Range end (exclusive)"),
             ],
             outputs: vec![
                 PortDef::new("result", DataType::Any)
