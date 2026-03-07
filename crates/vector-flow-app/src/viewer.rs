@@ -50,13 +50,24 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
     ) {
         let ui_node = &snarl[node];
         let title = self.title(ui_node);
-        if ui_node.pinned {
-            // Show a small colored pin indicator before the title.
+        let is_outdated = self.graph.node(ui_node.core_id)
+            .map(|n| n.is_outdated())
+            .unwrap_or(false);
+
+        if ui_node.pinned || is_outdated {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
-                let pin_icon = RichText::new("\u{25C6}") // ◆ diamond
-                    .color(Color32::from_rgb(255, 200, 60));
-                ui.add(Label::new(pin_icon).selectable(false));
+                if is_outdated {
+                    let warn_icon = RichText::new("\u{26A0}") // ⚠ warning
+                        .color(Color32::from_rgb(255, 160, 40));
+                    ui.add(Label::new(warn_icon).selectable(false))
+                        .on_hover_text("This node was saved with an older version and may not work correctly. Consider replacing it with a new one from the catalog.");
+                }
+                if ui_node.pinned {
+                    let pin_icon = RichText::new("\u{25C6}") // ◆ diamond
+                        .color(Color32::from_rgb(255, 200, 60));
+                    ui.add(Label::new(pin_icon).selectable(false));
+                }
                 ui.add(Label::new(title).selectable(false));
             });
         } else {
@@ -246,6 +257,12 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
                     frame.stroke.color = Color32::from_rgba_unmultiplied(bc[0], bc[1], bc[2], 200);
                     frame.stroke.width = 2.0;
                 }
+            }
+
+            // Outdated nodes get an amber border to draw attention.
+            if self.graph.node(ui_node.core_id).map(|n| n.is_outdated()).unwrap_or(false) {
+                frame.stroke.color = Color32::from_rgb(255, 160, 40);
+                frame.stroke.width = 2.0;
             }
         }
         frame

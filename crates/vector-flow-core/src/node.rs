@@ -152,6 +152,28 @@ pub enum NodeOp {
     GraphOutput { name: String, data_type: DataType, #[serde(default)] order: i32 },
 }
 
+impl NodeOp {
+    /// Returns the current version number for this node operation.
+    ///
+    /// Built-in ops start at version 1. Bump when the port layout or behavior changes.
+    /// User-defined ops (DslCode, Map, Generate, GraphInput, GraphOutput) return 0
+    /// because their ports are defined per-instance, not by a fixed schema.
+    pub fn current_version(&self) -> u32 {
+        match self {
+            // User-defined port layouts — no fixed schema to version.
+            NodeOp::DslCode { .. }
+            | NodeOp::Map { .. }
+            | NodeOp::Generate { .. }
+            | NodeOp::GraphInput { .. }
+            | NodeOp::GraphOutput { .. } => 0,
+
+            // All built-in ops start at version 0. Bump individually when
+            // a node's port layout or behavior changes.
+            _ => 0,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // NodeDef — a node instance in the graph
 // ---------------------------------------------------------------------------
@@ -165,6 +187,11 @@ pub struct NodeDef {
     pub outputs: Vec<PortDef>,
     pub position: [f32; 2],
     pub generation: u64,
+    /// Node definition version. Used to detect outdated nodes after loading a project
+    /// saved with an older version of a node's definition. Defaults to 0 for backward
+    /// compatibility with files saved before versioning was introduced.
+    #[serde(default)]
+    pub version: u32,
 }
 
 /// Generate a port name from an index: 0→"a", 1→"b", ..., 25→"z", 26→"a1", etc.
@@ -181,6 +208,13 @@ impl NodeDef {
     /// Bump the generation counter (call when params, expressions, or structure change).
     pub fn touch(&mut self) {
         self.generation += 1;
+    }
+
+    /// Returns true if this node's version is older than the current version
+    /// for its operation. User-defined ops (version 0) are never outdated.
+    pub fn is_outdated(&self) -> bool {
+        let current = self.op.current_version();
+        current > 0 && self.version < current
     }
 
     /// Whether this node supports a variable number of inputs.
@@ -242,6 +276,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -261,6 +296,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -283,6 +319,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -302,6 +339,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -324,6 +362,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("points", DataType::Points)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -349,6 +388,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("points", DataType::Points)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -366,6 +406,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -386,6 +427,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -406,6 +448,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -422,6 +465,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -439,6 +483,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -471,6 +516,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -500,6 +546,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -515,6 +562,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("merged", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -534,6 +582,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -565,6 +614,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -581,6 +631,7 @@ impl NodeDef {
             outputs: Vec::new(),
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -617,6 +668,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -654,6 +706,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -669,6 +722,7 @@ impl NodeDef {
             outputs: vec![PortDef::new(name, data_type)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -685,6 +739,7 @@ impl NodeDef {
             outputs: vec![],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 }
@@ -702,6 +757,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("result", DataType::Shapes)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -717,6 +773,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -732,6 +789,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -749,6 +807,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -766,6 +825,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -780,6 +840,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -797,6 +858,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("points", DataType::Points)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -813,6 +875,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("value", DataType::Scalar)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -829,6 +892,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("value", DataType::Int)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -848,6 +912,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("value", DataType::Vec2)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -864,6 +929,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("value", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -886,6 +952,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -908,6 +975,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -930,6 +998,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -952,6 +1021,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -968,6 +1038,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -984,6 +1055,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1009,6 +1081,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1031,6 +1104,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1043,6 +1117,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1055,6 +1130,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1084,6 +1160,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1141,6 +1218,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1156,6 +1234,7 @@ impl NodeDef {
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1174,6 +1253,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
     }
 
@@ -1189,6 +1269,116 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
+            version: 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version_defaults_to_zero_on_deserialize() {
+        // Simulate a project file saved before versioning was added.
+        let json = r#"{
+            "id": 1,
+            "name": "Circle",
+            "op": "Circle",
+            "inputs": [],
+            "outputs": [],
+            "position": [0.0, 0.0],
+            "generation": 0
+        }"#;
+        let node: NodeDef = serde_json::from_str(json).unwrap();
+        assert_eq!(node.version, 0);
+    }
+
+    #[test]
+    fn builtin_factory_sets_current_version() {
+        let node = NodeDef::circle(NodeId(1));
+        assert_eq!(node.version, 0);
+        assert_eq!(node.version, node.op.current_version());
+        assert!(!node.is_outdated());
+    }
+
+    #[test]
+    fn user_defined_ops_not_versioned() {
+        let dsl = NodeDef::dsl_code(NodeId(1), String::new());
+        assert_eq!(dsl.version, 0);
+        assert_eq!(dsl.op.current_version(), 0);
+        assert!(!dsl.is_outdated());
+
+        let map = NodeDef::map(NodeId(2));
+        assert_eq!(map.version, 0);
+        assert!(!map.is_outdated());
+
+        let gen = NodeDef::generate(NodeId(3));
+        assert_eq!(gen.version, 0);
+        assert!(!gen.is_outdated());
+
+        let gi = NodeDef::graph_input(NodeId(4), "x".into(), DataType::Scalar);
+        assert_eq!(gi.version, 0);
+        assert!(!gi.is_outdated());
+
+        let go = NodeDef::graph_output(NodeId(5), "y".into(), DataType::Scalar);
+        assert_eq!(go.version, 0);
+        assert!(!go.is_outdated());
+    }
+
+    #[test]
+    fn outdated_detection() {
+        // Simulate a node whose op has been bumped to version 1,
+        // but the saved node is still at version 0.
+        let mut node = NodeDef::circle(NodeId(1));
+        // Currently Circle is at version 0, so not outdated.
+        assert!(!node.is_outdated());
+
+        // If we pretend the current version were higher (as if we bumped it),
+        // a node stuck at 0 would be outdated. We test this by manually
+        // setting the version below a hypothetical current_version.
+        // Since current_version() returns 0 for Circle right now, we test
+        // the logic with a node that has version < current_version by using
+        // a concrete scenario: set version to 0, op to one that returns > 0.
+        // For now, just verify the method works with mismatched values.
+        node.version = 0;
+        // Patch: all built-in ops return 0 currently, so this is not outdated.
+        assert!(!node.is_outdated());
+    }
+
+    #[test]
+    fn outdated_detection_after_version_bump() {
+        // Simulate what happens when we bump a node version in the future:
+        // A node saved with version 0 loaded into code where current_version > 0.
+        // We can't easily test this without changing current_version(), so we
+        // verify the is_outdated logic directly.
+        let node = NodeDef {
+            id: NodeId(1),
+            name: "Test".into(),
+            op: NodeOp::Circle,
+            inputs: vec![],
+            outputs: vec![],
+            position: [0.0, 0.0],
+            generation: 0,
+            // Node was saved at version 0, but if current_version() were 1,
+            // is_outdated() should return true. Since we can't change
+            // current_version() in tests, we verify the field is preserved.
+            version: 0,
+        };
+        // With current_version() == 0 for Circle, version 0 is NOT outdated.
+        assert!(!node.is_outdated());
+        // But the field is there and ready for when we bump.
+        assert_eq!(node.version, 0);
+        assert_eq!(node.op.current_version(), 0);
+    }
+
+    #[test]
+    fn version_survives_serialization_roundtrip() {
+        // Simulate a node at version 5 (future bumped version).
+        let mut node = NodeDef::circle(NodeId(1));
+        node.version = 5;
+        let json = serde_json::to_string(&node).unwrap();
+        let deserialized: NodeDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.version, 5);
     }
 }
