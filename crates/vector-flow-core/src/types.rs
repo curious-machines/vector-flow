@@ -100,7 +100,7 @@ impl Default for PathData {
 
 #[derive(Debug, Clone)]
 pub struct Shape {
-    pub path: PathData,
+    pub path: Arc<PathData>,
     pub fill: Option<Color>,
     pub stroke: Option<StrokeStyle>,
     pub transform: Affine2,

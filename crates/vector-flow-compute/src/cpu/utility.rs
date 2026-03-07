@@ -238,7 +238,7 @@ pub fn copy_to_points(
         }
         NodeData::Path(base_path) => {
             let base = Shape {
-                path: (**base_path).clone(),
+                path: Arc::clone(base_path),
                 fill: None,
                 stroke: None,
                 transform: Affine2::IDENTITY,
@@ -272,7 +272,7 @@ pub fn copy_to_points(
             // For non-geometry types, apply transforms to whatever we can
             let out: Vec<Shape> = (0..n)
                 .map(|i| Shape {
-                    path: PathData::new(),
+                    path: Arc::new(PathData::new()),
                     fill: None,
                     stroke: None,
                     transform: make_transform(i),

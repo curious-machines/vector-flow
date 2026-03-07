@@ -78,6 +78,8 @@ impl OffscreenRenderer {
     }
 
     /// Render a scene and return RGBA pixel bytes (row-major, top-to-bottom, no padding).
+    /// Also returns the camera center and zoom that were used (useful for locking
+    /// FitToContent across frames).
     ///
     /// This is a blocking operation — it submits GPU work and waits for completion.
     pub fn render_scene(
@@ -86,7 +88,7 @@ impl OffscreenRenderer {
         queue: &wgpu::Queue,
         scene: &PreparedScene,
         camera_mode: &ExportCamera,
-    ) -> Vec<u8> {
+    ) -> (Vec<u8>, Vec2, f32) {
         // Configure camera.
         let mut camera = Camera::new(Vec2::new(self.width as f32, self.height as f32));
         match camera_mode {
@@ -194,7 +196,9 @@ impl OffscreenRenderer {
         drop(data);
         self.staging_buffer.unmap();
 
-        pixels
+        let used_center = camera.center;
+        let used_zoom = camera.zoom;
+        (pixels, used_center, used_zoom)
     }
 
     fn create_resources(

@@ -415,6 +415,22 @@ impl VectorFlowApp {
         }
     }
 
+    /// Visible nodes for export: only GraphOutput nodes (or all if none exist).
+    fn export_visible_nodes(&self) -> Option<HashSet<CoreNodeId>> {
+        let graph_outputs: HashSet<CoreNodeId> = self
+            .graph
+            .nodes()
+            .filter(|n| matches!(n.op, NodeOp::GraphOutput { .. }))
+            .map(|n| n.id)
+            .collect();
+
+        if graph_outputs.is_empty() {
+            None // No GraphOutput nodes — show everything
+        } else {
+            Some(graph_outputs)
+        }
+    }
+
     // ── Align / Distribute helpers ──────────────────────────────────
 
     fn align_nodes(&mut self, selected: &[SnarlNodeId], mode: AlignMode) {
@@ -1065,10 +1081,11 @@ impl VectorFlowApp {
                     export_frame as f32 / self.transport.eval_ctx.fps;
                 self.evaluate();
 
-                // Build scene for all nodes (no selection filter for export).
+                // Build scene for GraphOutput nodes only.
                 let empty_scene;
                 let scene = if let Some(ref eval) = self.last_eval {
-                    let collected = collect_scene(eval, None);
+                    let visible = self.export_visible_nodes();
+                    let collected = collect_scene(eval, visible.as_ref());
                     empty_scene = prepare_scene_full(&collected, 0.5);
                     &empty_scene
                 } else {
@@ -1945,7 +1962,7 @@ impl eframe::App for VectorFlowApp {
             self.evaluate();
         }
 
-        // 7. Always update scene (selection may have changed visible nodes).
+        // 7. Update scene (selection may have changed visible nodes).
         self.update_scene(&selected_snarl);
 
         // 8. Export dialogs and video export loop.

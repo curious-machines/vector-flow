@@ -117,7 +117,7 @@ pub fn apply_transform(data: &NodeData, xform: &Affine2) -> NodeData {
 /// Flatten a Shape into a Path by baking its transform into the vertices.
 pub fn bake_shape_to_path(shape: &Shape) -> PathData {
     if shape.transform == Affine2::IDENTITY {
-        shape.path.clone()
+        (*shape.path).clone()
     } else {
         transform_path(&shape.path, &shape.transform)
     }

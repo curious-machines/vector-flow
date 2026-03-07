@@ -190,7 +190,7 @@ impl ComputeBackend for CpuBackend {
                         }
                         Some(NodeData::Path(p)) if !p.verbs.is_empty() => {
                             all_shapes.push(Shape {
-                                path: (**p).clone(),
+                                path: Arc::clone(p),
                                 fill: None,
                                 stroke: None,
                                 transform: Affine2::IDENTITY,
@@ -200,7 +200,7 @@ impl ComputeBackend for CpuBackend {
                             for p in paths.iter() {
                                 if !p.verbs.is_empty() {
                                     all_shapes.push(Shape {
-                                        path: p.clone(),
+                                        path: Arc::new(p.clone()),
                                         fill: None,
                                         stroke: None,
                                         transform: Affine2::IDENTITY,
@@ -469,7 +469,7 @@ impl ComputeBackend for CpuBackend {
                     // Return as Shape so the font-unit path gets tessellated at
                     // high resolution, with the scale applied as a GPU transform.
                     NodeData::Shape(Arc::new(Shape {
-                        path,
+                        path: Arc::new(path),
                         fill: Some(inst.color),
                         stroke: None,
                         transform,

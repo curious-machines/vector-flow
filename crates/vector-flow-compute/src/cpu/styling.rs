@@ -47,7 +47,7 @@ pub fn set_fill(data: &NodeData, color_data: &NodeData) -> NodeData {
                         .iter()
                         .enumerate()
                         .map(|(i, p)| Shape {
-                            path: p.clone(),
+                            path: Arc::new(p.clone()),
                             fill: Some(get_cycled_color(colors, i)),
                             stroke: None,
                             transform: Affine2::IDENTITY,
@@ -90,7 +90,7 @@ fn set_fill_single(data: &NodeData, color: Color) -> NodeData {
             NodeData::Shapes(Arc::new(updated))
         }
         NodeData::Path(p) => NodeData::Shape(Arc::new(Shape {
-            path: (**p).clone(),
+            path: Arc::clone(p),
             fill: Some(color),
             stroke: None,
             transform: Affine2::IDENTITY,
@@ -99,7 +99,7 @@ fn set_fill_single(data: &NodeData, color: Color) -> NodeData {
             let shapes: Vec<Shape> = paths
                 .iter()
                 .map(|p| Shape {
-                    path: p.clone(),
+                    path: Arc::new(p.clone()),
                     fill: Some(color),
                     stroke: None,
                     transform: Affine2::IDENTITY,
@@ -108,7 +108,7 @@ fn set_fill_single(data: &NodeData, color: Color) -> NodeData {
             NodeData::Shapes(Arc::new(shapes))
         }
         _ => NodeData::Shape(Arc::new(Shape {
-            path: PathData::new(),
+            path: Arc::new(PathData::new()),
             fill: Some(color),
             stroke: None,
             transform: Affine2::IDENTITY,
@@ -157,7 +157,7 @@ pub fn set_stroke(
                         .iter()
                         .enumerate()
                         .map(|(i, p)| Shape {
-                            path: p.clone(),
+                            path: Arc::new(p.clone()),
                             fill: None,
                             stroke: Some(make_stroke(get_cycled_color(colors, i))),
                             transform: Affine2::IDENTITY,
@@ -199,7 +199,7 @@ fn set_stroke_single(data: &NodeData, stroke: StrokeStyle) -> NodeData {
             NodeData::Shapes(Arc::new(updated))
         }
         NodeData::Path(p) => NodeData::Shape(Arc::new(Shape {
-            path: (**p).clone(),
+            path: Arc::clone(p),
             fill: None,
             stroke: Some(stroke),
             transform: Affine2::IDENTITY,
@@ -208,7 +208,7 @@ fn set_stroke_single(data: &NodeData, stroke: StrokeStyle) -> NodeData {
             let shapes: Vec<Shape> = paths
                 .iter()
                 .map(|p| Shape {
-                    path: p.clone(),
+                    path: Arc::new(p.clone()),
                     fill: None,
                     stroke: Some(stroke.clone()),
                     transform: Affine2::IDENTITY,
@@ -217,7 +217,7 @@ fn set_stroke_single(data: &NodeData, stroke: StrokeStyle) -> NodeData {
             NodeData::Shapes(Arc::new(shapes))
         }
         _ => NodeData::Shape(Arc::new(Shape {
-            path: PathData::new(),
+            path: Arc::new(PathData::new()),
             fill: None,
             stroke: Some(stroke),
             transform: Affine2::IDENTITY,
@@ -813,7 +813,7 @@ mod tests {
     #[test]
     fn set_stroke_on_shape() {
         let shape = Shape {
-            path: PathData::new(),
+            path: Arc::new(PathData::new()),
             fill: Some(Color::BLACK),
             stroke: None,
             transform: Affine2::IDENTITY,
@@ -835,13 +835,13 @@ mod tests {
     fn set_fill_on_shapes_batch() {
         let shapes = vec![
             Shape {
-                path: PathData::new(),
+                path: Arc::new(PathData::new()),
                 fill: None,
                 stroke: None,
                 transform: Affine2::IDENTITY,
             },
             Shape {
-                path: PathData::new(),
+                path: Arc::new(PathData::new()),
                 fill: None,
                 stroke: None,
                 transform: Affine2::IDENTITY,
@@ -862,7 +862,7 @@ mod tests {
     fn set_stroke_on_shapes_batch() {
         let shapes = vec![
             Shape {
-                path: PathData::new(),
+                path: Arc::new(PathData::new()),
                 fill: Some(Color::BLACK),
                 stroke: None,
                 transform: Affine2::IDENTITY,
@@ -1070,7 +1070,7 @@ mod tests {
     fn make_shapes(n: usize) -> Vec<Shape> {
         (0..n)
             .map(|_| Shape {
-                path: PathData::new(),
+                path: Arc::new(PathData::new()),
                 fill: None,
                 stroke: None,
                 transform: Affine2::IDENTITY,

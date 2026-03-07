@@ -355,6 +355,21 @@ impl Graph {
         visited
     }
 
+    /// Return the set of all nodes reachable from `roots` via incoming edges.
+    /// The roots themselves ARE included in the result.
+    pub fn upstream_of(&self, roots: &[NodeId]) -> HashSet<NodeId> {
+        let mut visited = HashSet::new();
+        let mut stack: Vec<NodeId> = roots.to_vec();
+        while let Some(current) = stack.pop() {
+            if visited.insert(current) {
+                if let Some(neighbors) = self.adjacency_in.get(&current) {
+                    stack.extend(neighbors);
+                }
+            }
+        }
+        visited
+    }
+
     /// Find independent subgraphs using Union-Find.
     /// Returns groups of NodeIds that can be evaluated in parallel.
     pub fn independent_subgraphs(&self) -> Vec<Vec<NodeId>> {

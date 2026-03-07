@@ -154,6 +154,7 @@ impl Scheduler {
     }
 
     /// Build a map from portal label → send NodeId.
+    /// Build a map from portal label → send NodeId.
     fn build_portal_map(&self, graph: &Graph) -> HashMap<String, NodeId> {
         let mut map = HashMap::new();
         for node in graph.nodes() {
@@ -339,7 +340,7 @@ fn default_for_type(dt: crate::types::DataType) -> NodeData {
         DataType::Path => NodeData::Path(Arc::new(crate::types::PathData::new())),
         DataType::Paths => NodeData::Paths(Arc::new(Vec::new())),
         DataType::Shape => NodeData::Shape(Arc::new(crate::types::Shape {
-            path: crate::types::PathData::new(),
+            path: Arc::new(crate::types::PathData::new()),
             fill: None,
             stroke: None,
             transform: glam::Affine2::IDENTITY,

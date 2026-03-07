@@ -105,7 +105,7 @@ fn collect_node_data(
         NodeData::Path(p) => {
             shapes.push(CollectedShape {
                 shape: Shape {
-                    path: (**p).clone(),
+                    path: Arc::new((**p).clone()),
                     fill: Some(Color::WHITE),
                     stroke: None,
                     transform: Affine2::IDENTITY,
@@ -117,7 +117,7 @@ fn collect_node_data(
             for p in paths.iter() {
                 shapes.push(CollectedShape {
                     shape: Shape {
-                        path: p.clone(),
+                        path: Arc::new(p.clone()),
                         fill: Some(Color::WHITE),
                         stroke: None,
                         transform: Affine2::IDENTITY,
@@ -742,7 +742,7 @@ mod tests {
 
     fn test_shape() -> Shape {
         Shape {
-            path: square_path(),
+            path: Arc::new(square_path()),
             fill: Some(Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
             stroke: None,
             transform: Affine2::IDENTITY,
@@ -817,7 +817,7 @@ mod tests {
         let shapes = vec![
             CollectedShape {
                 shape: Shape {
-                    path: square_path(),
+                    path: Arc::new(square_path()),
                     fill: Some(Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
                     stroke: None,
                     transform: Affine2::IDENTITY,
@@ -826,7 +826,7 @@ mod tests {
             },
             CollectedShape {
                 shape: Shape {
-                    path: square_path(),
+                    path: Arc::new(square_path()),
                     fill: Some(Color { r: 0.0, g: 1.0, b: 0.0, a: 1.0 }),
                     stroke: None,
                     transform: Affine2::IDENTITY,
@@ -849,7 +849,7 @@ mod tests {
             },
             CollectedShape {
                 shape: Shape {
-                    path: square_path(),
+                    path: Arc::new(square_path()),
                     fill: Some(Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
                     stroke: None,
                     transform: Affine2::from_translation(glam::Vec2::new(100.0, 0.0)),
@@ -880,7 +880,7 @@ mod tests {
     fn stroke_tessellation() {
         let shapes = vec![CollectedShape {
             shape: Shape {
-                path: square_path(),
+                path: Arc::new(square_path()),
                 fill: None,
                 stroke: Some(StrokeStyle {
                     color: Color::WHITE,

@@ -57,6 +57,8 @@ pub enum ExportState {
         renderer: Box<OffscreenRenderer>,
         ffmpeg_child: Option<Child>,
         error: Option<String>,
+        /// Locked camera for FitToContent — computed on first frame, reused for all subsequent frames.
+        locked_camera: Option<(Vec2, f32)>,
     },
 }
 
@@ -81,7 +83,7 @@ pub fn export_canvas_image(
     };
 
     let mut renderer = OffscreenRenderer::new(device, config.width, config.height);
-    let pixels = renderer.render_scene(device, queue, scene, &camera_mode);
+    let (pixels, _, _) = renderer.render_scene(device, queue, scene, &camera_mode);
 
     save_png(&config.path, config.width, config.height, &pixels)
 }
@@ -127,6 +129,7 @@ pub fn start_video_export(
                     renderer,
                     ffmpeg_child: None,
                     error: Some(format!("Failed to start ffmpeg: {e}")),
+                    locked_camera: None,
                     config,
                 };
             }
@@ -139,6 +142,7 @@ pub fn start_video_export(
                 renderer,
                 ffmpeg_child: None,
                 error: Some(format!("Failed to create output directory: {e}")),
+                locked_camera: None,
                 config,
             };
         }
@@ -150,6 +154,7 @@ pub fn start_video_export(
         renderer,
         ffmpeg_child,
         error: None,
+        locked_camera: None,
         config,
     }
 }
@@ -169,6 +174,7 @@ pub fn export_video_frame(
         renderer,
         ffmpeg_child,
         error,
+        locked_camera,
     } = state
     else {
         return true;
@@ -187,10 +193,26 @@ pub fn export_video_frame(
             center: canvas_center,
             zoom: canvas_zoom,
         },
-        CameraMode::FitToContent => ExportCamera::FitToContent,
+        CameraMode::FitToContent => {
+            if let Some((center, zoom)) = locked_camera {
+                // Use the camera locked from the first frame.
+                ExportCamera::Explicit {
+                    center: *center,
+                    zoom: *zoom,
+                }
+            } else {
+                // First frame: compute fit-to-content and lock it.
+                ExportCamera::FitToContent
+            }
+        }
     };
 
-    let pixels = renderer.render_scene(device, queue, scene, &camera_mode);
+    let (pixels, used_center, used_zoom) = renderer.render_scene(device, queue, scene, &camera_mode);
+
+    // Lock camera on first FitToContent frame so all subsequent frames use the same view.
+    if config.camera == CameraMode::FitToContent && locked_camera.is_none() {
+        *locked_camera = Some((used_center, used_zoom));
+    }
 
     match config.format {
         VideoFormat::PngSequence => {
