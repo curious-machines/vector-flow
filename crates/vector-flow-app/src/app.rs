@@ -1445,7 +1445,8 @@ impl eframe::App for VectorFlowApp {
 
         // 0. Keyboard shortcuts.
         // Skip non-modifier shortcuts (F, arrows) when a text widget has focus.
-        let text_editing = ctx.memory(|m| m.focused().is_some())
+        let any_focused = ctx.memory(|m| m.focused().is_some());
+        let text_editing = any_focused
             && ctx.input(|i| !i.modifiers.command && !i.modifiers.ctrl && !i.modifiers.alt);
         let (do_save, do_save_as, do_open, do_new, do_close_file, do_duplicate, do_fit_all, do_quit,
          do_export_image, do_undo, do_redo,
@@ -1528,7 +1529,7 @@ impl eframe::App for VectorFlowApp {
                 || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Backspace))
             );
 
-            let select_all = !text_editing && i.consume_shortcut(&egui::KeyboardShortcut::new(
+            let select_all = !any_focused && i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::COMMAND,
                 egui::Key::A,
             ));
