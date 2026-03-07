@@ -112,7 +112,9 @@ impl UndoHistory {
     /// Call at the end of each frame, after all mutations.
     /// Detects changes and auto-pushes undo entries.
     /// `current_graph` and `current_settings` are used to compute a descriptive label.
-    pub fn end_frame(&mut self, fingerprint: u64, current_graph: &Graph, current_settings: &ProjectSettings, node_pos_hash: u64) {
+    /// `pointer_down`: true if the primary mouse button is held — prevents premature
+    /// coalescing reset during slow drags where the value may not change every frame.
+    pub fn end_frame(&mut self, fingerprint: u64, current_graph: &Graph, current_settings: &ProjectSettings, node_pos_hash: u64, pointer_down: bool) {
         let current_info = FrameInfo {
             graph_gen: current_graph.generation(),
             node_pos_hash,
@@ -141,7 +143,9 @@ impl UndoHistory {
                 }
             }
             self.was_changing = true;
-        } else {
+        } else if !pointer_down {
+            // Only reset when the pointer is released — during slow drags the
+            // value may not change every frame, but we still want to coalesce.
             self.was_changing = false;
         }
 

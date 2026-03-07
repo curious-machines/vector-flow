@@ -2212,6 +2212,7 @@ impl eframe::App for VectorFlowApp {
         // Undo: detect changes and auto-push undo entries.
         let current_settings = self.current_settings();
         let pos_hash = Self::node_position_hash(&self.snarl);
-        self.undo.end_frame(self.state_fingerprint(), &self.graph, &current_settings, pos_hash);
+        let pointer_down = ctx.input(|i| i.pointer.button_down(egui::PointerButton::Primary));
+        self.undo.end_frame(self.state_fingerprint(), &self.graph, &current_settings, pos_hash, pointer_down);
     }
 }
