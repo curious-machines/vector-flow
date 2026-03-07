@@ -95,11 +95,10 @@ impl ComputeBackend for CpuBackend {
             }
             NodeOp::Circle => {
                 let radius = get_scalar(inputs, 0);
-                let segments = get_int(inputs, 2);
                 if let Some(pts) = get_points_batch(inputs, 1) {
-                    batch_generate(&pts, |c| generators::circle(radius, c, segments))
+                    batch_generate(&pts, |c| generators::circle(radius, c))
                 } else {
-                    generators::circle(radius, get_vec2(inputs, 1), segments)
+                    generators::circle(radius, get_vec2(inputs, 1))
                 }
             }
             NodeOp::Rectangle => {
@@ -345,6 +344,30 @@ impl ComputeBackend for CpuBackend {
                 let count = get_int(inputs, 1);
                 let xform = get_transform(inputs, 2);
                 utility::duplicate(&geometry, count, &xform)
+            }
+            NodeOp::CopyToPoints => {
+                let geometry = get_any(inputs, 0);
+                let target_path = get_path(inputs, 1);
+                let count = get_int(inputs, 2);
+                let align = get_bool(inputs, 3);
+                let (points, tangent_angles) =
+                    path_ops::resample_with_tangents(&target_path, count);
+                let (shapes, angles, indices, total) =
+                    utility::copy_to_points(&geometry, &points, &tangent_angles, align);
+                // Multi-output: write all outputs and return early.
+                if outputs.data.len() > 0 {
+                    outputs.data[0] = Some(shapes);
+                }
+                if outputs.data.len() > 1 {
+                    outputs.data[1] = Some(NodeData::Scalars(Arc::new(angles)));
+                }
+                if outputs.data.len() > 2 {
+                    outputs.data[2] = Some(NodeData::Scalars(Arc::new(indices)));
+                }
+                if outputs.data.len() > 3 {
+                    outputs.data[3] = Some(NodeData::Scalar(total));
+                }
+                return Ok(());
             }
             // ── DSL ─────────────────────────────────────────────────
             NodeOp::DslCode { source, script_inputs, script_outputs } => {
@@ -661,7 +684,6 @@ mod tests {
             data: vec![
                 NodeData::Scalar(50.0),          // radius
                 NodeData::Vec2(Vec2::ZERO),       // center
-                NodeData::Int(16),                // segments
             ],
         };
         let mut outputs = NodeOutputs::new(1);
@@ -671,8 +693,9 @@ mod tests {
 
         let result = outputs.data[0].as_ref().unwrap();
         if let NodeData::Path(p) = result {
+            // 1 MoveTo + 4 CubicTo = 5 non-Close verbs
             let vertex_count = p.verbs.iter().filter(|v| !matches!(v, PathVerb::Close)).count();
-            assert_eq!(vertex_count, 16);
+            assert_eq!(vertex_count, 5);
         } else {
             panic!("expected Path");
         }

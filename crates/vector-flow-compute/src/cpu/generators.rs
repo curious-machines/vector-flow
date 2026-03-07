@@ -28,10 +28,45 @@ pub fn regular_polygon(sides: i64, radius: f64, center: Vec2) -> NodeData {
     NodeData::Path(Arc::new(path))
 }
 
-/// Circle approximated as a regular polygon with `segments` sides.
-pub fn circle(radius: f64, center: Vec2, segments: i64) -> NodeData {
-    let segs = segments.max(3);
-    regular_polygon(segs, radius, center)
+/// Circle using 4 cubic bezier arcs (one per quadrant).
+/// The kappa constant 4/3 * (√2 - 1) ≈ 0.5522847 gives a near-perfect circle.
+pub fn circle(radius: f64, center: Vec2) -> NodeData {
+    let r = radius as f32;
+    let cx = center.x;
+    let cy = center.y;
+    let k = r * 0.5522847;
+
+    let mut path = PathData::new();
+    // Start at rightmost point, go counter-clockwise in screen coords.
+    path.verbs.push(PathVerb::MoveTo(Point { x: cx + r, y: cy }));
+    // Right → Bottom
+    path.verbs.push(PathVerb::CubicTo {
+        ctrl1: Point { x: cx + r, y: cy + k },
+        ctrl2: Point { x: cx + k, y: cy + r },
+        to: Point { x: cx, y: cy + r },
+    });
+    // Bottom → Left
+    path.verbs.push(PathVerb::CubicTo {
+        ctrl1: Point { x: cx - k, y: cy + r },
+        ctrl2: Point { x: cx - r, y: cy + k },
+        to: Point { x: cx - r, y: cy },
+    });
+    // Left → Top
+    path.verbs.push(PathVerb::CubicTo {
+        ctrl1: Point { x: cx - r, y: cy - k },
+        ctrl2: Point { x: cx - k, y: cy - r },
+        to: Point { x: cx, y: cy - r },
+    });
+    // Top → Right
+    path.verbs.push(PathVerb::CubicTo {
+        ctrl1: Point { x: cx + k, y: cy - r },
+        ctrl2: Point { x: cx + r, y: cy - k },
+        to: Point { x: cx + r, y: cy },
+    });
+    path.verbs.push(PathVerb::Close);
+    path.closed = true;
+
+    NodeData::Path(Arc::new(path))
 }
 
 /// Axis-aligned rectangle centered at `center`.
@@ -121,12 +156,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn circle_vertex_count() {
-        let data = circle(100.0, Vec2::ZERO, 32);
+    fn circle_bezier_arcs() {
+        let data = circle(100.0, Vec2::ZERO);
         if let NodeData::Path(p) = data {
-            // 32 vertices (1 MoveTo + 31 LineTo) + 1 Close = 33 verbs
-            let non_close = p.verbs.iter().filter(|v| !matches!(v, PathVerb::Close)).count();
-            assert_eq!(non_close, 32);
+            // 1 MoveTo + 4 CubicTo + 1 Close = 6 verbs
+            assert_eq!(p.verbs.len(), 6);
+            assert!(matches!(p.verbs[0], PathVerb::MoveTo(_)));
+            for i in 1..5 {
+                assert!(matches!(p.verbs[i], PathVerb::CubicTo { .. }));
+            }
+            assert!(matches!(p.verbs[5], PathVerb::Close));
         } else {
             panic!("expected Path");
         }

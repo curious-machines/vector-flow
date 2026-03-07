@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use glam::Affine2;
+use glam::{Affine2, Vec2};
 
 use vector_flow_core::compute::{DslContext, NodeOutputs, ResolvedInputs};
 use vector_flow_core::error::ComputeError;
-use vector_flow_core::types::{DataType, NodeData, PathData, Shape, EvalContext};
+use vector_flow_core::types::{DataType, NodeData, PathData, PointBatch, Shape, EvalContext};
 
 use vector_flow_dsl::ast::DslType;
 use vector_flow_dsl::cache::DslFunctionCache;
@@ -192,6 +192,97 @@ pub fn duplicate(data: &NodeData, count: i64, step_transform: &Affine2) -> NodeD
             result
         }
     }
+}
+
+/// Copy geometry to each sampled point along a target path.
+/// Returns (shapes, tangent_angles_degrees, indices, count).
+pub fn copy_to_points(
+    data: &NodeData,
+    points: &PointBatch,
+    tangent_angles: &[f64],
+    align: bool,
+) -> (NodeData, Vec<f64>, Vec<f64>, f64) {
+    let n = points.len();
+    if n == 0 {
+        return (
+            NodeData::Shapes(Arc::new(Vec::new())),
+            Vec::new(),
+            Vec::new(),
+            0.0,
+        );
+    }
+
+    let indices: Vec<f64> = (0..n).map(|i| i as f64).collect();
+
+    let make_transform = |i: usize| -> Affine2 {
+        let pos = Vec2::new(points.xs[i], points.ys[i]);
+        let mut xform = Affine2::from_translation(pos);
+        if align {
+            let angle_rad = (tangent_angles[i] as f32).to_radians();
+            xform *= Affine2::from_angle(angle_rad);
+        }
+        xform
+    };
+
+    let shapes = match data {
+        NodeData::Shape(base_shape) => {
+            let out: Vec<Shape> = (0..n)
+                .map(|i| Shape {
+                    path: base_shape.path.clone(),
+                    fill: base_shape.fill,
+                    stroke: base_shape.stroke.clone(),
+                    transform: make_transform(i) * base_shape.transform,
+                })
+                .collect();
+            NodeData::Shapes(Arc::new(out))
+        }
+        NodeData::Path(base_path) => {
+            let base = Shape {
+                path: (**base_path).clone(),
+                fill: None,
+                stroke: None,
+                transform: Affine2::IDENTITY,
+            };
+            let out: Vec<Shape> = (0..n)
+                .map(|i| Shape {
+                    path: base.path.clone(),
+                    fill: base.fill,
+                    stroke: base.stroke.clone(),
+                    transform: make_transform(i),
+                })
+                .collect();
+            NodeData::Shapes(Arc::new(out))
+        }
+        NodeData::Shapes(base_shapes) => {
+            let mut all = Vec::with_capacity(n * base_shapes.len());
+            for i in 0..n {
+                let xform = make_transform(i);
+                for s in base_shapes.iter() {
+                    all.push(Shape {
+                        path: s.path.clone(),
+                        fill: s.fill,
+                        stroke: s.stroke.clone(),
+                        transform: xform * s.transform,
+                    });
+                }
+            }
+            NodeData::Shapes(Arc::new(all))
+        }
+        _ => {
+            // For non-geometry types, apply transforms to whatever we can
+            let out: Vec<Shape> = (0..n)
+                .map(|i| Shape {
+                    path: PathData::new(),
+                    fill: None,
+                    stroke: None,
+                    transform: make_transform(i),
+                })
+                .collect();
+            NodeData::Shapes(Arc::new(out))
+        }
+    };
+
+    (shapes, tangent_angles.to_vec(), indices, n as f64)
 }
 
 /// Convert a DataType to a DslType for the compiler (phase 1: Scalar and Int only).

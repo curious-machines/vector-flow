@@ -116,6 +116,7 @@ pub enum NodeOp {
     // Utility
     Merge,
     Duplicate,
+    CopyToPoints,
 
     // DSL
     DslCode {
@@ -244,9 +245,6 @@ impl NodeDef {
                 PortDef::new("center", DataType::Vec2)
                     .with_default(ParamValue::Vec2([0.0, 0.0]))
                     .with_description("Center position"),
-                PortDef::new("segments", DataType::Int)
-                    .with_default(ParamValue::Int(64))
-                    .with_description("Number of segments for approximation"),
             ],
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
@@ -522,6 +520,37 @@ impl NodeDef {
                     .with_description("Transform applied per copy (cumulative)"),
             ],
             outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn copy_to_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Copy to Points".into(),
+            op: NodeOp::CopyToPoints,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any)
+                    .with_description("Shape to copy to each point"),
+                PortDef::new("target_path", DataType::Path)
+                    .with_description("Path whose sampled points receive copies"),
+                PortDef::new("count", DataType::Int)
+                    .with_default(ParamValue::Int(10))
+                    .with_description("Number of copies along path"),
+                PortDef::new("align", DataType::Bool)
+                    .with_default(ParamValue::Bool(true))
+                    .with_description("Rotate copies to align with path tangent"),
+            ],
+            outputs: vec![
+                PortDef::new("geometry", DataType::Shapes),
+                PortDef::new("tangent_angles", DataType::Scalars)
+                    .with_description("Tangent angle in degrees at each point"),
+                PortDef::new("indices", DataType::Scalars)
+                    .with_description("Index of each copy (0..count-1)"),
+                PortDef::new("count", DataType::Scalar)
+                    .with_description("Total number of copies"),
+            ],
             position: [0.0, 0.0],
             generation: 0,
         }

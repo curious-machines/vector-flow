@@ -173,6 +173,82 @@ pub fn resample_path(path: &PathData, count: i64) -> NodeData {
     NodeData::Points(Arc::new(PointBatch { xs, ys }))
 }
 
+/// Resample a path into `count` evenly-spaced points, returning both
+/// the point positions and tangent angles (in degrees) at each sample.
+pub fn resample_with_tangents(path: &PathData, count: i64) -> (PointBatch, Vec<f64>) {
+    let n = count.max(2) as usize;
+
+    let segments = flatten_to_segments(path);
+    if segments.is_empty() {
+        return (PointBatch::new(), vec![0.0; n]);
+    }
+
+    let mut lengths = Vec::with_capacity(segments.len());
+    let mut total = 0.0f32;
+    for &(a, b) in &segments {
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        total += (dx * dx + dy * dy).sqrt();
+        lengths.push(total);
+    }
+
+    if total < 1e-10 {
+        let p = segments[0].0;
+        return (
+            PointBatch { xs: vec![p.x; n], ys: vec![p.y; n] },
+            vec![0.0; n],
+        );
+    }
+
+    let mut xs = Vec::with_capacity(n);
+    let mut ys = Vec::with_capacity(n);
+
+    let divisor = if path.closed { n as f32 } else { (n - 1) as f32 };
+
+    for i in 0..n {
+        let t = if n > 1 { i as f32 / divisor } else { 0.0 };
+        let target_len = t * total;
+
+        let seg_idx = lengths
+            .iter()
+            .position(|&l| l >= target_len)
+            .unwrap_or(segments.len() - 1);
+
+        let seg_start_len = if seg_idx > 0 { lengths[seg_idx - 1] } else { 0.0 };
+        let seg_len = lengths[seg_idx] - seg_start_len;
+        let local_t = if seg_len > 1e-10 {
+            (target_len - seg_start_len) / seg_len
+        } else {
+            0.0
+        };
+
+        let (a, b) = segments[seg_idx];
+        xs.push(a.x + (b.x - a.x) * local_t);
+        ys.push(a.y + (b.y - a.y) * local_t);
+    }
+
+    // Compute tangent angles from adjacent sample points (central differences).
+    // This gives much more accurate tangents on curves than using the underlying
+    // polygon segment direction.
+    let mut angles = Vec::with_capacity(n);
+    for i in 0..n {
+        let (dx, dy) = if path.closed {
+            let prev = if i == 0 { n - 1 } else { i - 1 };
+            let next = if i == n - 1 { 0 } else { i + 1 };
+            (xs[next] - xs[prev], ys[next] - ys[prev])
+        } else if i == 0 {
+            (xs[1] - xs[0], ys[1] - ys[0])
+        } else if i == n - 1 {
+            (xs[n - 1] - xs[n - 2], ys[n - 1] - ys[n - 2])
+        } else {
+            (xs[i + 1] - xs[i - 1], ys[i + 1] - ys[i - 1])
+        };
+        angles.push(dy.atan2(dx).to_degrees() as f64);
+    }
+
+    (PointBatch { xs, ys }, angles)
+}
+
 /// Number of line segments used to approximate each curve.
 const CURVE_FLATTEN_STEPS: usize = 16;
 

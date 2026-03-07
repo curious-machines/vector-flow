@@ -117,29 +117,35 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
     vec![
         // Generators
         entry!("Circle", Generators, NodeDef::circle),
-        entry!("Rectangle", Generators, NodeDef::rectangle),
-        entry!("Regular Polygon", Generators, NodeDef::regular_polygon),
         entry!("Line", Generators, NodeDef::line),
-        entry!("Point Grid", Generators, NodeDef::point_grid),
-        entry!("Scatter Points", Generators, NodeDef::scatter_points),
         CatalogEntry {
             label: "Load Image",
             category: Generators,
             factory: |id| NodeDef::load_image(id, String::new()),
             color: cat_color(Generators),
         },
+        entry!("Point Grid", Generators, NodeDef::point_grid),
+        entry!("Rectangle", Generators, NodeDef::rectangle),
+        entry!("Regular Polygon", Generators, NodeDef::regular_polygon),
+        entry!("Scatter Points", Generators, NodeDef::scatter_points),
+        CatalogEntry {
+            label: "SVG Path",
+            category: Generators,
+            factory: |id| NodeDef::svg_path(id, String::new()),
+            color: cat_color(Generators),
+        },
         // Transforms
-        entry!("Translate", Transforms, NodeDef::translate),
+        entry!("Apply Transform", Transforms, NodeDef::apply_transform),
         entry!("Rotate", Transforms, NodeDef::rotate),
         entry!("Scale", Transforms, NodeDef::scale),
-        entry!("Apply Transform", Transforms, NodeDef::apply_transform),
+        entry!("Translate", Transforms, NodeDef::translate),
         // Path Ops
-        entry!("Path Union", PathOps, NodeDef::path_union),
-        entry!("Path Intersect", PathOps, NodeDef::path_intersect),
         entry!("Path Difference", PathOps, NodeDef::path_difference),
+        entry!("Path Intersect", PathOps, NodeDef::path_intersect),
         entry!("Path Offset", PathOps, NodeDef::path_offset),
-        entry!("Path Subdivide", PathOps, NodeDef::path_subdivide),
         entry!("Path Reverse", PathOps, NodeDef::path_reverse),
+        entry!("Path Subdivide", PathOps, NodeDef::path_subdivide),
+        entry!("Path Union", PathOps, NodeDef::path_union),
         entry!("Resample Path", PathOps, NodeDef::resample_path),
         // Styling
         entry!("Set Fill", Styling, NodeDef::set_fill),
@@ -147,25 +153,19 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         entry!("Stroke to Path", Styling, NodeDef::stroke_to_path),
         // Color
         entry!("Adjust Hue", Color, NodeDef::adjust_hue),
-        entry!("Adjust Saturation", Color, NodeDef::adjust_saturation),
         entry!("Adjust Lightness", Color, NodeDef::adjust_lightness),
         entry!("Adjust Luminance", Color, NodeDef::adjust_luminance),
-        entry!("Invert Color", Color, NodeDef::invert_color),
-        entry!("Grayscale", Color, NodeDef::grayscale),
-        entry!("Mix Colors", Color, NodeDef::mix_colors),
-        entry!("Set Alpha", Color, NodeDef::set_alpha),
+        entry!("Adjust Saturation", Color, NodeDef::adjust_saturation),
         CatalogEntry {
             label: "Color Parse",
             category: Color,
             factory: |id| NodeDef::color_parse(id, "#FFFFFF".into()),
             color: cat_color(Color),
         },
-        CatalogEntry {
-            label: "SVG Path",
-            category: Generators,
-            factory: |id| NodeDef::svg_path(id, String::new()),
-            color: cat_color(Generators),
-        },
+        entry!("Grayscale", Color, NodeDef::grayscale),
+        entry!("Invert Color", Color, NodeDef::invert_color),
+        entry!("Mix Colors", Color, NodeDef::mix_colors),
+        entry!("Set Alpha", Color, NodeDef::set_alpha),
         // Text
         CatalogEntry {
             label: "Text",
@@ -174,32 +174,30 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
             color: cat_color(Text),
         },
         entry!("Text to Path", Text, NodeDef::text_to_path),
-        // Constants
-        entry!("Constant Scalar", Utility, NodeDef::const_scalar),
-        entry!("Constant Int", Utility, NodeDef::const_int),
-        entry!("Constant Vec2", Utility, NodeDef::const_vec2),
+        // Utility
         entry!("Constant Color", Utility, NodeDef::const_color),
-        // Portals
+        entry!("Constant Int", Utility, NodeDef::const_int),
+        entry!("Constant Scalar", Utility, NodeDef::const_scalar),
+        entry!("Constant Vec2", Utility, NodeDef::const_vec2),
+        entry!("Copy to Points", Utility, NodeDef::copy_to_points),
         CatalogEntry {
-            label: "Portal Send",
+            label: "DSL Code",
             category: Utility,
-            factory: |id| NodeDef::portal_send(id, "net".into()),
+            factory: |id| NodeDef::dsl_code(id, String::new()),
             color: cat_color(Utility),
         },
+        entry!("Duplicate", Utility, NodeDef::duplicate),
+        entry!("Merge", Utility, NodeDef::merge),
         CatalogEntry {
             label: "Portal Receive",
             category: Utility,
             factory: |id| NodeDef::portal_receive(id, "net".into()),
             color: cat_color(Utility),
         },
-        // Utility
-        entry!("Merge", Utility, NodeDef::merge),
-        entry!("Duplicate", Utility, NodeDef::duplicate),
-        // DSL
         CatalogEntry {
-            label: "DSL Code",
+            label: "Portal Send",
             category: Utility,
-            factory: |id| NodeDef::dsl_code(id, String::new()),
+            factory: |id| NodeDef::portal_send(id, "net".into()),
             color: cat_color(Utility),
         },
         // Graph I/O
@@ -253,6 +251,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::PortalReceive { .. } => "Portal Receive",
         NodeOp::Merge => "Merge",
         NodeOp::Duplicate => "Duplicate",
+        NodeOp::CopyToPoints => "Copy to Points",
         NodeOp::LoadImage { .. } => "Load Image",
         NodeOp::Text { .. } => "Text",
         NodeOp::TextToPath => "Text to Path",
