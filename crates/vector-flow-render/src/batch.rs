@@ -11,8 +11,8 @@ use lyon::tessellation::{
 
 use vector_flow_core::scheduler::EvalResult;
 use vector_flow_core::types::{
-    Color, ImageData, LineCap, LineJoin, NodeData, NodeId, PathData, PathVerb, Shape, StrokeStyle,
-    TextInstance,
+    Color, ImageData, LineCap, LineJoin, NodeData, NodeId, PathData, PathVerb, Point, PointBatch,
+    Shape, StrokeStyle, TextInstance,
 };
 
 use crate::vertex::{CanvasVertex, ImageVertex};
@@ -78,6 +78,56 @@ pub fn collect_shapes(
     collect_scene(eval_result, visible_nodes).shapes
 }
 
+/// Radius (in world units) of point marker circles.
+const POINT_MARKER_RADIUS: f32 = 3.0;
+
+/// Color for point marker circles (semi-transparent light gray).
+const POINT_MARKER_COLOR: Color = Color { r: 0.7, g: 0.7, b: 0.7, a: 0.8 };
+
+/// Build a small circle path centered at (`cx`, `cy`) with the given radius.
+fn circle_marker_path(cx: f32, cy: f32, r: f32) -> PathData {
+    let k = r * 0.5522847; // kappa for cubic bezier circle approximation
+    let mut path = PathData::new();
+    path.verbs.push(PathVerb::MoveTo(Point { x: cx + r, y: cy }));
+    path.verbs.push(PathVerb::CubicTo {
+        ctrl1: Point { x: cx + r, y: cy + k },
+        ctrl2: Point { x: cx + k, y: cy + r },
+        to: Point { x: cx, y: cy + r },
+    });
+    path.verbs.push(PathVerb::CubicTo {
+        ctrl1: Point { x: cx - k, y: cy + r },
+        ctrl2: Point { x: cx - r, y: cy + k },
+        to: Point { x: cx - r, y: cy },
+    });
+    path.verbs.push(PathVerb::CubicTo {
+        ctrl1: Point { x: cx - r, y: cy - k },
+        ctrl2: Point { x: cx - k, y: cy - r },
+        to: Point { x: cx, y: cy - r },
+    });
+    path.verbs.push(PathVerb::CubicTo {
+        ctrl1: Point { x: cx + k, y: cy - r },
+        ctrl2: Point { x: cx + r, y: cy - k },
+        to: Point { x: cx + r, y: cy },
+    });
+    path.verbs.push(PathVerb::Close);
+    path.closed = true;
+    path
+}
+
+/// Convert a point batch into marker shapes for preview rendering.
+fn points_to_marker_shapes(points: &PointBatch) -> Vec<Shape> {
+    let r = POINT_MARKER_RADIUS;
+    let fill = POINT_MARKER_COLOR;
+    points.xs.iter().zip(points.ys.iter()).map(|(&x, &y)| {
+        Shape {
+            path: Arc::new(circle_marker_path(x, y, r)),
+            fill: Some(fill),
+            stroke: None,
+            transform: Affine2::IDENTITY,
+        }
+    }).collect()
+}
+
 /// Collect a single NodeData item into the appropriate output lists.
 /// Recursively unwraps `Mixed` bundles.
 fn collect_node_data(
@@ -139,6 +189,14 @@ fn collect_node_data(
                 text: Arc::clone(txt),
                 dimmed,
             });
+        }
+        NodeData::Points(pts) => {
+            for marker in points_to_marker_shapes(pts) {
+                shapes.push(CollectedShape {
+                    shape: marker,
+                    dimmed,
+                });
+            }
         }
         NodeData::Mixed(items) => {
             for item in items.iter() {
@@ -936,5 +994,50 @@ mod tests {
         for (a, b) in scene.batches[0].color.iter().zip(&[1.0f32, 1.0, 1.0, 1.0]) {
             assert!((a - b).abs() < 1e-6, "expected ~{b}, got {a}");
         }
+    }
+
+    #[test]
+    fn circle_marker_path_has_correct_structure() {
+        let path = circle_marker_path(10.0, 20.0, 3.0);
+        assert!(path.closed);
+        // MoveTo + 4 CubicTo + Close = 6 verbs
+        assert_eq!(path.verbs.len(), 6);
+        assert!(matches!(path.verbs[0], PathVerb::MoveTo(_)));
+        assert!(matches!(path.verbs[5], PathVerb::Close));
+    }
+
+    #[test]
+    fn points_to_marker_shapes_count() {
+        let pts = PointBatch {
+            xs: vec![0.0, 10.0, 20.0],
+            ys: vec![0.0, 10.0, 20.0],
+        };
+        let markers = points_to_marker_shapes(&pts);
+        assert_eq!(markers.len(), 3);
+        for m in &markers {
+            assert!(m.fill.is_some());
+            assert!(m.stroke.is_none());
+        }
+    }
+
+    #[test]
+    fn points_to_marker_shapes_empty() {
+        let pts = PointBatch::new();
+        let markers = points_to_marker_shapes(&pts);
+        assert!(markers.is_empty());
+    }
+
+    #[test]
+    fn collect_scene_includes_points() {
+        let pts = PointBatch {
+            xs: vec![0.0, 5.0],
+            ys: vec![0.0, 5.0],
+        };
+        let mut outputs = HashMap::new();
+        outputs.insert(NodeId(1), vec![NodeData::Points(Arc::new(pts))]);
+        let result = EvalResult { outputs, errors: HashMap::new() };
+
+        let scene = collect_scene(&result, None);
+        assert_eq!(scene.shapes.len(), 2);
     }
 }
