@@ -84,8 +84,8 @@ pub struct VectorFlowApp {
     /// Graph generation at the last save/load (or initial empty state).
     saved_gen: u64,
 
-    /// Panel widths at last save/load, for dirty tracking.
-    saved_panel_widths: Option<[f32; 2]>,
+    /// Panel sizes at last save/load, for dirty tracking (graph editor height, properties width).
+    saved_panel_sizes: Option<[f32; 2]>,
 
     /// View state snapshot at last save/load, for dirty tracking.
     saved_view_state: Option<ViewState>,
@@ -120,6 +120,10 @@ pub struct VectorFlowApp {
 
     /// Currently selected network box (if any). Cleared when nodes are selected.
     selected_box: Option<NetworkBoxId>,
+
+    /// Snarl node selection from the previous frame (used by properties panel
+    /// which renders before the graph editor in the new layout).
+    selected_snarl_ids: Vec<SnarlNodeId>,
 
     // ── Export state ──────────────────────────────────────────────────
     export_state: ExportState,
@@ -189,7 +193,7 @@ impl VectorFlowApp {
             prepared_scene: None,
             project_path: None,
             saved_gen: 0,
-            saved_panel_widths: None,
+            saved_panel_sizes: None,
             saved_view_state: None,
             saved_node_pos_hash,
             saved_window_geom: None,
@@ -207,6 +211,7 @@ impl VectorFlowApp {
             close_confirmed: false,
             node_rects: HashMap::new(),
             selected_box: None,
+            selected_snarl_ids: Vec::new(),
             undo: UndoHistory::new(),
             fps_editing: false,
             pre_edit_fps: None,
@@ -239,7 +244,7 @@ impl VectorFlowApp {
         }
         // Check if any panel width has changed since last save/load.
         if let (Some(saved), Some(current)) =
-            (self.saved_panel_widths, Self::current_panel_widths(ctx))
+            (self.saved_panel_sizes, Self::current_panel_sizes(ctx))
         {
             for (s, c) in saved.iter().zip(current.iter()) {
                 if (c - s).abs() > 1.0 {
@@ -295,19 +300,15 @@ impl VectorFlowApp {
         }
     }
 
-    /// Panel IDs we track for dirty-checking layout changes.
-    const TRACKED_PANELS: [&str; 2] = ["node_editor_panel", "properties"];
-
-    /// Read current widths of all tracked panels.
-    fn current_panel_widths(ctx: &egui::Context) -> Option<[f32; 2]> {
-        let mut widths = [0.0f32; 2];
-        for (i, id_str) in Self::TRACKED_PANELS.iter().enumerate() {
-            widths[i] = egui::containers::panel::PanelState::load(
-                ctx,
-                egui::Id::new(*id_str),
-            )?.rect.width();
-        }
-        Some(widths)
+    /// Read current sizes of tracked panels (height for graph editor, width for properties).
+    fn current_panel_sizes(ctx: &egui::Context) -> Option<[f32; 2]> {
+        let editor_height = egui::containers::panel::PanelState::load(
+            ctx, egui::Id::new("node_editor_panel"),
+        )?.rect.height();
+        let props_width = egui::containers::panel::PanelState::load(
+            ctx, egui::Id::new("properties"),
+        )?.rect.width();
+        Some([editor_height, props_width])
     }
 
     /// Read current window position and size as [x, y, w, h].
@@ -320,12 +321,10 @@ impl VectorFlowApp {
 
     /// Read current window geometry from the egui context.
     fn current_window_geometry(ctx: &egui::Context) -> Option<WindowGeometry> {
-        let load_panel = |id: &str| {
-            egui::containers::panel::PanelState::load(ctx, egui::Id::new(id))
-                .map(|state| state.rect.width())
-        };
-        let node_editor_width = load_panel("node_editor_panel");
-        let properties_width = load_panel("properties");
+        let node_editor_height = egui::containers::panel::PanelState::load(ctx, egui::Id::new("node_editor_panel"))
+            .map(|state| state.rect.height());
+        let properties_width = egui::containers::panel::PanelState::load(ctx, egui::Id::new("properties"))
+            .map(|state| state.rect.width());
 
         ctx.input(|i| {
             let vp = i.viewport();
@@ -335,8 +334,9 @@ impl VectorFlowApp {
                 y: outer.min.y,
                 width: outer.width(),
                 height: outer.height(),
-                node_editor_width,
+                node_editor_height,
                 properties_width,
+                node_editor_width: None,
             })
         })
     }
@@ -360,21 +360,24 @@ impl VectorFlowApp {
                 egui::Pos2::new(geom.x, geom.y),
             ));
 
-            // Restore panel widths by writing into egui's persisted data.
-            let panels: [(&str, Option<f32>); 2] = [
-                ("node_editor_panel", geom.node_editor_width),
-                ("properties", geom.properties_width),
-            ];
-            for (id_str, width) in panels {
-                if let Some(w) = width {
-                    let panel_id = egui::Id::new(id_str);
-                    let panel_rect = egui::Rect::from_min_size(
-                        egui::Pos2::ZERO,
-                        egui::Vec2::new(w, geom.height),
-                    );
-                    let state = egui::containers::panel::PanelState { rect: panel_rect };
-                    ctx.data_mut(|d| d.insert_persisted(panel_id, state));
-                }
+            // Restore panel sizes by writing into egui's persisted data.
+            if let Some(h) = geom.node_editor_height {
+                let panel_id = egui::Id::new("node_editor_panel");
+                let panel_rect = egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(geom.width, h),
+                );
+                let state = egui::containers::panel::PanelState { rect: panel_rect };
+                ctx.data_mut(|d| d.insert_persisted(panel_id, state));
+            }
+            if let Some(w) = geom.properties_width {
+                let panel_id = egui::Id::new("properties");
+                let panel_rect = egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(w, geom.height),
+                );
+                let state = egui::containers::panel::PanelState { rect: panel_rect };
+                ctx.data_mut(|d| d.insert_persisted(panel_id, state));
             }
         }
     }
@@ -926,7 +929,7 @@ impl VectorFlowApp {
                     self.project_path = Some(path);
                     self.saved_gen = self.graph.generation();
                     self.saved_settings = self.project_settings.clone();
-                    self.saved_panel_widths = Self::current_panel_widths(ctx);
+                    self.saved_panel_sizes = Self::current_panel_sizes(ctx);
                     self.saved_view_state = Some(self.current_view_state(ctx));
                     self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
                     self.saved_window_geom = Self::current_window_rect(ctx);
@@ -1039,7 +1042,7 @@ impl VectorFlowApp {
                 self.project_path = Some(path.to_owned());
                 self.saved_gen = self.graph.generation();
                 Self::restore_window_geometry(ctx, pf.window_geometry);
-                self.saved_panel_widths = Self::current_panel_widths(ctx);
+                self.saved_panel_sizes = Self::current_panel_sizes(ctx);
                 self.saved_view_state = pf.view_state.clone();
                 self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
                 self.saved_window_geom = Self::current_window_rect(ctx);
@@ -1396,7 +1399,7 @@ impl eframe::App for VectorFlowApp {
             self.pending_snapshot_frames -= 1;
             if self.pending_snapshot_frames == 0 {
                 self.saved_window_geom = Self::current_window_rect(ctx);
-                self.saved_panel_widths = Self::current_panel_widths(ctx);
+                self.saved_panel_sizes = Self::current_panel_sizes(ctx);
                 self.saved_view_state = Some(self.current_view_state(ctx));
                 self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
             }
@@ -1733,14 +1736,51 @@ impl eframe::App for VectorFlowApp {
             }
         }
 
-        // 3. Left panel: node editor (fills full height).
-        // Rendered first so snarl updates selection state before we query it.
+        // 3. Right panel: properties inspector.
+        // Rendered before graph editor so it claims the full right column.
+        // Uses previous frame's selection (stored in self.selected_snarl_ids).
+        let mut props_changed = false;
+        egui::SidePanel::right("properties")
+            .default_width(250.0)
+            .show(ctx, |ui| {
+                ui.heading("Properties");
+                ui.separator();
+
+                if let Some(box_id) = self.selected_box {
+                    props_changed = self.show_network_box_properties(ui, box_id);
+                } else {
+                    let selected_core: Vec<CoreNodeId> = self.selected_snarl_ids
+                        .iter()
+                        .filter_map(|sid| {
+                            self.snarl.get_node(*sid).map(|n| n.core_id)
+                        })
+                        .collect();
+
+                    props_changed =
+                        properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors, &mut self.project_settings, self.last_eval.as_ref());
+
+                    // Sync portal display names after properties edit.
+                    if props_changed {
+                        for &sid in &self.selected_snarl_ids {
+                            if let Some(ui_node) = self.snarl.get_node_mut(sid) {
+                                if let Some(core_node) = self.graph.node(ui_node.core_id) {
+                                    if matches!(core_node.op, NodeOp::PortalSend { .. } | NodeOp::PortalReceive { .. }) {
+                                        ui_node.display_name = core_node.name.clone();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+        // 4. Top panel: node editor (graph view).
         let mut snarl_viewport = egui::Rect::NOTHING;
         let mut snarl_layer_id = egui::LayerId::background();
         let mut viewer_actions = ViewerActions::default();
         let mut box_shape_slots = Vec::new();
-        egui::SidePanel::left("node_editor_panel")
-            .default_width(ctx.screen_rect().width() * 0.55)
+        egui::TopBottomPanel::top("node_editor_panel")
+            .default_height(ctx.screen_rect().height() * 0.55)
             .resizable(true)
             .show(ctx, |ui| {
                 self.node_editor_ui_id = ui.id();
@@ -2087,42 +2127,8 @@ impl eframe::App for VectorFlowApp {
             self.selected_box = None;
         }
 
-        // 4. Right panel: properties inspector.
-        let mut props_changed = false;
-        egui::SidePanel::right("properties")
-            .default_width(250.0)
-            .show(ctx, |ui| {
-                ui.heading("Properties");
-                ui.separator();
-
-                if let Some(box_id) = self.selected_box {
-                    // Show network box properties.
-                    props_changed = self.show_network_box_properties(ui, box_id);
-                } else {
-                    let selected_core: Vec<CoreNodeId> = selected_snarl
-                        .iter()
-                        .filter_map(|sid| {
-                            self.snarl.get_node(*sid).map(|n| n.core_id)
-                        })
-                        .collect();
-
-                    props_changed =
-                        properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors, &mut self.project_settings, self.last_eval.as_ref());
-
-                    // Sync portal display names after properties edit.
-                    if props_changed {
-                        for &sid in &selected_snarl {
-                            if let Some(ui_node) = self.snarl.get_node_mut(sid) {
-                                if let Some(core_node) = self.graph.node(ui_node.core_id) {
-                                    if matches!(core_node.op, NodeOp::PortalSend { .. } | NodeOp::PortalReceive { .. }) {
-                                        ui_node.display_name = core_node.name.clone();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+        // Store selection for next frame's properties panel.
+        self.selected_snarl_ids = selected_snarl.clone();
 
         // 5. Remaining central panel: canvas preview.
         let mut canvas_rect = egui::Rect::NOTHING;

@@ -18,10 +18,15 @@ pub struct WindowGeometry {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    /// Height of the graph editor panel (top panel).
     #[serde(default)]
-    pub node_editor_width: Option<f32>,
+    pub node_editor_height: Option<f32>,
     #[serde(default)]
     pub properties_width: Option<f32>,
+    /// Legacy field from when graph editor was a left panel — ignored on load.
+    #[serde(default, skip_serializing)]
+    #[allow(dead_code)]
+    pub node_editor_width: Option<f32>,
 }
 
 const MIN_WINDOW_SIZE: f32 = 200.0;
