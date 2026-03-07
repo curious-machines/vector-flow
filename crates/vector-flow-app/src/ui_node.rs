@@ -168,7 +168,7 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         entry!("Grayscale", Color, NodeDef::grayscale),
         entry!("Invert Color", Color, NodeDef::invert_color),
         entry!("Mix Colors", Color, NodeDef::mix_colors),
-        entry!("Set Alpha", Color, NodeDef::set_alpha),
+        entry!("Adjust Alpha", Color, NodeDef::adjust_alpha),
         // Text
         CatalogEntry {
             label: "Text",
@@ -245,7 +245,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::InvertColor => "Invert Color",
         NodeOp::Grayscale => "Grayscale",
         NodeOp::MixColors => "Mix Colors",
-        NodeOp::SetAlpha => "Set Alpha",
+        NodeOp::AdjustAlpha => "Adjust Alpha",
         NodeOp::ColorParse { .. } => "Color Parse",
         NodeOp::SvgPath { .. } => "SVG Path",
         NodeOp::ConstScalar => "Constant Scalar",

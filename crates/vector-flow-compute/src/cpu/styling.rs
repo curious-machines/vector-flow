@@ -1156,16 +1156,34 @@ mod tests {
     }
 
     #[test]
-    fn set_alpha_with_scalars_batch() {
+    fn adjust_alpha_batch_absolute() {
         use super::super::color_ops;
         let data = NodeData::Colors(Arc::new(vec![RED, GREEN, BLUE]));
-        let alphas = NodeData::Scalars(Arc::new(vec![0.1, 0.5, 0.9]));
-        let result = color_ops::set_alpha(&data, &alphas);
+        let result = color_ops::adjust_alpha(&data, 0.5, true);
         if let NodeData::Colors(cs) = result {
             assert_eq!(cs.len(), 3);
-            assert!((cs[0].a - 0.1).abs() < 1e-5);
+            assert!((cs[0].a - 0.5).abs() < 1e-5);
             assert!((cs[1].a - 0.5).abs() < 1e-5);
-            assert!((cs[2].a - 0.9).abs() < 1e-5);
+            assert!((cs[2].a - 0.5).abs() < 1e-5);
+        } else {
+            panic!("expected Colors");
+        }
+    }
+
+    #[test]
+    fn adjust_alpha_batch_relative() {
+        use super::super::color_ops;
+        let data = NodeData::Colors(Arc::new(vec![
+            Color { r: 1.0, g: 0.0, b: 0.0, a: 0.8 },
+            Color { r: 0.0, g: 1.0, b: 0.0, a: 0.6 },
+            Color { r: 0.0, g: 0.0, b: 1.0, a: 0.4 },
+        ]));
+        let result = color_ops::adjust_alpha(&data, -0.2, false);
+        if let NodeData::Colors(cs) = result {
+            assert_eq!(cs.len(), 3);
+            assert!((cs[0].a - 0.6).abs() < 1e-5);
+            assert!((cs[1].a - 0.4).abs() < 1e-5);
+            assert!((cs[2].a - 0.2).abs() < 1e-5);
         } else {
             panic!("expected Colors");
         }

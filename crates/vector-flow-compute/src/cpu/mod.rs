@@ -298,10 +298,11 @@ impl ComputeBackend for CpuBackend {
                 let lab_mode = get_bool(inputs, 3);
                 NodeData::Color(color_ops::mix_colors(a, b, factor, lab_mode))
             }
-            NodeOp::SetAlpha => {
+            NodeOp::AdjustAlpha => {
                 let data = get_any(inputs, 0);
-                let alpha_data = &inputs.data[1];
-                color_ops::set_alpha(&data, alpha_data)
+                let amount = get_scalar(inputs, 1);
+                let absolute = get_bool(inputs, 2);
+                color_ops::adjust_alpha(&data, amount, absolute)
             }
             NodeOp::ColorParse { text } => {
                 NodeData::Color(color_ops::color_parse(text))

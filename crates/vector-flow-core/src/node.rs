@@ -102,7 +102,7 @@ pub enum NodeOp {
     InvertColor,
     Grayscale,
     MixColors,
-    SetAlpha,
+    AdjustAlpha,
     ColorParse { text: String },
     SvgPath { data: String },
     // Constants
@@ -969,18 +969,21 @@ impl NodeDef {
         }
     }
 
-    pub fn set_alpha(id: NodeId) -> Self {
+    pub fn adjust_alpha(id: NodeId) -> Self {
         Self {
             id,
-            name: "Set Alpha".into(),
-            op: NodeOp::SetAlpha,
+            name: "Adjust Alpha".into(),
+            op: NodeOp::AdjustAlpha,
             inputs: vec![
                 PortDef::new("color", DataType::Color)
                     .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
                     .with_description("Input color"),
-                PortDef::new("alpha", DataType::Scalar)
-                    .with_default(ParamValue::Float(1.0))
-                    .with_description("Alpha value (0..1)"),
+                PortDef::new("amount", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Alpha adjustment (-1..1)"),
+                PortDef::new("absolute", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("If true, set alpha; if false, shift alpha"),
             ],
             outputs: vec![PortDef::new("color", DataType::Color)],
             position: [0.0, 0.0],

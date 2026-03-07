@@ -114,45 +114,16 @@ pub fn mix_colors(a: Color, b: Color, factor: f64, lab_mode: bool) -> Color {
 // Utility
 // ---------------------------------------------------------------------------
 
-/// Set alpha on color data. When `alpha_data` is `NodeData::Scalars`, applies per-element
-/// with cycling semantics.
-pub fn set_alpha(data: &NodeData, alpha_data: &NodeData) -> NodeData {
-    match alpha_data {
-        NodeData::Scalars(alphas) if alphas.len() > 1 => {
-            // Per-element alpha
-            match data {
-                NodeData::Colors(colors) => {
-                    let mapped: Vec<Color> = colors
-                        .iter()
-                        .enumerate()
-                        .map(|(i, c)| {
-                            let a = (alphas[i % alphas.len()] as f32).clamp(0.0, 1.0);
-                            Color { r: c.r, g: c.g, b: c.b, a }
-                        })
-                        .collect();
-                    NodeData::Colors(Arc::new(mapped))
-                }
-                NodeData::Color(c) => {
-                    // Single color with batch alphas: use first alpha
-                    let a = (alphas[0] as f32).clamp(0.0, 1.0);
-                    NodeData::Color(Color { r: c.r, g: c.g, b: c.b, a })
-                }
-                _ => {
-                    let a = (alphas[0] as f32).clamp(0.0, 1.0);
-                    map_color(data, |c| Color { r: c.r, g: c.g, b: c.b, a })
-                }
-            }
-        }
-        _ => {
-            // Single alpha value
-            let alpha = match alpha_data {
-                NodeData::Scalar(v) => (*v as f32).clamp(0.0, 1.0),
-                NodeData::Scalars(v) if !v.is_empty() => (v[0] as f32).clamp(0.0, 1.0),
-                _ => 1.0,
-            };
-            map_color(data, |c| Color { r: c.r, g: c.g, b: c.b, a: alpha })
-        }
-    }
+pub fn adjust_alpha(data: &NodeData, amount: f64, absolute: bool) -> NodeData {
+    let amount = amount as f32;
+    map_color(data, |c| {
+        let new_a = if absolute {
+            amount.clamp(0.0, 1.0)
+        } else {
+            (c.a + amount).clamp(0.0, 1.0)
+        };
+        Color { r: c.r, g: c.g, b: c.b, a: new_a }
+    })
 }
 
 pub fn color_parse(text: &str) -> Color {
@@ -311,12 +282,22 @@ mod tests {
     }
 
     #[test]
-    fn set_alpha_override() {
+    fn adjust_alpha_absolute() {
         let c = NodeData::Color(Color::WHITE);
-        let alpha = NodeData::Scalar(0.5);
-        if let NodeData::Color(result) = set_alpha(&c, &alpha) {
+        if let NodeData::Color(result) = adjust_alpha(&c, 0.5, true) {
             assert!(approx(result.a, 0.5, 1e-5));
             assert!(approx(result.r, 1.0, 1e-5)); // RGB unchanged
+        } else {
+            panic!("expected Color");
+        }
+    }
+
+    #[test]
+    fn adjust_alpha_relative() {
+        let c = NodeData::Color(Color { r: 1.0, g: 0.0, b: 0.0, a: 0.8 });
+        if let NodeData::Color(result) = adjust_alpha(&c, -0.3, false) {
+            assert!(approx(result.a, 0.5, 1e-5));
+            assert!(approx(result.r, 1.0, 1e-5));
         } else {
             panic!("expected Color");
         }
