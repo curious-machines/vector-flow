@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use egui::Ui;
 
 use vector_flow_core::graph::Graph;
-use vector_flow_core::node::{NodeOp, ParamValue, PortDef, PortIndex};
-use vector_flow_core::types::{DataType, NodeId as CoreNodeId};
+use vector_flow_core::node::{NodeOp, ParamValue, PortDef, PortId, PortIndex};
+use vector_flow_core::scheduler::EvalResult;
+use vector_flow_core::types::{DataType, NodeData, NodeId as CoreNodeId};
 
 use crate::project::ProjectSettings;
 use crate::ui_node::node_op_label;
@@ -24,6 +25,7 @@ pub fn show_properties_panel(
     selected_core_ids: &[CoreNodeId],
     node_errors: &HashMap<CoreNodeId, String>,
     project_settings: &mut ProjectSettings,
+    eval_result: Option<&EvalResult>,
 ) -> bool {
     let mut changed = false;
 
@@ -33,7 +35,7 @@ pub fn show_properties_panel(
         }
         1 => {
             let core_id = selected_core_ids[0];
-            changed = show_node_properties(ui, graph, core_id, node_errors);
+            changed = show_node_properties(ui, graph, core_id, node_errors, eval_result);
         }
         n => {
             ui.label(format!("{n} nodes selected"));
@@ -97,7 +99,7 @@ fn show_project_settings(ui: &mut Ui, settings: &mut ProjectSettings) {
         });
 }
 
-fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, node_errors: &HashMap<CoreNodeId, String>) -> bool {
+fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, node_errors: &HashMap<CoreNodeId, String>, eval_result: Option<&EvalResult>) -> bool {
     let Some(node) = graph.node(core_id) else {
         ui.label("Node not found");
         return false;
@@ -176,6 +178,15 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         .iter()
         .enumerate()
         .map(|(i, p)| (i, p.name.clone(), p.data_type, p.default_value.clone()))
+        .collect();
+
+    // Collect color output port info for display.
+    let color_outputs: Vec<_> = node
+        .outputs
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.data_type == DataType::Color)
+        .map(|(i, p)| (i, p.name.clone()))
         .collect();
 
     let mut changed = false;
@@ -441,12 +452,41 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
     }
 
     for (idx, name, data_type, default_value) in port_info {
+        // For connected color ports, show a read-only swatch of the actual computed value.
+        let port_id = PortId { node: core_id, port: PortIndex(idx) };
+        if data_type == DataType::Color {
+            if let Some(edge) = graph.input_connection(port_id) {
+                if let Some(color) = eval_result
+                    .and_then(|er| er.outputs.get(&edge.from.node))
+                    .and_then(|outputs| outputs.get(edge.from.port.0))
+                {
+                    if let NodeData::Color(c) = color {
+                        let rgba = [c.r, c.g, c.b, c.a];
+                        show_connected_color(ui, &name, &rgba);
+                    }
+                }
+                continue;
+            }
+        }
         let Some(param) = default_value else { continue };
         if let Some(new_val) = show_param_editor(ui, &name, data_type, &param) {
             if let Some(node) = graph.node_mut(core_id) {
                 node.inputs[idx].default_value = Some(new_val);
                 node.touch();
                 changed = true;
+            }
+        }
+    }
+
+    // Show computed color outputs.
+    if !color_outputs.is_empty() {
+        if let Some(outputs) = eval_result.and_then(|er| er.outputs.get(&core_id)) {
+            for (idx, name) in &color_outputs {
+                if let Some(NodeData::Color(c)) = outputs.get(*idx) {
+                    let rgba = [c.r, c.g, c.b, c.a];
+                    let output_label = format!("{name} (out)");
+                    show_connected_color(ui, &output_label, &rgba);
+                }
             }
         }
     }
@@ -475,6 +515,16 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
     }
 
     changed
+}
+
+/// Show a read-only color swatch for a connected color input port.
+/// Uses egui's built-in color button for correct sRGB handling.
+fn show_connected_color(ui: &mut Ui, name: &str, rgba: &[f32; 4]) {
+    ui.horizontal(|ui| {
+        ui.label(name);
+        let mut val = *rgba;
+        ui.color_edit_button_rgba_unmultiplied(&mut val);
+    });
 }
 
 fn show_param_editor(

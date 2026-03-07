@@ -570,39 +570,54 @@ impl VectorFlowApp {
         if selected.len() < 3 {
             return;
         }
-        let mut items: Vec<(SnarlNodeId, egui::Pos2)> = selected
+
+        // Collect position and size for each node.
+        struct NodeGeo {
+            id: SnarlNodeId,
+            pos: f32,
+            size: f32,
+        }
+        let mut items: Vec<NodeGeo> = selected
             .iter()
             .filter_map(|&id| {
-                self.snarl
-                    .get_node_info(id)
-                    .map(|info| (id, info.pos))
+                let info = self.snarl.get_node_info(id)?;
+                let rect = self.node_rects.get(&id);
+                let (pos, size) = if horizontal {
+                    (info.pos.x, rect.map_or(0.0, |r| r.width()))
+                } else {
+                    (info.pos.y, rect.map_or(0.0, |r| r.height()))
+                };
+                Some(NodeGeo { id, pos, size })
             })
             .collect();
         if items.len() < 3 {
             return;
         }
 
-        // Sort by the relevant axis.
-        if horizontal {
-            items.sort_by(|a, b| a.1.x.partial_cmp(&b.1.x).unwrap());
-        } else {
-            items.sort_by(|a, b| a.1.y.partial_cmp(&b.1.y).unwrap());
-        }
+        // Sort by position on the relevant axis.
+        items.sort_by(|a, b| a.pos.partial_cmp(&b.pos).unwrap());
 
-        let first = if horizontal { items.first().unwrap().1.x } else { items.first().unwrap().1.y };
-        let last = if horizontal { items.last().unwrap().1.x } else { items.last().unwrap().1.y };
-        let count = items.len() as f32;
-        let step = (last - first) / (count - 1.0);
+        // Total span from first node's leading edge to last node's trailing edge.
+        let first_pos = items.first().unwrap().pos;
+        let last = items.last().unwrap();
+        let total_span = (last.pos + last.size) - first_pos;
 
-        for (i, (id, _)) in items.iter().enumerate() {
-            if let Some(info) = self.snarl.get_node_info_mut(*id) {
-                let val = first + step * i as f32;
+        // Subtract all node sizes to get total gap space.
+        let total_node_size: f32 = items.iter().map(|n| n.size).sum();
+        let total_gap = total_span - total_node_size;
+        let gap = total_gap / (items.len() - 1) as f32;
+
+        // Place each node: first stays fixed, others placed sequentially.
+        let mut cursor = first_pos;
+        for item in &items {
+            if let Some(info) = self.snarl.get_node_info_mut(item.id) {
                 if horizontal {
-                    info.pos.x = val;
+                    info.pos.x = cursor;
                 } else {
-                    info.pos.y = val;
+                    info.pos.y = cursor;
                 }
             }
+            cursor += item.size + gap;
         }
     }
 
@@ -2092,7 +2107,7 @@ impl eframe::App for VectorFlowApp {
                         .collect();
 
                     props_changed =
-                        properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors, &mut self.project_settings);
+                        properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors, &mut self.project_settings, self.last_eval.as_ref());
 
                     // Sync portal display names after properties edit.
                     if props_changed {
