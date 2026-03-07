@@ -8,10 +8,11 @@ use vector_flow_core::types::{DataType, NodeId as CoreNodeId};
 
 use crate::ui_node::node_op_label;
 
-/// DataTypes available for DSL script ports (phase 1: Scalar and Int).
+/// DataTypes available for DSL script ports.
 const DSL_PORT_TYPES: &[(DataType, &str)] = &[
     (DataType::Scalar, "Scalar"),
     (DataType::Int, "Int"),
+    (DataType::Color, "Color"),
 ];
 
 /// Show properties inspector for the selected node.
@@ -50,14 +51,15 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
     let is_variadic = node.is_variadic();
     let input_count = node.inputs.len();
 
-    // Get DSL info if this is a DSL Code node.
+    // Get DSL info if this is a DSL Code or Map node.
     let dsl_source = match &node.op {
-        NodeOp::DslCode { source, .. } => Some(source.clone()),
+        NodeOp::DslCode { source, .. } | NodeOp::Map { source, .. } => Some(source.clone()),
         _ => None,
     };
     // Snapshot current script port definitions for the editor.
     let dsl_port_info = match &node.op {
-        NodeOp::DslCode { script_inputs, script_outputs, .. } => {
+        NodeOp::DslCode { script_inputs, script_outputs, .. }
+        | NodeOp::Map { script_inputs, script_outputs, .. } => {
             Some((script_inputs.clone(), script_outputs.clone()))
         }
         _ => None,
@@ -333,8 +335,12 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         );
         if response.changed() {
             if let Some(node) = graph.node_mut(core_id) {
-                if let NodeOp::DslCode { source: ref mut s, .. } = node.op {
-                    *s = source;
+                match &mut node.op {
+                    NodeOp::DslCode { source: ref mut s, .. }
+                    | NodeOp::Map { source: ref mut s, .. } => {
+                        *s = source;
+                    }
+                    _ => {}
                 }
                 node.touch();
                 changed = true;
@@ -349,8 +355,9 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
 
     // DSL port editor (inputs and outputs).
     if let Some((script_inputs, script_outputs)) = dsl_port_info {
-        changed |= show_dsl_port_editor(ui, graph, core_id, "Inputs", &script_inputs, true);
-        changed |= show_dsl_port_editor(ui, graph, core_id, "Outputs", &script_outputs, false);
+        let is_map = matches!(&graph.node(core_id).map(|n| &n.op), Some(NodeOp::Map { .. }));
+        changed |= show_dsl_port_editor(ui, graph, core_id, "Inputs", &script_inputs, true, is_map);
+        changed |= show_dsl_port_editor(ui, graph, core_id, "Outputs", &script_outputs, false, false);
         ui.separator();
     }
 
@@ -480,7 +487,30 @@ fn show_param_editor(
     None
 }
 
+/// For Map input ports, these names are built-in (populated from the batch iteration).
+/// They don't have corresponding graph input ports.
+const MAP_BUILTIN_INPUTS: &[&str] = &["element", "index", "count"];
+
+/// Check if a Map script input is a built-in (element/index/count).
+fn is_map_builtin_input(name: &str) -> bool {
+    MAP_BUILTIN_INPUTS.contains(&name)
+}
+
+/// For a Map node, compute the graph port index for script input at position `script_idx`.
+/// Built-in inputs (element/index/count) return None. Others map to graph ports 1, 2, 3, ...
+fn map_script_input_to_graph_port(ports: &[(String, DataType)], script_idx: usize) -> Option<usize> {
+    if is_map_builtin_input(&ports[script_idx].0) {
+        return None;
+    }
+    // Count non-builtin inputs before this index to determine graph port offset.
+    let extra_idx = ports[..script_idx].iter()
+        .filter(|(n, _)| !is_map_builtin_input(n))
+        .count();
+    Some(1 + extra_idx) // graph port 0 is "batch"
+}
+
 /// Show port editor for DSL node inputs or outputs.
+/// `is_map_input`: true when editing Map node's script inputs (special handling for builtins).
 /// Returns true if anything changed.
 fn show_dsl_port_editor(
     ui: &mut Ui,
@@ -489,6 +519,7 @@ fn show_dsl_port_editor(
     section_label: &str,
     ports: &[(String, DataType)],
     is_input: bool,
+    is_map_input: bool,
 ) -> bool {
     let mut changed = false;
     let mut remove_idx: Option<usize> = None;
@@ -525,8 +556,9 @@ fn show_dsl_port_editor(
                     }
                 });
 
-            // Delete button.
-            if ui.small_button("\u{2715}").clicked() {
+            // Delete button (Map: can't delete "element").
+            let can_delete = !(is_map_input && name == "element");
+            if can_delete && ui.small_button("\u{2715}").clicked() {
                 remove_idx = Some(i);
             }
 
@@ -539,18 +571,34 @@ fn show_dsl_port_editor(
         // Apply name/type change if needed.
         if port_name != *name || port_type != *dt {
             if let Some(node) = graph.node_mut(core_id) {
-                if let NodeOp::DslCode { script_inputs, script_outputs, .. } = &mut node.op {
-                    let list = if is_input { script_inputs } else { script_outputs };
+                let op_list = match &mut node.op {
+                    NodeOp::DslCode { script_inputs, script_outputs, .. }
+                    | NodeOp::Map { script_inputs, script_outputs, .. } => {
+                        Some(if is_input { script_inputs } else { script_outputs })
+                    }
+                    _ => None,
+                };
+                if let Some(list) = op_list {
                     if let Some(entry) = list.get_mut(i) {
                         entry.0 = port_name.clone();
                         entry.1 = port_type;
                     }
                 }
-                // Sync NodeDef ports.
-                let port_list = if is_input { &mut node.inputs } else { &mut node.outputs };
-                if let Some(port) = port_list.get_mut(i) {
-                    port.name = port_name;
-                    port.data_type = port_type;
+                // Sync NodeDef graph ports.
+                if is_map_input {
+                    // Map: only sync non-builtin inputs to graph ports.
+                    if let Some(gp) = map_script_input_to_graph_port(ports, i) {
+                        if let Some(port) = node.inputs.get_mut(gp) {
+                            port.name = port_name;
+                            port.data_type = port_type;
+                        }
+                    }
+                } else {
+                    let port_list = if is_input { &mut node.inputs } else { &mut node.outputs };
+                    if let Some(port) = port_list.get_mut(i) {
+                        port.name = port_name;
+                        port.data_type = port_type;
+                    }
                 }
                 node.touch();
                 changed = true;
@@ -560,22 +608,39 @@ fn show_dsl_port_editor(
 
     // Handle deletion.
     if let Some(idx) = remove_idx {
+        // For Map inputs, compute the graph port index before removing.
+        let graph_port_idx = if is_map_input {
+            map_script_input_to_graph_port(ports, idx)
+        } else {
+            Some(idx)
+        };
+
         if let Some(node) = graph.node_mut(core_id) {
-            if let NodeOp::DslCode { script_inputs, script_outputs, .. } = &mut node.op {
-                let list = if is_input { script_inputs } else { script_outputs };
-                if idx < list.len() {
-                    list.remove(idx);
+            {
+                let op_list = match &mut node.op {
+                    NodeOp::DslCode { script_inputs, script_outputs, .. }
+                    | NodeOp::Map { script_inputs, script_outputs, .. } => {
+                        Some(if is_input { script_inputs } else { script_outputs })
+                    }
+                    _ => None,
+                };
+                if let Some(list) = op_list {
+                    if idx < list.len() {
+                        list.remove(idx);
+                    }
                 }
             }
-            let port_list = if is_input { &mut node.inputs } else { &mut node.outputs };
-            if idx < port_list.len() {
-                // Disconnect any edges to this port before removing.
-                if is_input {
-                    graph.disconnect_input_port(core_id, PortIndex(idx));
-                }
-                if let Some(node) = graph.node_mut(core_id) {
-                    let port_list = if is_input { &mut node.inputs } else { &mut node.outputs };
-                    port_list.remove(idx);
+            // Remove the corresponding graph port (if any).
+            if let Some(gp) = graph_port_idx {
+                let port_list = if is_input { &mut node.inputs } else { &mut node.outputs };
+                if gp < port_list.len() {
+                    if is_input {
+                        graph.disconnect_input_port(core_id, PortIndex(gp));
+                    }
+                    if let Some(node) = graph.node_mut(core_id) {
+                        let port_list = if is_input { &mut node.inputs } else { &mut node.outputs };
+                        port_list.remove(gp);
+                    }
                 }
             }
             if let Some(node) = graph.node_mut(core_id) {
@@ -593,9 +658,17 @@ fn show_dsl_port_editor(
             format!("out{}", ports.len() + 1)
         };
         if let Some(node) = graph.node_mut(core_id) {
-            if let NodeOp::DslCode { script_inputs, script_outputs, .. } = &mut node.op {
-                let list = if is_input { script_inputs } else { script_outputs };
-                list.push((default_name.clone(), DataType::Scalar));
+            {
+                let op_list = match &mut node.op {
+                    NodeOp::DslCode { script_inputs, script_outputs, .. }
+                    | NodeOp::Map { script_inputs, script_outputs, .. } => {
+                        Some(if is_input { script_inputs } else { script_outputs })
+                    }
+                    _ => None,
+                };
+                if let Some(list) = op_list {
+                    list.push((default_name.clone(), DataType::Scalar));
+                }
             }
             let port_list = if is_input { &mut node.inputs } else { &mut node.outputs };
             port_list.push(PortDef::new(default_name, DataType::Scalar));

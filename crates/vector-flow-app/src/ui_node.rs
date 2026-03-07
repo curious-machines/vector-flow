@@ -186,6 +186,7 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
             factory: |id| NodeDef::dsl_code(id, String::new()),
             color: cat_color(Utility),
         },
+        entry!("Map", Utility, NodeDef::map),
         entry!("Duplicate", Utility, NodeDef::duplicate),
         entry!("Merge", Utility, NodeDef::merge),
         CatalogEntry {
@@ -256,6 +257,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::Text { .. } => "Text",
         NodeOp::TextToPath => "Text to Path",
         NodeOp::DslCode { .. } => "DSL Code",
+        NodeOp::Map { .. } => "Map",
         NodeOp::GraphInput { .. } => "Graph Input",
         NodeOp::GraphOutput { .. } => "Graph Output",
     }

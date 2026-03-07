@@ -13,8 +13,11 @@ struct BuiltinSig {
 const S1: &[DslType] = &[DslType::Scalar];
 const S2: &[DslType] = &[DslType::Scalar, DslType::Scalar];
 const S3: &[DslType] = &[DslType::Scalar, DslType::Scalar, DslType::Scalar];
+const S4: &[DslType] = &[DslType::Scalar, DslType::Scalar, DslType::Scalar, DslType::Scalar];
 const I1: &[DslType] = &[DslType::Int];
 const I2: &[DslType] = &[DslType::Int, DslType::Int];
+const C1: &[DslType] = &[DslType::Color];
+const CS: &[DslType] = &[DslType::Color, DslType::Scalar];
 
 fn builtin_functions() -> HashMap<&'static str, BuiltinSig> {
     let mut m = HashMap::new();
@@ -43,6 +46,27 @@ fn builtin_functions() -> HashMap<&'static str, BuiltinSig> {
     m.insert("iabs", BuiltinSig { params: I1, ret: DslType::Int });
     m.insert("imin", BuiltinSig { params: I2, ret: DslType::Int });
     m.insert("imax", BuiltinSig { params: I2, ret: DslType::Int });
+
+    // Color construction
+    m.insert("hsl", BuiltinSig { params: S3, ret: DslType::Color });
+    m.insert("hsla", BuiltinSig { params: S4, ret: DslType::Color });
+    m.insert("rgb", BuiltinSig { params: S3, ret: DslType::Color });
+    m.insert("rgba", BuiltinSig { params: S4, ret: DslType::Color });
+
+    // Color component extractors
+    m.insert("color_r", BuiltinSig { params: C1, ret: DslType::Scalar });
+    m.insert("color_g", BuiltinSig { params: C1, ret: DslType::Scalar });
+    m.insert("color_b", BuiltinSig { params: C1, ret: DslType::Scalar });
+    m.insert("color_a", BuiltinSig { params: C1, ret: DslType::Scalar });
+    m.insert("color_hue", BuiltinSig { params: C1, ret: DslType::Scalar });
+    m.insert("color_sat", BuiltinSig { params: C1, ret: DslType::Scalar });
+    m.insert("color_light", BuiltinSig { params: C1, ret: DslType::Scalar });
+
+    // Color modification
+    m.insert("set_lightness", BuiltinSig { params: CS, ret: DslType::Color });
+    m.insert("set_saturation", BuiltinSig { params: CS, ret: DslType::Color });
+    m.insert("set_hue", BuiltinSig { params: CS, ret: DslType::Color });
+    m.insert("set_alpha_color", BuiltinSig { params: CS, ret: DslType::Color });
 
     m
 }
@@ -541,5 +565,49 @@ mod tests {
         let mut tc = TypeChecker::new();
         let types = tc.check_expression(&expr).unwrap();
         assert_eq!(types[expr.id as usize], DslType::Scalar);
+    }
+
+    #[test]
+    fn check_color_constructor() {
+        let expr = parse_expression("rgb(1.0, 0.5, 0.0)").unwrap();
+        let mut tc = TypeChecker::new();
+        let types = tc.check_expression(&expr).unwrap();
+        assert_eq!(types[expr.id as usize], DslType::Color);
+    }
+
+    #[test]
+    fn check_color_extractor() {
+        // color_r takes a Color and returns Scalar — test via script with Color var
+        let block = crate::parser::parse_script("color_r(c)").unwrap();
+        let mut tc = TypeChecker::new();
+        let inputs = vec![("c".to_string(), DslType::Color)];
+        let outputs = vec![];
+        let types = tc.check_script(&block, &inputs, &outputs).unwrap();
+        // Tail expr should be Scalar
+        if let Some(ref tail) = block.tail_expr {
+            assert_eq!(types[tail.id as usize], DslType::Scalar);
+        }
+    }
+
+    #[test]
+    fn check_color_modifier() {
+        let block = crate::parser::parse_script("set_lightness(c, 50.0)").unwrap();
+        let mut tc = TypeChecker::new();
+        let inputs = vec![("c".to_string(), DslType::Color)];
+        let outputs = vec![];
+        let types = tc.check_script(&block, &inputs, &outputs).unwrap();
+        if let Some(ref tail) = block.tail_expr {
+            assert_eq!(types[tail.id as usize], DslType::Color);
+        }
+    }
+
+    #[test]
+    fn check_color_wrong_arg_type() {
+        // rgb expects Scalar args, not Color
+        let block = crate::parser::parse_script("rgb(c, 0.0, 0.0)").unwrap();
+        let mut tc = TypeChecker::new();
+        let inputs = vec![("c".to_string(), DslType::Color)];
+        let result = tc.check_script(&block, &inputs, &[]);
+        assert!(result.is_err());
     }
 }

@@ -9,8 +9,69 @@ use vector_flow_core::types::{
 
 use super::path_ops;
 
+/// Get a color from a batch by index, cycling if necessary.
+fn get_cycled_color(colors: &[Color], index: usize) -> Color {
+    colors[index % colors.len()]
+}
+
+/// Extract a single color from NodeData (first element if batch).
+fn single_color(color_data: &NodeData) -> Color {
+    match color_data {
+        NodeData::Color(c) => *c,
+        NodeData::Colors(cs) if !cs.is_empty() => cs[0],
+        _ => Color::BLACK,
+    }
+}
+
 /// Set fill color on geometry. Handles single and batch types.
-pub fn set_fill(data: &NodeData, color: Color) -> NodeData {
+/// When `color_data` is `NodeData::Colors`, applies per-element with cycling.
+pub fn set_fill(data: &NodeData, color_data: &NodeData) -> NodeData {
+    match color_data {
+        NodeData::Colors(colors) if colors.len() > 1 => {
+            // Per-element color application
+            match data {
+                NodeData::Shapes(shapes) => {
+                    let updated: Vec<Shape> = shapes
+                        .iter()
+                        .enumerate()
+                        .map(|(i, s)| {
+                            let mut shape = s.clone();
+                            shape.fill = Some(get_cycled_color(colors, i));
+                            shape
+                        })
+                        .collect();
+                    NodeData::Shapes(Arc::new(updated))
+                }
+                NodeData::Paths(paths) => {
+                    let shapes: Vec<Shape> = paths
+                        .iter()
+                        .enumerate()
+                        .map(|(i, p)| Shape {
+                            path: p.clone(),
+                            fill: Some(get_cycled_color(colors, i)),
+                            stroke: None,
+                            transform: Affine2::IDENTITY,
+                        })
+                        .collect();
+                    NodeData::Shapes(Arc::new(shapes))
+                }
+                // Single shape/path with multi-color batch: use first color
+                _ => {
+                    let color = colors[0];
+                    set_fill_single(data, color)
+                }
+            }
+        }
+        _ => {
+            // Single color (or single-element Colors batch)
+            let color = single_color(color_data);
+            set_fill_single(data, color)
+        }
+    }
+}
+
+/// Apply a single fill color to geometry.
+fn set_fill_single(data: &NodeData, color: Color) -> NodeData {
     match data {
         NodeData::Shape(s) => {
             let mut shape = (**s).clone();
@@ -56,24 +117,70 @@ pub fn set_fill(data: &NodeData, color: Color) -> NodeData {
 }
 
 /// Set stroke style on geometry. Handles single and batch types.
+/// When `color_data` is `NodeData::Colors`, applies per-element stroke color with cycling.
 pub fn set_stroke(
     data: &NodeData,
-    color: Color,
+    color_data: &NodeData,
     width: f64,
     cap: LineCap,
     join: LineJoin,
     dash_array: Vec<f32>,
     dash_offset: f32,
 ) -> NodeData {
-    let stroke = StrokeStyle {
+    let make_stroke = |color: Color| StrokeStyle {
         color,
         width: width as f32,
         line_cap: cap,
         line_join: join,
-        dash_array,
+        dash_array: dash_array.clone(),
         dash_offset,
     };
 
+    match color_data {
+        NodeData::Colors(colors) if colors.len() > 1 => {
+            // Per-element stroke color
+            match data {
+                NodeData::Shapes(shapes) => {
+                    let updated: Vec<Shape> = shapes
+                        .iter()
+                        .enumerate()
+                        .map(|(i, s)| {
+                            let mut shape = s.clone();
+                            shape.stroke = Some(make_stroke(get_cycled_color(colors, i)));
+                            shape
+                        })
+                        .collect();
+                    NodeData::Shapes(Arc::new(updated))
+                }
+                NodeData::Paths(paths) => {
+                    let shapes: Vec<Shape> = paths
+                        .iter()
+                        .enumerate()
+                        .map(|(i, p)| Shape {
+                            path: p.clone(),
+                            fill: None,
+                            stroke: Some(make_stroke(get_cycled_color(colors, i))),
+                            transform: Affine2::IDENTITY,
+                        })
+                        .collect();
+                    NodeData::Shapes(Arc::new(shapes))
+                }
+                _ => {
+                    let stroke = make_stroke(colors[0]);
+                    set_stroke_single(data, stroke)
+                }
+            }
+        }
+        _ => {
+            let color = single_color(color_data);
+            let stroke = make_stroke(color);
+            set_stroke_single(data, stroke)
+        }
+    }
+}
+
+/// Apply a single stroke style to geometry.
+fn set_stroke_single(data: &NodeData, stroke: StrokeStyle) -> NodeData {
     match data {
         NodeData::Shape(s) => {
             let mut shape = (**s).clone();
@@ -693,7 +800,8 @@ mod tests {
             closed: false,
         };
         let data = NodeData::Path(Arc::new(path));
-        let result = set_fill(&data, Color::WHITE);
+        let color_data = NodeData::Color(Color::WHITE);
+        let result = set_fill(&data, &color_data);
         if let NodeData::Shape(s) = result {
             assert_eq!(s.fill, Some(Color::WHITE));
             assert!(s.stroke.is_none());
@@ -711,7 +819,8 @@ mod tests {
             transform: Affine2::IDENTITY,
         };
         let data = NodeData::Shape(Arc::new(shape));
-        let result = set_stroke(&data, Color::WHITE, 3.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
+        let color_data = NodeData::Color(Color::WHITE);
+        let result = set_stroke(&data, &color_data, 3.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
         if let NodeData::Shape(s) = result {
             assert_eq!(s.fill, Some(Color::BLACK)); // preserved
             let st = s.stroke.clone().unwrap();
@@ -739,7 +848,8 @@ mod tests {
             },
         ];
         let data = NodeData::Shapes(Arc::new(shapes));
-        let result = set_fill(&data, Color::WHITE);
+        let color_data = NodeData::Color(Color::WHITE);
+        let result = set_fill(&data, &color_data);
         if let NodeData::Shapes(s) = result {
             assert_eq!(s.len(), 2);
             assert!(s.iter().all(|s| s.fill == Some(Color::WHITE)));
@@ -759,7 +869,8 @@ mod tests {
             },
         ];
         let data = NodeData::Shapes(Arc::new(shapes));
-        let result = set_stroke(&data, Color::WHITE, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
+        let color_data = NodeData::Color(Color::WHITE);
+        let result = set_stroke(&data, &color_data, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
         if let NodeData::Shapes(s) = result {
             assert_eq!(s.len(), 1);
             assert_eq!(s[0].fill, Some(Color::BLACK)); // preserved
@@ -786,9 +897,10 @@ mod tests {
     fn set_stroke_with_cap_and_join() {
         let path = make_square_path();
         let data = NodeData::Path(Arc::new(path));
+        let color_data = NodeData::Color(Color::WHITE);
         let result = set_stroke(
             &data,
-            Color::WHITE,
+            &color_data,
             5.0,
             LineCap::Round,
             LineJoin::Bevel,
@@ -809,9 +921,10 @@ mod tests {
     fn set_stroke_with_dash_pattern() {
         let path = make_square_path();
         let data = NodeData::Path(Arc::new(path));
+        let color_data = NodeData::Color(Color::BLACK);
         let result = set_stroke(
             &data,
-            Color::BLACK,
+            &color_data,
             2.0,
             LineCap::Butt,
             LineJoin::Miter(4.0),
@@ -949,6 +1062,112 @@ mod tests {
             assert_eq!(p1.verbs, p2.verbs, "dashed stroke outline differs across calls");
         } else {
             panic!("expected Path outputs");
+        }
+    }
+
+    // ── Batch color tests ────────────────────────────────────────────
+
+    fn make_shapes(n: usize) -> Vec<Shape> {
+        (0..n)
+            .map(|_| Shape {
+                path: PathData::new(),
+                fill: None,
+                stroke: None,
+                transform: Affine2::IDENTITY,
+            })
+            .collect()
+    }
+
+    const RED: Color = Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 };
+    const GREEN: Color = Color { r: 0.0, g: 1.0, b: 0.0, a: 1.0 };
+    const BLUE: Color = Color { r: 0.0, g: 0.0, b: 1.0, a: 1.0 };
+
+    #[test]
+    fn set_fill_with_colors_batch() {
+        let data = NodeData::Shapes(Arc::new(make_shapes(3)));
+        let colors = NodeData::Colors(Arc::new(vec![RED, GREEN, BLUE]));
+        let result = set_fill(&data, &colors);
+        if let NodeData::Shapes(s) = result {
+            assert_eq!(s.len(), 3);
+            assert_eq!(s[0].fill, Some(RED));
+            assert_eq!(s[1].fill, Some(GREEN));
+            assert_eq!(s[2].fill, Some(BLUE));
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn set_fill_with_colors_cycling() {
+        let data = NodeData::Shapes(Arc::new(make_shapes(3)));
+        let colors = NodeData::Colors(Arc::new(vec![RED, GREEN]));
+        let result = set_fill(&data, &colors);
+        if let NodeData::Shapes(s) = result {
+            assert_eq!(s.len(), 3);
+            assert_eq!(s[0].fill, Some(RED));
+            assert_eq!(s[1].fill, Some(GREEN));
+            assert_eq!(s[2].fill, Some(RED)); // cycles back
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn set_fill_with_colors_broadcast() {
+        let data = NodeData::Shapes(Arc::new(make_shapes(3)));
+        // Single-element Colors batch — treated as broadcast (single-color path)
+        let colors = NodeData::Colors(Arc::new(vec![RED]));
+        let result = set_fill(&data, &colors);
+        if let NodeData::Shapes(s) = result {
+            assert_eq!(s.len(), 3);
+            assert!(s.iter().all(|s| s.fill == Some(RED)));
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn set_fill_with_colors_truncate() {
+        let data = NodeData::Shapes(Arc::new(make_shapes(2)));
+        let colors = NodeData::Colors(Arc::new(vec![RED, GREEN, BLUE, Color::WHITE, Color::BLACK]));
+        let result = set_fill(&data, &colors);
+        if let NodeData::Shapes(s) = result {
+            assert_eq!(s.len(), 2);
+            assert_eq!(s[0].fill, Some(RED));
+            assert_eq!(s[1].fill, Some(GREEN));
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn set_stroke_with_colors_batch() {
+        let data = NodeData::Shapes(Arc::new(make_shapes(3)));
+        let colors = NodeData::Colors(Arc::new(vec![RED, GREEN, BLUE]));
+        let result = set_stroke(&data, &colors, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
+        if let NodeData::Shapes(s) = result {
+            assert_eq!(s.len(), 3);
+            assert_eq!(s[0].stroke.as_ref().unwrap().color, RED);
+            assert_eq!(s[1].stroke.as_ref().unwrap().color, GREEN);
+            assert_eq!(s[2].stroke.as_ref().unwrap().color, BLUE);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn set_alpha_with_scalars_batch() {
+        use super::super::color_ops;
+        let data = NodeData::Colors(Arc::new(vec![RED, GREEN, BLUE]));
+        let alphas = NodeData::Scalars(Arc::new(vec![0.1, 0.5, 0.9]));
+        let result = color_ops::set_alpha(&data, &alphas);
+        if let NodeData::Colors(cs) = result {
+            assert_eq!(cs.len(), 3);
+            assert!((cs[0].a - 0.1).abs() < 1e-5);
+            assert!((cs[1].a - 0.5).abs() < 1e-5);
+            assert!((cs[2].a - 0.9).abs() < 1e-5);
+        } else {
+            panic!("expected Colors");
         }
     }
 }

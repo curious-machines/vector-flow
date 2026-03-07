@@ -4,7 +4,7 @@ use glam::{Affine2, Vec2};
 
 use vector_flow_core::compute::{DslContext, NodeOutputs, ResolvedInputs};
 use vector_flow_core::error::ComputeError;
-use vector_flow_core::types::{DataType, NodeData, PathData, PointBatch, Shape, EvalContext};
+use vector_flow_core::types::{Color, DataType, NodeData, PathData, PointBatch, Shape, EvalContext};
 
 use vector_flow_dsl::ast::DslType;
 use vector_flow_dsl::cache::DslFunctionCache;
@@ -285,11 +285,20 @@ pub fn copy_to_points(
     (shapes, tangent_angles.to_vec(), indices, n as f64)
 }
 
-/// Convert a DataType to a DslType for the compiler (phase 1: Scalar and Int only).
+/// Convert a DataType to a DslType for the compiler.
 fn data_type_to_dsl(dt: &DataType) -> DslType {
     match dt {
         DataType::Int => DslType::Int,
+        DataType::Color => DslType::Color,
         _ => DslType::Scalar,
+    }
+}
+
+/// Number of f64 slots a DslType occupies.
+fn slots_for_dsl_type(ty: DslType) -> usize {
+    match ty {
+        DslType::Color => 4,
+        _ => 1,
     }
 }
 
@@ -300,15 +309,6 @@ fn node_data_to_f64(data: &NodeData) -> f64 {
         NodeData::Int(v) => *v as f64,
         NodeData::Bool(v) => if *v { 1.0 } else { 0.0 },
         _ => 0.0,
-    }
-}
-
-/// Convert a DslContext slot value back to NodeData based on port DataType.
-fn f64_to_node_data(val: f64, dt: &DataType) -> NodeData {
-    match dt {
-        DataType::Int => NodeData::Int(val as i64),
-        DataType::Bool => NodeData::Bool(val != 0.0),
-        _ => NodeData::Scalar(val),
     }
 }
 
@@ -386,17 +386,23 @@ pub fn dsl_code(
     let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
     let mut ctx = DslContext::new(time_ctx);
 
-    // Load inputs into ctx.slots[0..n_inputs].
-    for (i, (_name, _dt)) in script_inputs.iter().enumerate() {
-        if i < 8 {
-            ctx.slots[i] = inputs.data.get(i).map(node_data_to_f64).unwrap_or(0.0);
+    // Load inputs into ctx.slots (Color takes 4 slots, others take 1).
+    let mut slot_idx = 0usize;
+    for (i, (_name, dt)) in script_inputs.iter().enumerate() {
+        if let Some(data) = inputs.data.get(i) {
+            load_value_into_slots(&mut ctx, slot_idx, data);
         }
+        slot_idx += slots_for_dsl_type(data_type_to_dsl(dt));
     }
+    let input_slot_count = slot_idx;
 
-    // Allocate overflow if needed (inputs + outputs > 8).
-    let total_slots = script_inputs.len() + script_outputs.len();
-    let _overflow = if total_slots > 8 {
-        Some(ctx.alloc_overflow(total_slots - 8))
+    // Allocate overflow if needed.
+    let output_slot_count: usize = script_outputs.iter()
+        .map(|(_, dt)| slots_for_dsl_type(data_type_to_dsl(dt)))
+        .sum();
+    let total_slots = input_slot_count + output_slot_count;
+    let _overflow = if total_slots > 16 {
+        Some(ctx.alloc_overflow(total_slots - 16))
     } else {
         None
     };
@@ -404,20 +410,245 @@ pub fn dsl_code(
     // Execute.
     unsafe { func(&mut ctx) };
 
-    // Read outputs from ctx.slots[n_inputs..].
-    let n_inputs = script_inputs.len();
+    // Read outputs from ctx.slots[input_slot_count..].
+    let mut out_slot = input_slot_count;
     for (i, (_name, dt)) in script_outputs.iter().enumerate() {
-        let slot_idx = n_inputs + i;
-        let val = if slot_idx < 8 {
-            ctx.slots[slot_idx]
-        } else {
-            // Read from overflow (not yet supported beyond 8 slots)
-            0.0
-        };
         if i < outputs.data.len() {
-            outputs.data[i] = Some(f64_to_node_data(val, dt));
+            outputs.data[i] = Some(read_value_from_slots(&ctx, out_slot, dt));
+        }
+        out_slot += slots_for_dsl_type(data_type_to_dsl(dt));
+    }
+
+    Ok(())
+}
+
+/// Load a NodeData value into DslContext slots starting at `slot_idx`.
+/// Returns how many slots were consumed.
+fn load_value_into_slots(ctx: &mut DslContext, slot_idx: usize, data: &NodeData) -> usize {
+    match data {
+        NodeData::Color(c) => {
+            ctx.slots[slot_idx] = c.r as f64;
+            ctx.slots[slot_idx + 1] = c.g as f64;
+            ctx.slots[slot_idx + 2] = c.b as f64;
+            ctx.slots[slot_idx + 3] = c.a as f64;
+            4
+        }
+        _ => {
+            ctx.slots[slot_idx] = node_data_to_f64(data);
+            1
         }
     }
+}
+
+/// Read a value from DslContext slots based on the output DataType.
+fn read_value_from_slots(ctx: &DslContext, slot_idx: usize, dt: &DataType) -> NodeData {
+    match dt {
+        DataType::Color => {
+            let c = Color {
+                r: ctx.slots[slot_idx] as f32,
+                g: ctx.slots[slot_idx + 1] as f32,
+                b: ctx.slots[slot_idx + 2] as f32,
+                a: ctx.slots[slot_idx + 3] as f32,
+            };
+            NodeData::Color(c)
+        }
+        DataType::Int => NodeData::Int(ctx.slots[slot_idx] as i64),
+        DataType::Bool => NodeData::Bool(ctx.slots[slot_idx] != 0.0),
+        _ => NodeData::Scalar(ctx.slots[slot_idx]),
+    }
+}
+
+/// Unwrap a batch NodeData into its element count.
+fn batch_len(data: &NodeData) -> usize {
+    match data {
+        NodeData::Scalars(v) => v.len(),
+        NodeData::Ints(v) => v.len(),
+        NodeData::Colors(v) => v.len(),
+        NodeData::Shapes(v) => v.len(),
+        NodeData::Paths(v) => v.len(),
+        // Single values treated as batch of 1
+        _ => 1,
+    }
+}
+
+/// Get the i-th element from a batch as a NodeData single value.
+fn batch_element(data: &NodeData, i: usize) -> NodeData {
+    match data {
+        NodeData::Scalars(v) => NodeData::Scalar(v[i]),
+        NodeData::Ints(v) => NodeData::Int(v[i]),
+        NodeData::Colors(v) => NodeData::Color(v[i]),
+        NodeData::Shapes(v) => NodeData::Shape(Arc::new(v[i].clone())),
+        NodeData::Paths(v) => NodeData::Path(Arc::new(v[i].clone())),
+        // Single value: return as-is regardless of index
+        other => other.clone(),
+    }
+}
+
+/// Collect per-element results into a batch NodeData.
+fn collect_into_batch(results: Vec<NodeData>, dt: &DataType) -> NodeData {
+    match dt {
+        DataType::Scalar => {
+            let vals: Vec<f64> = results.iter().map(|r| match r {
+                NodeData::Scalar(v) => *v,
+                _ => 0.0,
+            }).collect();
+            NodeData::Scalars(Arc::new(vals))
+        }
+        DataType::Int => {
+            let vals: Vec<i64> = results.iter().map(|r| match r {
+                NodeData::Int(v) => *v,
+                _ => 0,
+            }).collect();
+            NodeData::Ints(Arc::new(vals))
+        }
+        DataType::Color => {
+            let vals: Vec<Color> = results.iter().map(|r| match r {
+                NodeData::Color(c) => *c,
+                _ => Color::BLACK,
+            }).collect();
+            NodeData::Colors(Arc::new(vals))
+        }
+        // Default: collect as scalars
+        _ => {
+            let vals: Vec<f64> = results.iter().map(|r| match r {
+                NodeData::Scalar(v) => *v,
+                NodeData::Int(v) => *v as f64,
+                _ => 0.0,
+            }).collect();
+            NodeData::Scalars(Arc::new(vals))
+        }
+    }
+}
+
+/// Map: iterate a batch, run DSL code per element, collect results.
+#[allow(clippy::too_many_arguments)]
+pub fn map_batch(
+    source: &str,
+    script_inputs: &[(String, DataType)],
+    script_outputs: &[(String, DataType)],
+    inputs: &ResolvedInputs,
+    compiler: &mut DslCompiler,
+    cache: &DslFunctionCache,
+    time_ctx: &EvalContext,
+    outputs: &mut NodeOutputs,
+) -> Result<(), ComputeError> {
+    if source.trim().is_empty() {
+        return Ok(());
+    }
+
+    // The first graph input is the batch to iterate over.
+    let batch_data = &inputs.data[0];
+    let count = batch_len(batch_data);
+
+    // Build DSL compiler port lists.
+    let dsl_inputs: Vec<(String, DslType)> = script_inputs
+        .iter()
+        .map(|(name, dt)| (name.clone(), data_type_to_dsl(dt)))
+        .collect();
+    let dsl_outputs: Vec<(String, DslType)> = script_outputs
+        .iter()
+        .map(|(name, dt)| (name.clone(), data_type_to_dsl(dt)))
+        .collect();
+
+    // Compile (cached).
+    let ptr = match compile_catching_panics(|| {
+        cache.get_or_compile_node_script(source, &dsl_inputs, &dsl_outputs, compiler)
+    }) {
+        Ok(p) => p,
+        Err(e) => {
+            outputs.error = Some(e.to_string());
+            return Ok(());
+        }
+    };
+
+    let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+
+    // Compute slot layout for inputs.
+    let input_slot_count: usize = dsl_inputs.iter().map(|(_, t)| slots_for_dsl_type(*t)).sum();
+    let output_slot_count: usize = dsl_outputs.iter().map(|(_, t)| slots_for_dsl_type(*t)).sum();
+    let total_slots = input_slot_count + output_slot_count;
+
+    // Single context, reused across iterations.
+    let mut ctx = DslContext::new(time_ctx);
+    let _overflow = if total_slots > 16 {
+        Some(ctx.alloc_overflow(total_slots - 16))
+    } else {
+        None
+    };
+
+    // Pre-load extra graph inputs (beyond the batch) into their script input slots.
+    // Script inputs: element (slot 0), then others (index, count, user extras).
+    // Graph inputs: batch (port 0), then user extras (port 1+).
+    // The extra graph inputs map to script inputs that are NOT element/index/count.
+    // We compute slot offsets for each script input.
+    let mut script_input_slots: Vec<usize> = Vec::with_capacity(script_inputs.len());
+    {
+        let mut slot = 0;
+        for (_, dt) in script_inputs.iter() {
+            script_input_slots.push(slot);
+            slot += slots_for_dsl_type(data_type_to_dsl(dt));
+        }
+    }
+
+    // Find which script inputs are "element", "index", "count" by name.
+    let element_idx = script_inputs.iter().position(|(n, _)| n == "element");
+    let index_idx = script_inputs.iter().position(|(n, _)| n == "index");
+    let count_idx = script_inputs.iter().position(|(n, _)| n == "count");
+
+    // Extra inputs: script inputs that are not element/index/count.
+    // These get their values from graph input ports 1, 2, 3, ...
+    let mut graph_port = 1usize; // port 0 is the batch
+    for (si, (name, _dt)) in script_inputs.iter().enumerate() {
+        if name == "element" || name == "index" || name == "count" {
+            continue;
+        }
+        if graph_port < inputs.data.len() {
+            let slot = script_input_slots[si];
+            load_value_into_slots(&mut ctx, slot, &inputs.data[graph_port]);
+        }
+        graph_port += 1;
+    }
+
+    // Load count once (it doesn't change per iteration).
+    if let Some(ci) = count_idx {
+        ctx.slots[script_input_slots[ci]] = count as f64;
+    }
+
+    // Output slot offset.
+    let output_slot_offset = input_slot_count;
+
+    // Iterate.
+    let mut results = Vec::with_capacity(count);
+    for i in 0..count {
+        // Load element.
+        if let Some(ei) = element_idx {
+            let elem = batch_element(batch_data, i);
+            load_value_into_slots(&mut ctx, script_input_slots[ei], &elem);
+        }
+
+        // Load index.
+        if let Some(ii) = index_idx {
+            ctx.slots[script_input_slots[ii]] = i as f64;
+        }
+
+        // Execute.
+        unsafe { func(&mut ctx) };
+
+        // Read first output.
+        if !script_outputs.is_empty() {
+            let result = read_value_from_slots(&ctx, output_slot_offset, &script_outputs[0].1);
+            results.push(result);
+        }
+    }
+
+    // Write collected output.
+    if !outputs.data.is_empty() && !script_outputs.is_empty() {
+        let out_dt = &script_outputs[0].1;
+        outputs.data[0] = Some(collect_into_batch(results, out_dt));
+    }
+
+    // Handle additional outputs (if any).
+    // For now, only the first output is collected into a batch.
 
     Ok(())
 }

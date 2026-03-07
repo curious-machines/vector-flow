@@ -76,8 +76,8 @@ pub trait ComputeBackend: Send + Sync {
 /// reliably via `std::mem::offset_of!`.
 #[repr(C)]
 pub struct DslContext {
-    /// Fixed slots for common values (up to 8).
-    pub slots: [f64; 8],
+    /// Fixed slots for common values (up to 16).
+    pub slots: [f64; 16],
     /// Pointer to heap-allocated overflow storage (for functions with >8 locals).
     pub overflow_ptr: *mut f64,
     /// Number of valid f64 values at `overflow_ptr`.
@@ -100,7 +100,7 @@ unsafe impl Sync for DslContext {}
 impl DslContext {
     pub fn new(time_ctx: &EvalContext) -> Self {
         Self {
-            slots: [0.0; 8],
+            slots: [0.0; 16],
             overflow_ptr: std::ptr::null_mut(),
             overflow_len: 0,
             _pad0: 0,
@@ -110,7 +110,7 @@ impl DslContext {
         }
     }
 
-    /// Allocate overflow storage for functions that need more than 8 locals.
+    /// Allocate overflow storage for functions that need more than 16 locals.
     /// Returns a Vec that owns the memory — caller must keep it alive while
     /// `self.overflow_ptr` is in use.
     pub fn alloc_overflow(&mut self, count: usize) -> Vec<f64> {

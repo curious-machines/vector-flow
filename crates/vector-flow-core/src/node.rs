@@ -126,6 +126,12 @@ pub enum NodeOp {
         script_inputs: Vec<(String, DataType)>,
         script_outputs: Vec<(String, DataType)>,
     },
+    /// Map: iterate a batch, run DSL code per element, collect results.
+    Map {
+        source: String,
+        script_inputs: Vec<(String, DataType)>,
+        script_outputs: Vec<(String, DataType)>,
+    },
     // Image
     LoadImage { path: String },
     // Text
@@ -419,12 +425,12 @@ impl NodeDef {
             name: "Set Fill".into(),
             op: NodeOp::SetFill,
             inputs: vec![
-                PortDef::new("shape", DataType::Shape).with_description("Input shape"),
+                PortDef::new("geometry", DataType::Any).with_description("Input geometry"),
                 PortDef::new("color", DataType::Color)
                     .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
-                    .with_description("Fill color"),
+                    .with_description("Fill color (single or batch)"),
             ],
-            outputs: vec![PortDef::new("shape", DataType::Shape)],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
         }
@@ -436,10 +442,10 @@ impl NodeDef {
             name: "Set Stroke".into(),
             op: NodeOp::SetStroke { dash_pattern: String::new() },
             inputs: vec![
-                PortDef::new("shape", DataType::Shape).with_description("Input shape"),
+                PortDef::new("geometry", DataType::Any).with_description("Input geometry"),
                 PortDef::new("color", DataType::Color)
                     .with_default(ParamValue::Color([0.0, 0.0, 0.0, 1.0]))
-                    .with_description("Stroke color"),
+                    .with_description("Stroke color (single or batch)"),
                 PortDef::new("width", DataType::Scalar)
                     .with_default(ParamValue::Float(2.0))
                     .with_description("Stroke width"),
@@ -456,7 +462,7 @@ impl NodeDef {
                     .with_default(ParamValue::Float(0.0))
                     .with_description("Dash pattern offset"),
             ],
-            outputs: vec![PortDef::new("shape", DataType::Shape)],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
         }
@@ -567,6 +573,42 @@ impl NodeDef {
             },
             inputs: Vec::new(),
             outputs: Vec::new(),
+            position: [0.0, 0.0],
+            generation: 0,
+        }
+    }
+
+    pub fn map(id: NodeId) -> Self {
+        // script_inputs: element, index, count are built-in (populated from batch).
+        // They appear in script_inputs so the DSL compiler sees them, but they
+        // do NOT have corresponding graph input ports.
+        // Any user-added script inputs beyond these three get graph ports (starting at port 1).
+        //
+        // script_outputs: each gets a graph output port (1:1 sync).
+        //
+        // Graph input port 0 is always "batch" (fixed, not in script_inputs).
+        Self {
+            id,
+            name: "Map".into(),
+            op: NodeOp::Map {
+                source: String::new(),
+                script_inputs: vec![
+                    ("element".into(), DataType::Scalar),
+                    ("index".into(), DataType::Int),
+                    ("count".into(), DataType::Int),
+                ],
+                script_outputs: vec![
+                    ("result".into(), DataType::Scalar),
+                ],
+            },
+            inputs: vec![
+                PortDef::new("batch", DataType::Any)
+                    .with_description("Batch to iterate over"),
+            ],
+            outputs: vec![
+                PortDef::new("result", DataType::Any)
+                    .with_description("Collected output batch"),
+            ],
             position: [0.0, 0.0],
             generation: 0,
         }

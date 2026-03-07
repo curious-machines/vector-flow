@@ -91,6 +91,244 @@ pub extern "C" fn vf_iabs(x: i64) -> i64 { x.abs() }
 pub extern "C" fn vf_imin(a: i64, b: i64) -> i64 { a.min(b) }
 pub extern "C" fn vf_imax(a: i64, b: i64) -> i64 { a.max(b) }
 
+// ---- Color math (pure, no external deps) ----
+
+/// HSL→RGB helper. h, s, l in [0,1].
+fn hsl_to_rgb_f64(h: f64, s: f64, l: f64) -> (f64, f64, f64) {
+    if s.abs() < 1e-7 {
+        return (l, l, l);
+    }
+    let q = if l < 0.5 { l * (1.0 + s) } else { l + s - l * s };
+    let p = 2.0 * l - q;
+    let r = hue_to_rgb_f64(p, q, h + 1.0 / 3.0);
+    let g = hue_to_rgb_f64(p, q, h);
+    let b = hue_to_rgb_f64(p, q, h - 1.0 / 3.0);
+    (r, g, b)
+}
+
+fn hue_to_rgb_f64(p: f64, q: f64, t: f64) -> f64 {
+    let t = t.rem_euclid(1.0);
+    if t < 1.0 / 6.0 {
+        p + (q - p) * 6.0 * t
+    } else if t < 0.5 {
+        q
+    } else if t < 2.0 / 3.0 {
+        p + (q - p) * (2.0 / 3.0 - t) * 6.0
+    } else {
+        p
+    }
+}
+
+/// RGB→HSL. Returns (h, s, l) where all in [0,1].
+fn rgb_to_hsl_f64(r: f64, g: f64, b: f64) -> (f64, f64, f64) {
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let l = (max + min) * 0.5;
+    if (max - min).abs() < 1e-7 {
+        return (0.0, 0.0, l);
+    }
+    let d = max - min;
+    let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
+    let h = if (max - r).abs() < 1e-7 {
+        let mut h = (g - b) / d;
+        if g < b { h += 6.0; }
+        h
+    } else if (max - g).abs() < 1e-7 {
+        (b - r) / d + 2.0
+    } else {
+        (r - g) / d + 4.0
+    };
+    (h / 6.0, s, l)
+}
+
+// ---- Color construction: write 4 f64 (r,g,b,a) to consecutive slots ----
+// These functions receive raw pointers from JIT-compiled code, which guarantees validity.
+
+/// hsl(h_deg, s_pct, l_pct) → color at dest_slot..dest_slot+3
+/// h in degrees [0,360], s and l in percent [0,100].
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_hsl(slots_ptr: *mut f64, h: f64, s: f64, l: f64, dest_slot: u32) {
+    let (r, g, b) = hsl_to_rgb_f64(h / 360.0, s / 100.0, l / 100.0);
+    unsafe {
+        *slots_ptr.add(dest_slot as usize) = r;
+        *slots_ptr.add(dest_slot as usize + 1) = g;
+        *slots_ptr.add(dest_slot as usize + 2) = b;
+        *slots_ptr.add(dest_slot as usize + 3) = 1.0;
+    }
+}
+
+/// hsla(h_deg, s_pct, l_pct, a) → color at dest_slot..dest_slot+3
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_hsla(slots_ptr: *mut f64, h: f64, s: f64, l: f64, a: f64, dest_slot: u32) {
+    let (r, g, b) = hsl_to_rgb_f64(h / 360.0, s / 100.0, l / 100.0);
+    unsafe {
+        *slots_ptr.add(dest_slot as usize) = r;
+        *slots_ptr.add(dest_slot as usize + 1) = g;
+        *slots_ptr.add(dest_slot as usize + 2) = b;
+        *slots_ptr.add(dest_slot as usize + 3) = a.clamp(0.0, 1.0);
+    }
+}
+
+/// rgb(r, g, b) → color at dest_slot..dest_slot+3. Components in [0,1].
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_rgb(slots_ptr: *mut f64, r: f64, g: f64, b: f64, dest_slot: u32) {
+    unsafe {
+        *slots_ptr.add(dest_slot as usize) = r.clamp(0.0, 1.0);
+        *slots_ptr.add(dest_slot as usize + 1) = g.clamp(0.0, 1.0);
+        *slots_ptr.add(dest_slot as usize + 2) = b.clamp(0.0, 1.0);
+        *slots_ptr.add(dest_slot as usize + 3) = 1.0;
+    }
+}
+
+/// rgba(r, g, b, a) → color at dest_slot..dest_slot+3. Components in [0,1].
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_rgba(slots_ptr: *mut f64, r: f64, g: f64, b: f64, a: f64, dest_slot: u32) {
+    unsafe {
+        *slots_ptr.add(dest_slot as usize) = r.clamp(0.0, 1.0);
+        *slots_ptr.add(dest_slot as usize + 1) = g.clamp(0.0, 1.0);
+        *slots_ptr.add(dest_slot as usize + 2) = b.clamp(0.0, 1.0);
+        *slots_ptr.add(dest_slot as usize + 3) = a.clamp(0.0, 1.0);
+    }
+}
+
+// ---- Color component extractors: read from slots ----
+
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_color_r(slots_ptr: *const f64, src_slot: u32) -> f64 {
+    unsafe { *slots_ptr.add(src_slot as usize) }
+}
+
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_color_g(slots_ptr: *const f64, src_slot: u32) -> f64 {
+    unsafe { *slots_ptr.add(src_slot as usize + 1) }
+}
+
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_color_b(slots_ptr: *const f64, src_slot: u32) -> f64 {
+    unsafe { *slots_ptr.add(src_slot as usize + 2) }
+}
+
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_color_a(slots_ptr: *const f64, src_slot: u32) -> f64 {
+    unsafe { *slots_ptr.add(src_slot as usize + 3) }
+}
+
+/// Extract hue (degrees 0..360) from color at src_slot.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_color_hue(slots_ptr: *const f64, src_slot: u32) -> f64 {
+    let (r, g, b) = unsafe {(
+        *slots_ptr.add(src_slot as usize),
+        *slots_ptr.add(src_slot as usize + 1),
+        *slots_ptr.add(src_slot as usize + 2),
+    )};
+    let (h, _, _) = rgb_to_hsl_f64(r, g, b);
+    h * 360.0
+}
+
+/// Extract saturation (0..100) from color at src_slot.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_color_sat(slots_ptr: *const f64, src_slot: u32) -> f64 {
+    let (r, g, b) = unsafe {(
+        *slots_ptr.add(src_slot as usize),
+        *slots_ptr.add(src_slot as usize + 1),
+        *slots_ptr.add(src_slot as usize + 2),
+    )};
+    let (_, s, _) = rgb_to_hsl_f64(r, g, b);
+    s * 100.0
+}
+
+/// Extract lightness (0..100) from color at src_slot.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_color_light(slots_ptr: *const f64, src_slot: u32) -> f64 {
+    let (r, g, b) = unsafe {(
+        *slots_ptr.add(src_slot as usize),
+        *slots_ptr.add(src_slot as usize + 1),
+        *slots_ptr.add(src_slot as usize + 2),
+    )};
+    let (_, _, l) = rgb_to_hsl_f64(r, g, b);
+    l * 100.0
+}
+
+// ---- Color modification: read color from src_slot, modify, write to dest_slot ----
+
+/// Set lightness of color at src_slot to `val` (0..100), write result to dest_slot.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_set_lightness(slots_ptr: *mut f64, src_slot: u32, val: f64, dest_slot: u32) {
+    let (r, g, b, a) = unsafe {(
+        *slots_ptr.add(src_slot as usize),
+        *slots_ptr.add(src_slot as usize + 1),
+        *slots_ptr.add(src_slot as usize + 2),
+        *slots_ptr.add(src_slot as usize + 3),
+    )};
+    let (h, s, _) = rgb_to_hsl_f64(r, g, b);
+    let (nr, ng, nb) = hsl_to_rgb_f64(h, s, (val / 100.0).clamp(0.0, 1.0));
+    unsafe {
+        *slots_ptr.add(dest_slot as usize) = nr;
+        *slots_ptr.add(dest_slot as usize + 1) = ng;
+        *slots_ptr.add(dest_slot as usize + 2) = nb;
+        *slots_ptr.add(dest_slot as usize + 3) = a;
+    }
+}
+
+/// Set saturation of color at src_slot to `val` (0..100), write result to dest_slot.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_set_saturation(slots_ptr: *mut f64, src_slot: u32, val: f64, dest_slot: u32) {
+    let (r, g, b, a) = unsafe {(
+        *slots_ptr.add(src_slot as usize),
+        *slots_ptr.add(src_slot as usize + 1),
+        *slots_ptr.add(src_slot as usize + 2),
+        *slots_ptr.add(src_slot as usize + 3),
+    )};
+    let (h, _, l) = rgb_to_hsl_f64(r, g, b);
+    let (nr, ng, nb) = hsl_to_rgb_f64(h, (val / 100.0).clamp(0.0, 1.0), l);
+    unsafe {
+        *slots_ptr.add(dest_slot as usize) = nr;
+        *slots_ptr.add(dest_slot as usize + 1) = ng;
+        *slots_ptr.add(dest_slot as usize + 2) = nb;
+        *slots_ptr.add(dest_slot as usize + 3) = a;
+    }
+}
+
+/// Set hue of color at src_slot to `val` (0..360), write result to dest_slot.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_set_hue(slots_ptr: *mut f64, src_slot: u32, val: f64, dest_slot: u32) {
+    let (r, g, b, a) = unsafe {(
+        *slots_ptr.add(src_slot as usize),
+        *slots_ptr.add(src_slot as usize + 1),
+        *slots_ptr.add(src_slot as usize + 2),
+        *slots_ptr.add(src_slot as usize + 3),
+    )};
+    let (_, s, l) = rgb_to_hsl_f64(r, g, b);
+    let (nr, ng, nb) = hsl_to_rgb_f64((val / 360.0).rem_euclid(1.0), s, l);
+    unsafe {
+        *slots_ptr.add(dest_slot as usize) = nr;
+        *slots_ptr.add(dest_slot as usize + 1) = ng;
+        *slots_ptr.add(dest_slot as usize + 2) = nb;
+        *slots_ptr.add(dest_slot as usize + 3) = a;
+    }
+}
+
+/// Set alpha of color at src_slot, write result to dest_slot.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_set_alpha_color(slots_ptr: *mut f64, src_slot: u32, val: f64, dest_slot: u32) {
+    unsafe {
+        *slots_ptr.add(dest_slot as usize) = *slots_ptr.add(src_slot as usize);
+        *slots_ptr.add(dest_slot as usize + 1) = *slots_ptr.add(src_slot as usize + 1);
+        *slots_ptr.add(dest_slot as usize + 2) = *slots_ptr.add(src_slot as usize + 2);
+        *slots_ptr.add(dest_slot as usize + 3) = val.clamp(0.0, 1.0);
+    }
+}
+
+/// Copy 4 color slots from src to dest.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn vf_color_copy(slots_ptr: *mut f64, src_slot: u32, dest_slot: u32) {
+    unsafe {
+        for i in 0..4 {
+            *slots_ptr.add(dest_slot as usize + i) = *slots_ptr.add(src_slot as usize + i);
+        }
+    }
+}
+
 /// List of all runtime symbols for Cranelift registration.
 pub fn runtime_symbols() -> Vec<(&'static str, *const u8)> {
     vec![
@@ -128,5 +366,25 @@ pub fn runtime_symbols() -> Vec<(&'static str, *const u8)> {
         ("vf_iabs", vf_iabs as *const u8),
         ("vf_imin", vf_imin as *const u8),
         ("vf_imax", vf_imax as *const u8),
+        // Color construction (slots_ptr, args..., dest_slot) -> void
+        ("vf_hsl", vf_hsl as *const u8),
+        ("vf_hsla", vf_hsla as *const u8),
+        ("vf_rgb", vf_rgb as *const u8),
+        ("vf_rgba", vf_rgba as *const u8),
+        // Color component extractors (slots_ptr, src_slot) -> f64
+        ("vf_color_r", vf_color_r as *const u8),
+        ("vf_color_g", vf_color_g as *const u8),
+        ("vf_color_b", vf_color_b as *const u8),
+        ("vf_color_a", vf_color_a as *const u8),
+        ("vf_color_hue", vf_color_hue as *const u8),
+        ("vf_color_sat", vf_color_sat as *const u8),
+        ("vf_color_light", vf_color_light as *const u8),
+        // Color modification (slots_ptr, src_slot, val, dest_slot) -> void
+        ("vf_set_lightness", vf_set_lightness as *const u8),
+        ("vf_set_saturation", vf_set_saturation as *const u8),
+        ("vf_set_hue", vf_set_hue as *const u8),
+        ("vf_set_alpha_color", vf_set_alpha_color as *const u8),
+        // Color utility
+        ("vf_color_copy", vf_color_copy as *const u8),
     ]
 }

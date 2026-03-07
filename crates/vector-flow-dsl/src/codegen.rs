@@ -129,41 +129,65 @@ impl DslCompiler {
             let ctx_ptr = builder.block_params(entry_block)[0];
 
             {
+                // Compute how many slots are used by inputs+outputs (Color takes 4 slots each).
+                let input_slot_count: usize = inputs.iter().map(|(_, t)| slots_for_type(*t)).sum();
+                let output_slot_count: usize = outputs.iter().map(|(_, t)| slots_for_type(*t)).sum();
+                let first_temp_slot = (input_slot_count + output_slot_count) as u32;
+
                 let mut cg = CodegenCtx {
                     builder: &mut builder,
                     module: &mut self.module,
                     ctx_ptr,
                     variables: HashMap::new(),
+                    color_vars: HashMap::new(),
+                    next_color_slot: first_temp_slot,
+                    last_color_slot: None,
                     runtime_funcs: &mut self.runtime_funcs,
                     type_table,
                 };
 
-                // Load input variables from ctx.slots[0..n_inputs]
-                for (i, (param_name, param_type)) in inputs.iter().enumerate() {
-                    let offset = std::mem::offset_of!(DslContext, slots) + i * 8;
-                    let val = cg.builder.ins().load(
-                        types::F64,
-                        cranelift_codegen::ir::MemFlags::trusted(),
-                        ctx_ptr,
-                        offset as i32,
-                    );
-                    let var = cg.declare_variable(param_name, *param_type);
-                    let typed_val = match param_type {
-                        DslType::Int => cg.builder.ins().fcvt_to_sint_sat(types::I64, val),
-                        _ => val,
-                    };
-                    cg.builder.def_var(var, typed_val);
+                // Load input variables from ctx.slots[]
+                let mut input_slot_idx = 0usize;
+                for (param_name, param_type) in inputs.iter() {
+                    if *param_type == DslType::Color {
+                        // Color input: register as color var at current slot index
+                        cg.color_vars.insert(param_name.clone(), input_slot_idx as u32);
+                        input_slot_idx += 4;
+                    } else {
+                        let offset = std::mem::offset_of!(DslContext, slots) + input_slot_idx * 8;
+                        let val = cg.builder.ins().load(
+                            types::F64,
+                            cranelift_codegen::ir::MemFlags::trusted(),
+                            ctx_ptr,
+                            offset as i32,
+                        );
+                        let var = cg.declare_variable(param_name, *param_type);
+                        let typed_val = match param_type {
+                            DslType::Int => cg.builder.ins().fcvt_to_sint_sat(types::I64, val),
+                            _ => val,
+                        };
+                        cg.builder.def_var(var, typed_val);
+                        input_slot_idx += 1;
+                    }
                 }
 
                 // Pre-declare output variables (initialized to 0)
+                let mut output_slot_idx = input_slot_idx;
                 for (out_name, out_type) in outputs.iter() {
-                    let var = cg.declare_variable(out_name, *out_type);
-                    let zero = match out_type {
-                        DslType::Int => cg.builder.ins().iconst(types::I64, 0),
-                        DslType::Bool => cg.builder.ins().iconst(types::I8, 0),
-                        _ => cg.builder.ins().f64const(0.0),
-                    };
-                    cg.builder.def_var(var, zero);
+                    if *out_type == DslType::Color {
+                        // Color output: register as color var at output slot index
+                        cg.color_vars.insert(out_name.clone(), output_slot_idx as u32);
+                        output_slot_idx += 4;
+                    } else {
+                        let var = cg.declare_variable(out_name, *out_type);
+                        let zero = match out_type {
+                            DslType::Int => cg.builder.ins().iconst(types::I64, 0),
+                            DslType::Bool => cg.builder.ins().iconst(types::I8, 0),
+                            _ => cg.builder.ins().f64const(0.0),
+                        };
+                        cg.builder.def_var(var, zero);
+                        output_slot_idx += 1;
+                    }
                 }
 
                 // Emit body
@@ -172,11 +196,18 @@ impl DslCompiler {
                 // If there's a tail expression, assign it to the first output variable
                 // so the output writeback below picks it up.
                 if let (Some(tail_val), Some((out_name, out_type))) = (tail_result, outputs.first()) {
-                    if let Some(&(var, _)) = cg.variables.get(out_name.as_str()) {
+                    if *out_type == DslType::Color {
+                        // Color tail: last_color_slot should have been set by the expression.
+                        // Copy from last_color_slot to the output color slot if different.
+                        if let (Some(src), Some(&dest)) = (cg.last_color_slot, cg.color_vars.get(out_name.as_str())) {
+                            if src != dest {
+                                cg.emit_color_copy(src, dest);
+                            }
+                        }
+                    } else if let Some(&(var, _)) = cg.variables.get(out_name.as_str()) {
                         let coerced = match out_type {
                             DslType::Int => cg.builder.ins().fcvt_to_sint_sat(types::I64, tail_val),
                             _ => {
-                                // Ensure f64
                                 let val_type = cg.builder.func.dfg.value_type(tail_val);
                                 if val_type == types::I64 {
                                     cg.builder.ins().fcvt_from_sint(types::F64, tail_val)
@@ -189,12 +220,18 @@ impl DslCompiler {
                     }
                 }
 
-                // Write all output variables back to ctx.slots[n_inputs..]
-                for (i, (out_name, out_type)) in outputs.iter().enumerate() {
+                // Write all non-Color output variables back to ctx.slots[]
+                // (Color outputs are already written directly to slots by the codegen.)
+                let mut out_slot = input_slot_count;
+                for (out_name, out_type) in outputs.iter() {
+                    if *out_type == DslType::Color {
+                        out_slot += 4;
+                        continue;
+                    }
                     if let Some(&(var, _)) = cg.variables.get(out_name.as_str()) {
                         let val = cg.builder.use_var(var);
                         let out_offset = std::mem::offset_of!(DslContext, slots)
-                            + (inputs.len() + i) * 8;
+                            + out_slot * 8;
                         let f64_val = match out_type {
                             DslType::Int => cg.builder.ins().fcvt_from_sint(types::F64, val),
                             DslType::Bool => {
@@ -210,6 +247,7 @@ impl DslCompiler {
                             out_offset as i32,
                         );
                     }
+                    out_slot += 1;
                 }
 
                 // Return value (for compatibility, return 0)
@@ -271,6 +309,9 @@ impl DslCompiler {
                     module: &mut self.module,
                     ctx_ptr,
                     variables: HashMap::new(),
+                    color_vars: HashMap::new(),
+                    next_color_slot: 0,
+                    last_color_slot: None,
                     runtime_funcs: &mut self.runtime_funcs,
                     type_table,
                 };
@@ -323,30 +364,43 @@ impl DslCompiler {
             let ctx_ptr = builder.block_params(entry_block)[0];
 
             {
+                let param_slot_count: usize = func_def.params.iter()
+                    .map(|p| slots_for_type(p.param_type)).sum();
+
                 let mut cg = CodegenCtx {
                     builder: &mut builder,
                     module: &mut self.module,
                     ctx_ptr,
                     variables: HashMap::new(),
+                    color_vars: HashMap::new(),
+                    next_color_slot: param_slot_count as u32,
+                    last_color_slot: None,
                     runtime_funcs: &mut self.runtime_funcs,
                     type_table,
                 };
 
                 // Load function params from ctx.slots[]
-                for (i, param) in func_def.params.iter().enumerate() {
-                    let offset = std::mem::offset_of!(DslContext, slots) + i * 8;
-                    let val = cg.builder.ins().load(
-                        types::F64,
-                        cranelift_codegen::ir::MemFlags::trusted(),
-                        ctx_ptr,
-                        offset as i32,
-                    );
-                    let var = cg.declare_variable(&param.name, param.param_type);
-                    let typed_val = match param.param_type {
-                        DslType::Int => cg.builder.ins().fcvt_to_sint_sat(types::I64, val),
-                        _ => val,
-                    };
-                    cg.builder.def_var(var, typed_val);
+                let mut param_slot_idx = 0usize;
+                for param in func_def.params.iter() {
+                    if param.param_type == DslType::Color {
+                        cg.color_vars.insert(param.name.clone(), param_slot_idx as u32);
+                        param_slot_idx += 4;
+                    } else {
+                        let offset = std::mem::offset_of!(DslContext, slots) + param_slot_idx * 8;
+                        let val = cg.builder.ins().load(
+                            types::F64,
+                            cranelift_codegen::ir::MemFlags::trusted(),
+                            ctx_ptr,
+                            offset as i32,
+                        );
+                        let var = cg.declare_variable(&param.name, param.param_type);
+                        let typed_val = match param.param_type {
+                            DslType::Int => cg.builder.ins().fcvt_to_sint_sat(types::I64, val),
+                            _ => val,
+                        };
+                        cg.builder.def_var(var, typed_val);
+                        param_slot_idx += 1;
+                    }
                 }
 
                 let result = cg.emit_block(&func_def.body)?;
@@ -379,7 +433,16 @@ struct CodegenCtx<'a, 'b> {
     builder: &'a mut FunctionBuilder<'b>,
     module: &'a mut JITModule,
     ctx_ptr: cranelift_codegen::ir::Value,
+    /// Scalar/Int/Bool variables: mapped to Cranelift Variables.
     variables: HashMap<String, (Variable, DslType)>,
+    /// Color variables: mapped to slot indices in DslContext.slots[].
+    /// A Color occupies 4 consecutive f64 slots starting at this index.
+    color_vars: HashMap<String, u32>,
+    /// Next available slot index for Color temporaries in DslContext.slots[].
+    next_color_slot: u32,
+    /// Slot index where the last Color expression result was written.
+    /// Used as a side-channel since Color values don't fit in a single SSA value.
+    last_color_slot: Option<u32>,
     runtime_funcs: &'a mut HashMap<String, FuncId>,
     type_table: &'a [DslType],
 }
@@ -389,6 +452,67 @@ impl CodegenCtx<'_, '_> {
         let var = self.builder.declare_var(dsl_type_to_cl(ty));
         self.variables.insert(name.to_string(), (var, ty));
         var
+    }
+
+    /// Allocate 4 consecutive temporary slots for a Color value.
+    fn alloc_color_temp(&mut self) -> u32 {
+        let slot = self.next_color_slot;
+        self.next_color_slot += 4;
+        slot
+    }
+
+    /// Declare a Color variable backed by context slots.
+    fn declare_color_variable(&mut self, name: &str) -> u32 {
+        let slot = self.alloc_color_temp();
+        self.color_vars.insert(name.to_string(), slot);
+        slot
+    }
+
+    /// Emit a call to vf_color_copy(slots_ptr, src_slot, dest_slot).
+    fn emit_color_copy(&mut self, src_slot: u32, dest_slot: u32) {
+        let slots_ptr = self.slots_ptr();
+        let src_val = self.builder.ins().iconst(types::I32, src_slot as i64);
+        let dest_val = self.builder.ins().iconst(types::I32, dest_slot as i64);
+        let ptr_type = self.builder.func.dfg.value_type(self.ctx_ptr);
+        let func_ref = self.lookup_runtime_func_raw(
+            "vf_color_copy",
+            &[ptr_type, types::I32, types::I32],
+            None,
+        ).unwrap();
+        self.builder.ins().call(func_ref, &[slots_ptr, src_val, dest_val]);
+    }
+
+    /// Get a pointer to ctx.slots (ctx_ptr + offset_of(slots)).
+    fn slots_ptr(&mut self) -> cranelift_codegen::ir::Value {
+        let offset = std::mem::offset_of!(DslContext, slots) as i64;
+        self.builder.ins().iadd_imm(self.ctx_ptr, offset)
+    }
+
+    /// Lookup a runtime function with optional return type (None = void).
+    fn lookup_runtime_func_raw(
+        &mut self,
+        symbol: &str,
+        param_types: &[cranelift_codegen::ir::Type],
+        ret_type: Option<cranelift_codegen::ir::Type>,
+    ) -> Result<cranelift_codegen::ir::FuncRef, DslError> {
+        let func_id = if let Some(&id) = self.runtime_funcs.get(symbol) {
+            id
+        } else {
+            let mut sig = self.module.make_signature();
+            sig.call_conv = CallConv::SystemV;
+            for &pt in param_types {
+                sig.params.push(AbiParam::new(pt));
+            }
+            if let Some(rt) = ret_type {
+                sig.returns.push(AbiParam::new(rt));
+            }
+            let id = self.module
+                .declare_function(symbol, Linkage::Import, &sig)
+                .map_err(|e| DslError::codegen(e.to_string()))?;
+            self.runtime_funcs.insert(symbol.to_string(), id);
+            id
+        };
+        Ok(self.module.declare_func_in_func(func_id, self.builder.func))
     }
 
     fn lookup_runtime_func(
@@ -500,7 +624,12 @@ impl CodegenCtx<'_, '_> {
             "TAU" => Ok(self.builder.ins().f64const(std::f64::consts::TAU)),
             "E" => Ok(self.builder.ins().f64const(std::f64::consts::E)),
             _ => {
-                if let Some(&(var, _ty)) = self.variables.get(name) {
+                // Check Color variables first
+                if let Some(&slot) = self.color_vars.get(name) {
+                    self.last_color_slot = Some(slot);
+                    // Return a dummy f64 — the actual color data is in slots.
+                    Ok(self.builder.ins().f64const(0.0))
+                } else if let Some(&(var, _ty)) = self.variables.get(name) {
                     Ok(self.builder.use_var(var))
                 } else {
                     Err(DslError::codegen(format!(
@@ -594,6 +723,22 @@ impl CodegenCtx<'_, '_> {
         name: &str,
         args: &[Spanned<Expr>],
     ) -> Result<cranelift_codegen::ir::Value, DslError> {
+        // ---- Color construction functions: (scalar args) -> Color in slots ----
+        if matches!(name, "hsl" | "hsla" | "rgb" | "rgba") {
+            return self.emit_color_constructor(name, args);
+        }
+
+        // ---- Color component extractors: (Color) -> Scalar ----
+        if matches!(name, "color_r" | "color_g" | "color_b" | "color_a"
+                       | "color_hue" | "color_sat" | "color_light") {
+            return self.emit_color_extractor(name, args);
+        }
+
+        // ---- Color modification: (Color, Scalar) -> Color in slots ----
+        if matches!(name, "set_lightness" | "set_saturation" | "set_hue" | "set_alpha_color") {
+            return self.emit_color_modifier(name, args);
+        }
+
         let (param_cl_types, ret_cl_type) = match name {
             "iabs" => (vec![types::I64], types::I64),
             "imin" | "imax" => (vec![types::I64, types::I64], types::I64),
@@ -619,6 +764,119 @@ impl CodegenCtx<'_, '_> {
         let func_ref = self.lookup_runtime_func(name, &param_cl_types, ret_cl_type)?;
         let call = self.builder.ins().call(func_ref, &arg_values);
         Ok(self.builder.inst_results(call)[0])
+    }
+
+    // -----------------------------------------------------------------
+    // Color codegen helpers
+    // -----------------------------------------------------------------
+
+    /// Emit a Color construction call: hsl/hsla/rgb/rgba.
+    /// The runtime function writes 4 f64 values to dest slots.
+    fn emit_color_constructor(
+        &mut self,
+        name: &str,
+        args: &[Spanned<Expr>],
+    ) -> Result<cranelift_codegen::ir::Value, DslError> {
+        // Evaluate scalar args
+        let mut arg_values = Vec::with_capacity(args.len());
+        for arg in args {
+            let mut v = self.emit_expr(arg)?;
+            if self.expr_type(arg.id) == DslType::Int {
+                v = self.builder.ins().fcvt_from_sint(types::F64, v);
+            }
+            arg_values.push(v);
+        }
+
+        let dest_slot = self.alloc_color_temp();
+        let slots_ptr = self.slots_ptr();
+        let dest_val = self.builder.ins().iconst(types::I32, dest_slot as i64);
+
+        let ptr_type = self.builder.func.dfg.value_type(self.ctx_ptr);
+        let symbol = format!("vf_{name}");
+
+        // Build param types: ptr, f64s..., i32 (dest_slot)
+        let mut param_types = vec![ptr_type];
+        param_types.extend(std::iter::repeat_n(types::F64, arg_values.len()));
+        param_types.push(types::I32);
+
+        let func_ref = self.lookup_runtime_func_raw(&symbol, &param_types, None)?;
+
+        let mut call_args = vec![slots_ptr];
+        call_args.extend_from_slice(&arg_values);
+        call_args.push(dest_val);
+
+        self.builder.ins().call(func_ref, &call_args);
+
+        self.last_color_slot = Some(dest_slot);
+        // Return dummy f64 — actual color is in slots
+        Ok(self.builder.ins().f64const(0.0))
+    }
+
+    /// Emit a Color component extractor: color_r/g/b/a/hue/sat/light.
+    /// The first arg must be a Color (resolved to a slot index via last_color_slot).
+    fn emit_color_extractor(
+        &mut self,
+        name: &str,
+        args: &[Spanned<Expr>],
+    ) -> Result<cranelift_codegen::ir::Value, DslError> {
+        // Evaluate the Color arg — this sets last_color_slot
+        self.emit_expr(&args[0])?;
+        let src_slot = self.last_color_slot.ok_or_else(|| {
+            DslError::codegen(format!("{name}(): Color argument did not resolve to a slot"))
+        })?;
+
+        let slots_ptr = self.slots_ptr();
+        let src_val = self.builder.ins().iconst(types::I32, src_slot as i64);
+
+        let ptr_type = self.builder.func.dfg.value_type(self.ctx_ptr);
+        let symbol = format!("vf_{name}");
+        let func_ref = self.lookup_runtime_func_raw(
+            &symbol,
+            &[ptr_type, types::I32],
+            Some(types::F64),
+        )?;
+
+        let call = self.builder.ins().call(func_ref, &[slots_ptr, src_val]);
+        self.last_color_slot = None; // Result is a scalar, not a color
+        Ok(self.builder.inst_results(call)[0])
+    }
+
+    /// Emit a Color modifier: set_lightness/set_saturation/set_hue/set_alpha_color.
+    /// Signature: (slots_ptr, src_slot, scalar_val, dest_slot).
+    fn emit_color_modifier(
+        &mut self,
+        name: &str,
+        args: &[Spanned<Expr>],
+    ) -> Result<cranelift_codegen::ir::Value, DslError> {
+        // First arg is Color
+        self.emit_expr(&args[0])?;
+        let src_slot = self.last_color_slot.ok_or_else(|| {
+            DslError::codegen(format!("{name}(): Color argument did not resolve to a slot"))
+        })?;
+
+        // Second arg is Scalar
+        let mut scalar_val = self.emit_expr(&args[1])?;
+        if self.expr_type(args[1].id) == DslType::Int {
+            scalar_val = self.builder.ins().fcvt_from_sint(types::F64, scalar_val);
+        }
+
+        let dest_slot = self.alloc_color_temp();
+        let slots_ptr = self.slots_ptr();
+        let src_val = self.builder.ins().iconst(types::I32, src_slot as i64);
+        let dest_val = self.builder.ins().iconst(types::I32, dest_slot as i64);
+
+        let ptr_type = self.builder.func.dfg.value_type(self.ctx_ptr);
+        let symbol = format!("vf_{name}");
+        let func_ref = self.lookup_runtime_func_raw(
+            &symbol,
+            &[ptr_type, types::I32, types::F64, types::I32],
+            None,
+        )?;
+
+        self.builder.ins().call(func_ref, &[slots_ptr, src_val, scalar_val, dest_val]);
+
+        self.last_color_slot = Some(dest_slot);
+        Ok(self.builder.ins().f64const(0.0))
     }
 
     fn emit_cast(
@@ -701,26 +959,45 @@ impl CodegenCtx<'_, '_> {
     fn emit_statement(&mut self, stmt: &Spanned<Statement>) -> Result<(), DslError> {
         match &stmt.node {
             Statement::Let { name, type_annotation, value } => {
-                let val = self.emit_expr(value)?;
                 let ty = type_annotation.unwrap_or_else(|| self.expr_type(value.id));
-                let var = self.declare_variable(name, ty);
 
-                if ty == DslType::Scalar && self.expr_type(value.id) == DslType::Int {
-                    let converted = self.builder.ins().fcvt_from_sint(types::F64, val);
-                    self.builder.def_var(var, converted);
-                } else if ty == DslType::Int && self.expr_type(value.id) == DslType::Scalar {
-                    let converted = self.builder.ins().fcvt_to_sint_sat(types::I64, val);
-                    self.builder.def_var(var, converted);
+                if ty == DslType::Color {
+                    // Evaluate the Color expression (sets last_color_slot)
+                    self.emit_expr(value)?;
+                    let src = self.last_color_slot.unwrap_or(0);
+                    let dest = self.declare_color_variable(name);
+                    if src != dest {
+                        self.emit_color_copy(src, dest);
+                    }
                 } else {
-                    self.builder.def_var(var, val);
+                    let val = self.emit_expr(value)?;
+                    let var = self.declare_variable(name, ty);
+
+                    if ty == DslType::Scalar && self.expr_type(value.id) == DslType::Int {
+                        let converted = self.builder.ins().fcvt_from_sint(types::F64, val);
+                        self.builder.def_var(var, converted);
+                    } else if ty == DslType::Int && self.expr_type(value.id) == DslType::Scalar {
+                        let converted = self.builder.ins().fcvt_to_sint_sat(types::I64, val);
+                        self.builder.def_var(var, converted);
+                    } else {
+                        self.builder.def_var(var, val);
+                    }
                 }
             }
 
             Statement::Assign { target, value } => {
-                let val = self.emit_expr(value)?;
                 match target {
                     AssignTarget::Variable(name) => {
-                        if let Some(&(var, var_ty)) = self.variables.get(name.as_str()) {
+                        // Check if it's a Color variable
+                        if let Some(&dest_slot) = self.color_vars.get(name.as_str()) {
+                            // Evaluate Color expression (sets last_color_slot)
+                            self.emit_expr(value)?;
+                            let src = self.last_color_slot.unwrap_or(0);
+                            if src != dest_slot {
+                                self.emit_color_copy(src, dest_slot);
+                            }
+                        } else if let Some(&(var, var_ty)) = self.variables.get(name.as_str()) {
+                            let val = self.emit_expr(value)?;
                             let converted = if var_ty == DslType::Scalar && self.expr_type(value.id) == DslType::Int {
                                 self.builder.ins().fcvt_from_sint(types::F64, val)
                             } else {
@@ -877,6 +1154,14 @@ impl CodegenCtx<'_, '_> {
         } else {
             val
         }
+    }
+}
+
+/// How many f64 slots a type occupies in DslContext.
+fn slots_for_type(ty: DslType) -> usize {
+    match ty {
+        DslType::Color => 4,
+        _ => 1,
     }
 }
 
@@ -1138,5 +1423,192 @@ mod tests {
         let result = unsafe { func(&mut ctx) };
         // Returns 0.0 since no outputs, but shouldn't crash
         assert!((result - 0.0).abs() < 1e-10);
+    }
+
+    // ---------------------------------------------------------------
+    // Color codegen tests
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn codegen_color_rgb_constructor() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![];
+        let outputs = vec![("c".to_string(), DslType::Color)];
+        let ptr = compiler.compile_node_script(
+            "c = rgb(1.0, 0.5, 0.25);",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = EvalContext::default();
+        let mut ctx = DslContext::new(&tc);
+        unsafe { func(&mut ctx) };
+
+        // Output Color at slots[0..4]
+        assert!((ctx.slots[0] - 1.0).abs() < 1e-10, "r: expected 1.0, got {}", ctx.slots[0]);
+        assert!((ctx.slots[1] - 0.5).abs() < 1e-10, "g: expected 0.5, got {}", ctx.slots[1]);
+        assert!((ctx.slots[2] - 0.25).abs() < 1e-10, "b: expected 0.25, got {}", ctx.slots[2]);
+        assert!((ctx.slots[3] - 1.0).abs() < 1e-10, "a: expected 1.0, got {}", ctx.slots[3]);
+    }
+
+    #[test]
+    fn codegen_color_hsl_constructor() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![];
+        let outputs = vec![("c".to_string(), DslType::Color)];
+        let ptr = compiler.compile_node_script(
+            "c = hsl(0.0, 100.0, 50.0);",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = EvalContext::default();
+        let mut ctx = DslContext::new(&tc);
+        unsafe { func(&mut ctx) };
+
+        // Pure red: hsl(0, 100%, 50%) = rgb(1, 0, 0)
+        assert!((ctx.slots[0] - 1.0).abs() < 1e-4, "r: expected 1.0, got {}", ctx.slots[0]);
+        assert!(ctx.slots[1].abs() < 1e-4, "g: expected 0.0, got {}", ctx.slots[1]);
+        assert!(ctx.slots[2].abs() < 1e-4, "b: expected 0.0, got {}", ctx.slots[2]);
+        assert!((ctx.slots[3] - 1.0).abs() < 1e-10, "a: expected 1.0, got {}", ctx.slots[3]);
+    }
+
+    #[test]
+    fn codegen_color_extractor() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![];
+        let outputs = vec![
+            ("r_val".to_string(), DslType::Scalar),
+            ("g_val".to_string(), DslType::Scalar),
+        ];
+        let ptr = compiler.compile_node_script(
+            "let c: Color = rgb(0.8, 0.6, 0.4);\nr_val = color_r(c);\ng_val = color_g(c);",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = EvalContext::default();
+        let mut ctx = DslContext::new(&tc);
+        unsafe { func(&mut ctx) };
+
+        // Outputs at slots[0] and slots[1] (no inputs, 2 scalar outputs)
+        assert!((ctx.slots[0] - 0.8).abs() < 1e-10, "r_val: expected 0.8, got {}", ctx.slots[0]);
+        assert!((ctx.slots[1] - 0.6).abs() < 1e-10, "g_val: expected 0.6, got {}", ctx.slots[1]);
+    }
+
+    #[test]
+    fn codegen_color_let_and_assign() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![];
+        let outputs = vec![("result".to_string(), DslType::Color)];
+        let ptr = compiler.compile_node_script(
+            "let c: Color = rgb(0.1, 0.2, 0.3);\nresult = c;",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = EvalContext::default();
+        let mut ctx = DslContext::new(&tc);
+        unsafe { func(&mut ctx) };
+
+        assert!((ctx.slots[0] - 0.1).abs() < 1e-10, "r: got {}", ctx.slots[0]);
+        assert!((ctx.slots[1] - 0.2).abs() < 1e-10, "g: got {}", ctx.slots[1]);
+        assert!((ctx.slots[2] - 0.3).abs() < 1e-10, "b: got {}", ctx.slots[2]);
+        assert!((ctx.slots[3] - 1.0).abs() < 1e-10, "a: got {}", ctx.slots[3]);
+    }
+
+    #[test]
+    fn codegen_color_set_alpha() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![];
+        let outputs = vec![("result".to_string(), DslType::Color)];
+        let ptr = compiler.compile_node_script(
+            "result = set_alpha_color(rgb(1.0, 0.0, 0.0), 0.5);",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = EvalContext::default();
+        let mut ctx = DslContext::new(&tc);
+        unsafe { func(&mut ctx) };
+
+        assert!((ctx.slots[0] - 1.0).abs() < 1e-10, "r: got {}", ctx.slots[0]);
+        assert!(ctx.slots[1].abs() < 1e-10, "g: got {}", ctx.slots[1]);
+        assert!(ctx.slots[2].abs() < 1e-10, "b: got {}", ctx.slots[2]);
+        assert!((ctx.slots[3] - 0.5).abs() < 1e-10, "a: expected 0.5, got {}", ctx.slots[3]);
+    }
+
+    #[test]
+    fn codegen_color_rgba_constructor() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![];
+        let outputs = vec![("c".to_string(), DslType::Color)];
+        let ptr = compiler.compile_node_script(
+            "c = rgba(0.2, 0.4, 0.6, 0.8);",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = EvalContext::default();
+        let mut ctx = DslContext::new(&tc);
+        unsafe { func(&mut ctx) };
+
+        assert!((ctx.slots[0] - 0.2).abs() < 1e-10, "r: got {}", ctx.slots[0]);
+        assert!((ctx.slots[1] - 0.4).abs() < 1e-10, "g: got {}", ctx.slots[1]);
+        assert!((ctx.slots[2] - 0.6).abs() < 1e-10, "b: got {}", ctx.slots[2]);
+        assert!((ctx.slots[3] - 0.8).abs() < 1e-10, "a: got {}", ctx.slots[3]);
+    }
+
+    #[test]
+    fn codegen_color_input_output() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![("in_color".to_string(), DslType::Color)];
+        let outputs = vec![("brightness".to_string(), DslType::Scalar)];
+        let ptr = compiler.compile_node_script(
+            "brightness = color_r(in_color) * 0.2126 + color_g(in_color) * 0.7152 + color_b(in_color) * 0.0722;",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = EvalContext::default();
+        let mut ctx = DslContext::new(&tc);
+        // Input color at slots[0..4] (white)
+        ctx.slots[0] = 1.0; ctx.slots[1] = 1.0; ctx.slots[2] = 1.0; ctx.slots[3] = 1.0;
+        unsafe { func(&mut ctx) };
+
+        // Output at slots[4] (after 4 color input slots)
+        assert!((ctx.slots[4] - 1.0).abs() < 1e-4, "brightness of white: expected ~1.0, got {}", ctx.slots[4]);
+    }
+
+    #[test]
+    fn codegen_color_hsl_extractors() {
+        let mut compiler = DslCompiler::new().unwrap();
+        let inputs = vec![];
+        let outputs = vec![
+            ("h".to_string(), DslType::Scalar),
+            ("s".to_string(), DslType::Scalar),
+            ("l".to_string(), DslType::Scalar),
+        ];
+        let ptr = compiler.compile_node_script(
+            "let c: Color = hsl(120.0, 100.0, 50.0);\nh = color_hue(c);\ns = color_sat(c);\nl = color_light(c);",
+            &inputs,
+            &outputs,
+        ).unwrap();
+
+        let func: ExprFnPtr = unsafe { std::mem::transmute(ptr) };
+        let tc = EvalContext::default();
+        let mut ctx = DslContext::new(&tc);
+        unsafe { func(&mut ctx) };
+
+        assert!((ctx.slots[0] - 120.0).abs() < 0.5, "hue: expected ~120, got {}", ctx.slots[0]);
+        assert!((ctx.slots[1] - 100.0).abs() < 0.5, "sat: expected ~100, got {}", ctx.slots[1]);
+        assert!((ctx.slots[2] - 50.0).abs() < 0.5, "light: expected ~50, got {}", ctx.slots[2]);
     }
 }

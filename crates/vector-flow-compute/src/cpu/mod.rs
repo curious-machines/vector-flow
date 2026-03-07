@@ -227,18 +227,18 @@ impl ComputeBackend for CpuBackend {
             // ── Styling ─────────────────────────────────────────────
             NodeOp::SetFill => {
                 let shape = get_any(inputs, 0);
-                let color = get_color(inputs, 1);
-                styling::set_fill(&shape, color)
+                let color_data = &inputs.data[1];
+                styling::set_fill(&shape, color_data)
             }
             NodeOp::SetStroke { ref dash_pattern } => {
                 let shape = get_any(inputs, 0);
-                let color = get_color(inputs, 1);
+                let color_data = &inputs.data[1];
                 let width = get_scalar(inputs, 2);
                 let cap = int_to_line_cap(get_int(inputs, 3));
                 let join = int_to_line_join(get_int(inputs, 4), get_scalar(inputs, 5) as f32);
                 let dash_offset = get_scalar(inputs, 6) as f32;
                 let dash_array = parse_dash_pattern(dash_pattern);
-                styling::set_stroke(&shape, color, width, cap, join, dash_array, dash_offset)
+                styling::set_stroke(&shape, color_data, width, cap, join, dash_array, dash_offset)
             }
             NodeOp::StrokeToPath { ref dash_pattern } => {
                 let shape = get_any(inputs, 0);
@@ -300,8 +300,8 @@ impl ComputeBackend for CpuBackend {
             }
             NodeOp::SetAlpha => {
                 let data = get_any(inputs, 0);
-                let alpha = get_scalar(inputs, 1);
-                color_ops::set_alpha(&data, alpha)
+                let alpha_data = &inputs.data[1];
+                color_ops::set_alpha(&data, alpha_data)
             }
             NodeOp::ColorParse { text } => {
                 NodeData::Color(color_ops::color_parse(text))
@@ -383,6 +383,21 @@ impl ComputeBackend for CpuBackend {
                     outputs,
                 )?;
                 // dsl_code writes outputs directly; skip the default assignment below.
+                return Ok(());
+            }
+
+            NodeOp::Map { source, script_inputs, script_outputs } => {
+                let mut compiler = self.dsl_compiler.lock();
+                utility::map_batch(
+                    source,
+                    script_inputs,
+                    script_outputs,
+                    inputs,
+                    &mut compiler,
+                    &self.dsl_cache,
+                    time_ctx,
+                    outputs,
+                )?;
                 return Ok(());
             }
 
@@ -671,7 +686,7 @@ fn parse_dash_pattern(s: &str) -> Vec<f32> {
 mod tests {
     use super::*;
     use vector_flow_core::compute::ResolvedInputs;
-    use vector_flow_core::types::{PathVerb, EvalContext};
+    use vector_flow_core::types::{DataType, PathVerb, EvalContext};
 
     fn time_ctx() -> EvalContext {
         EvalContext::default()
@@ -872,5 +887,191 @@ mod tests {
         assert_eq!(int_to_line_join(0, 4.0), LineJoin::Miter(4.0));
         assert_eq!(int_to_line_join(1, 4.0), LineJoin::Round);
         assert_eq!(int_to_line_join(2, 4.0), LineJoin::Bevel);
+    }
+
+    #[test]
+    fn map_scalars_double() {
+        // Map over [1.0, 2.0, 3.0], doubling each element.
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalars(Arc::new(vec![1.0, 2.0, 3.0])),
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Map {
+                    source: "result = element * 2.0;".into(),
+                    script_inputs: vec![
+                        ("element".into(), DataType::Scalar),
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Scalar)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 3);
+            assert!((v[0] - 2.0).abs() < 1e-10);
+            assert!((v[1] - 4.0).abs() < 1e-10);
+            assert!((v[2] - 6.0).abs() < 1e-10);
+        } else {
+            panic!("expected Scalars output, got {:?}", outputs.data[0]);
+        }
+    }
+
+    #[test]
+    fn map_with_index() {
+        // Map over [10.0, 20.0, 30.0], output = element + index.
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalars(Arc::new(vec![10.0, 20.0, 30.0])),
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Map {
+                    source: "result = element + index;".into(),
+                    script_inputs: vec![
+                        ("element".into(), DataType::Scalar),
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Scalar)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 3);
+            assert!((v[0] - 10.0).abs() < 1e-10); // 10 + 0
+            assert!((v[1] - 21.0).abs() < 1e-10); // 20 + 1
+            assert!((v[2] - 32.0).abs() < 1e-10); // 30 + 2
+        } else {
+            panic!("expected Scalars output");
+        }
+    }
+
+    #[test]
+    fn map_scalars_to_colors() {
+        // Map over indices, producing colors via hsl().
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalars(Arc::new(vec![0.0, 1.0, 2.0])),
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Map {
+                    source: "result = hsl(index * 120.0, 100.0, 50.0);".into(),
+                    script_inputs: vec![
+                        ("element".into(), DataType::Scalar),
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Color)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Colors(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 3);
+            // hsl(0, 100, 50) = red
+            assert!((v[0].r - 1.0).abs() < 0.01, "red r={}", v[0].r);
+            assert!(v[0].g < 0.01, "red g={}", v[0].g);
+            // hsl(120, 100, 50) = green
+            assert!(v[1].r < 0.01, "green r={}", v[1].r);
+            assert!((v[1].g - 1.0).abs() < 0.01, "green g={}", v[1].g);
+            // hsl(240, 100, 50) = blue
+            assert!(v[2].r < 0.01, "blue r={}", v[2].r);
+            assert!((v[2].b - 1.0).abs() < 0.01, "blue b={}", v[2].b);
+        } else {
+            panic!("expected Colors output, got {:?}", outputs.data[0]);
+        }
+    }
+
+    #[test]
+    fn map_empty_batch() {
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalars(Arc::new(vec![])),
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Map {
+                    source: "result = element;".into(),
+                    script_inputs: vec![
+                        ("element".into(), DataType::Scalar),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Scalar)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 0);
+        } else {
+            panic!("expected empty Scalars output");
+        }
+    }
+
+    #[test]
+    fn map_with_extra_input() {
+        // Map with an extra input "offset" connected via graph port 1.
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalars(Arc::new(vec![1.0, 2.0])),
+                NodeData::Scalar(100.0), // extra input: offset
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(
+                &NodeOp::Map {
+                    source: "result = element + offset;".into(),
+                    script_inputs: vec![
+                        ("element".into(), DataType::Scalar),
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                        ("offset".into(), DataType::Scalar),
+                    ],
+                    script_outputs: vec![("result".into(), DataType::Scalar)],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(v)) = &outputs.data[0] {
+            assert_eq!(v.len(), 2);
+            assert!((v[0] - 101.0).abs() < 1e-10);
+            assert!((v[1] - 102.0).abs() < 1e-10);
+        } else {
+            panic!("expected Scalars output");
+        }
     }
 }
