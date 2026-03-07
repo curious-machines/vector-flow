@@ -81,7 +81,8 @@ impl TransportState {
 }
 
 /// Show transport bar. Returns true if time changed.
-pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState) -> bool {
+/// Sets `fps_editing` to true while the FPS widget has keyboard focus.
+pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState, fps_editing: &mut bool) -> bool {
     let mut time_changed = false;
 
     ui.horizontal(|ui| {
@@ -115,9 +116,27 @@ pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState) -> bool {
 
         // Frame / time display.
         ui.label(format!(
-            "Frame: {}  Time: {:.2}s  FPS: {}",
-            state.eval_ctx.frame, state.eval_ctx.time_secs, state.eval_ctx.fps as u32
+            "Frame: {}  Time: {:.2}s",
+            state.eval_ctx.frame, state.eval_ctx.time_secs
         ));
+
+        ui.separator();
+
+        ui.label("FPS:");
+        let mut fps = state.eval_ctx.fps;
+        let response = ui.add(
+            egui::DragValue::new(&mut fps)
+                .range(1.0..=120.0)
+                .speed(0.5)
+        );
+        *fps_editing = response.has_focus();
+        if response.changed() {
+            state.eval_ctx.fps = fps;
+            // Recompute time_secs from current frame at new fps.
+            state.eval_ctx.time_secs = state.eval_ctx.frame as f32 / fps;
+            state.accumulated_time = state.eval_ctx.frame as f64 / fps as f64;
+            time_changed = true;
+        }
     });
 
     time_changed

@@ -21,7 +21,7 @@ use crate::canvas_panel::{self, CameraState};
 use crate::export::{self, ExportState, VideoExportConfig};
 use crate::export_dialog::{self, ImageExportDialog, VideoExportDialog};
 use crate::id_map::IdMap;
-use crate::project::{self, ProjectFile, ViewState, WindowGeometry};
+use crate::project::{self, ProjectFile, ProjectSettings, ViewState, WindowGeometry};
 use crate::properties_panel;
 use crate::transport_panel::{self, TransportState};
 use crate::ui_node::{node_catalog, CatalogEntry, UiNode};
@@ -60,6 +60,8 @@ pub struct VectorFlowApp {
 
     transport: TransportState,
     cam_state: CameraState,
+    project_settings: ProjectSettings,
+    saved_settings: ProjectSettings,
 
     /// Cached eval result from last graph evaluation.
     last_eval: Option<EvalResult>,
@@ -135,6 +137,11 @@ pub struct VectorFlowApp {
     /// Undo/redo history.
     undo: UndoHistory,
 
+    /// True while the FPS DragValue has keyboard focus (suppresses per-keystroke undo entries).
+    fps_editing: bool,
+    /// FPS value captured when editing began, used for undo snapshots during editing.
+    pre_edit_fps: Option<f32>,
+
     /// File path from command-line argument, loaded after window initializes.
     /// Counter: starts at 2, decrements each frame, loads when it hits 0.
     pending_cli_load: Option<(PathBuf, u8)>,
@@ -164,7 +171,7 @@ impl VectorFlowApp {
         let snarl = Snarl::new();
         let saved_node_pos_hash = Self::node_position_hash(&snarl);
 
-        Self {
+        let mut app = Self {
             graph: Graph::new(),
             snarl,
             id_map: IdMap::new(),
@@ -173,6 +180,8 @@ impl VectorFlowApp {
             scheduler,
             transport: TransportState::default(),
             cam_state: CameraState::default(),
+            project_settings: ProjectSettings::default(),
+            saved_settings: ProjectSettings::default(),
             last_eval: None,
             node_errors: HashMap::new(),
             last_eval_gen: u64::MAX,
@@ -199,8 +208,12 @@ impl VectorFlowApp {
             node_rects: HashMap::new(),
             selected_box: None,
             undo: UndoHistory::new(),
+            fps_editing: false,
+            pre_edit_fps: None,
             pending_cli_load: file.map(|f| (f, 2)),
-        }
+        };
+        app.undo.sync_fingerprint(app.state_fingerprint());
+        app
     }
 
     /// Compute a simple hash of all node positions in the snarl.
@@ -218,6 +231,10 @@ impl VectorFlowApp {
     /// Returns `true` if the project has unsaved changes.
     fn is_dirty(&self, ctx: &egui::Context) -> bool {
         if self.graph.generation() != self.saved_gen {
+            return true;
+        }
+        // Check project settings (canvas size, background, fps).
+        if !self.current_settings().approx_eq(&self.saved_settings) {
             return true;
         }
         // Check if any panel width has changed since last save/load.
@@ -252,6 +269,15 @@ impl VectorFlowApp {
             }
         }
         false
+    }
+
+    /// Current project settings with FPS synced from transport.
+    /// While the FPS widget is being edited, returns the pre-edit value
+    /// so undo snapshots capture the original state.
+    fn current_settings(&self) -> ProjectSettings {
+        let mut s = self.project_settings.clone();
+        s.fps = self.pre_edit_fps.unwrap_or(self.transport.eval_ctx.fps);
+        s
     }
 
     /// Build a window title reflecting the current file and dirty state.
@@ -732,13 +758,25 @@ impl VectorFlowApp {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         self.graph.generation().hash(&mut hasher);
         Self::node_position_hash(&self.snarl).hash(&mut hasher);
+        // Include project settings in fingerprint.
+        self.project_settings.canvas_width.hash(&mut hasher);
+        self.project_settings.canvas_height.hash(&mut hasher);
+        // While FPS widget has focus, use the pre-edit value in the fingerprint
+        // so individual keystrokes coalesce into one undo entry.
+        let fps_for_hash = self.pre_edit_fps.unwrap_or(self.transport.eval_ctx.fps);
+        fps_for_hash.to_bits().hash(&mut hasher);
+        if let Some(bg) = self.project_settings.background_color {
+            for c in bg { c.to_bits().hash(&mut hasher); }
+        }
         hasher.finish()
     }
 
-    fn apply_undo_redo_restore(&mut self, graph: Graph, snarl: Snarl<UiNode>, id_map: IdMap) {
+    fn apply_undo_redo_restore(&mut self, graph: Graph, snarl: Snarl<UiNode>, id_map: IdMap, settings: ProjectSettings) {
         self.graph = graph;
         self.snarl = snarl;
         self.id_map = id_map;
+        self.project_settings = settings;
+        self.transport.eval_ctx.fps = self.project_settings.fps;
         self.last_eval_gen = u64::MAX; // force re-eval
         self.last_eval_frame = u64::MAX;
         self.node_rects.clear();
@@ -847,17 +885,21 @@ impl VectorFlowApp {
         };
 
         if let Some(path) = path {
+            // Sync FPS from transport to project settings before saving.
+            self.project_settings.fps = self.transport.eval_ctx.fps;
             let pf = ProjectFile {
                 graph: self.graph.clone(),
                 snarl: self.snarl.clone(),
                 view_state: Some(self.current_view_state(ctx)),
                 window_geometry: Self::current_window_geometry(ctx),
+                settings: self.project_settings.clone(),
             };
             match pf.save(&path) {
                 Ok(()) => {
                     log::info!("Saved project to {}", path.display());
                     self.project_path = Some(path);
                     self.saved_gen = self.graph.generation();
+                    self.saved_settings = self.project_settings.clone();
                     self.saved_panel_widths = Self::current_panel_widths(ctx);
                     self.saved_view_state = Some(self.current_view_state(ctx));
                     self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
@@ -894,10 +936,15 @@ impl VectorFlowApp {
         self.project_path = None;
         self.saved_gen = self.graph.generation();
         self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
+        self.project_settings = ProjectSettings::default();
+        self.saved_settings = self.project_settings.clone();
+        self.image_export_dialog.initialized = false;
+        self.video_export_dialog.initialized = false;
         self.cam_state.do_reset = true;
         self.selected_box = None;
         self.saved_window_geom = None;
         self.undo.clear();
+        self.undo.sync_fingerprint(self.state_fingerprint());
     }
 
     /// Request a new file, prompting for unsaved changes if dirty.
@@ -953,6 +1000,11 @@ impl VectorFlowApp {
             Ok(pf) => {
                 self.graph = pf.graph;
                 self.snarl = pf.snarl;
+                self.project_settings = pf.settings;
+                self.saved_settings = self.project_settings.clone();
+                self.transport.eval_ctx.fps = self.project_settings.fps;
+                self.image_export_dialog.initialized = false;
+                self.video_export_dialog.initialized = false;
                 self.id_map = project::rebuild_id_map(&self.snarl);
                 self.last_eval = None;
                 self.last_eval_gen = u64::MAX;
@@ -973,6 +1025,7 @@ impl VectorFlowApp {
                 self.pending_view_restore = pf.view_state;
 
                 self.undo.clear();
+                self.undo.sync_fingerprint(self.state_fingerprint());
                 log::info!("Loaded project from {}", path.display());
             }
             Err(e) => log::error!("Failed to load: {e}"),
@@ -1007,6 +1060,7 @@ impl VectorFlowApp {
                     width: self.image_export_dialog.width,
                     height: self.image_export_dialog.height,
                     camera: self.image_export_dialog.camera,
+                    background_color: self.project_settings.background_color,
                 };
                 // Ensure we have a scene to export.
                 let empty_scene = PreparedScene {
@@ -1063,6 +1117,7 @@ impl VectorFlowApp {
                         start_frame: d.start_frame,
                         end_frame: d.end_frame,
                         fps: self.transport.eval_ctx.fps,
+                        background_color: self.project_settings.background_color,
                     };
                     self.export_state =
                         export::start_video_export(&render_state.device, config);
@@ -1321,7 +1376,8 @@ impl eframe::App for VectorFlowApp {
         }
 
         // Undo: capture pre-frame snapshot before any mutations.
-        self.undo.begin_frame(&self.graph, &self.snarl);
+        let pre_pos_hash = Self::node_position_hash(&self.snarl);
+        self.undo.begin_frame(&self.graph, &self.snarl, &self.current_settings(), pre_pos_hash);
 
         // Update window title to reflect dirty state.
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(self.window_title(ctx)));
@@ -1346,7 +1402,7 @@ impl eframe::App for VectorFlowApp {
         let (do_save, do_save_as, do_open, do_new, do_close_file, do_duplicate, do_fit_all, do_quit,
          do_export_image, do_undo, do_redo,
          do_align_left, do_align_right, do_align_top, do_align_bottom,
-         do_dist_h, do_dist_v, nudge) = ctx.input_mut(|i| {
+         do_dist_h, do_dist_v, nudge, do_delete) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
                 egui::Key::S,
@@ -1419,9 +1475,14 @@ impl eframe::App for VectorFlowApp {
                 }
             }
 
+            let delete = !text_editing && (
+                i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Delete))
+                || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Backspace))
+            );
+
             (save, save_as, open, new, close_file, duplicate, fit_all, quit,
              export_image, undo, redo,
-             false, false, false, false, false, false, nudge)
+             false, false, false, false, false, false, nudge, delete)
         });
         if do_save {
             self.save_project(ctx);
@@ -1444,13 +1505,13 @@ impl eframe::App for VectorFlowApp {
 
         // Undo / Redo.
         if do_undo {
-            if let Some((graph, snarl, id_map)) = self.undo.undo(&self.graph, &self.snarl) {
-                self.apply_undo_redo_restore(graph, snarl, id_map);
+            if let Some((graph, snarl, id_map, settings)) = self.undo.undo(&self.graph, &self.snarl, &self.current_settings()) {
+                self.apply_undo_redo_restore(graph, snarl, id_map, settings);
             }
         }
         if do_redo {
-            if let Some((graph, snarl, id_map)) = self.undo.redo(&self.graph, &self.snarl) {
-                self.apply_undo_redo_restore(graph, snarl, id_map);
+            if let Some((graph, snarl, id_map, settings)) = self.undo.redo(&self.graph, &self.snarl, &self.current_settings()) {
+                self.apply_undo_redo_restore(graph, snarl, id_map, settings);
             }
         }
 
@@ -1519,11 +1580,20 @@ impl eframe::App for VectorFlowApp {
                     }
                 });
                 ui.menu_button("Edit", |ui| {
-                    if ui.add_enabled(self.undo.can_undo(), egui::Button::new("Undo  Ctrl+Z")).clicked() {
+                    ui.set_min_width(220.0);
+                    let undo_text = match self.undo.undo_label() {
+                        Some(label) => format!("Undo {label}  Ctrl+Z"),
+                        None => "Undo  Ctrl+Z".to_string(),
+                    };
+                    if ui.add_enabled(self.undo.can_undo(), egui::Button::new(undo_text)).clicked() {
                         ui.close_menu();
                         menu_undo = true;
                     }
-                    if ui.add_enabled(self.undo.can_redo(), egui::Button::new("Redo  Ctrl+Shift+Z")).clicked() {
+                    let redo_text = match self.undo.redo_label() {
+                        Some(label) => format!("Redo {label}  Ctrl+Shift+Z"),
+                        None => "Redo  Ctrl+Shift+Z".to_string(),
+                    };
+                    if ui.add_enabled(self.undo.can_redo(), egui::Button::new(redo_text)).clicked() {
                         ui.close_menu();
                         menu_redo = true;
                     }
@@ -1567,7 +1637,15 @@ impl eframe::App for VectorFlowApp {
                 });
             });
             ui.separator();
-            transport_changed = transport_panel::show_transport_bar(ui, &mut self.transport);
+            transport_changed = transport_panel::show_transport_bar(ui, &mut self.transport, &mut self.fps_editing);
+            // Track pre-edit FPS for undo coalescing.
+            if self.fps_editing && self.pre_edit_fps.is_none() {
+                // Editing just started — but fps may already have changed this frame.
+                // Use the value from the undo pre_frame snapshot if available.
+                self.pre_edit_fps = self.undo.pre_frame_fps();
+            } else if !self.fps_editing {
+                self.pre_edit_fps = None;
+            }
         });
         if menu_new {
             self.request_new(ctx);
@@ -1585,19 +1663,29 @@ impl eframe::App for VectorFlowApp {
             self.save_project_as(ctx);
         }
         if menu_undo {
-            if let Some((graph, snarl, id_map)) = self.undo.undo(&self.graph, &self.snarl) {
-                self.apply_undo_redo_restore(graph, snarl, id_map);
+            if let Some((graph, snarl, id_map, settings)) = self.undo.undo(&self.graph, &self.snarl, &self.current_settings()) {
+                self.apply_undo_redo_restore(graph, snarl, id_map, settings);
             }
         }
         if menu_redo {
-            if let Some((graph, snarl, id_map)) = self.undo.redo(&self.graph, &self.snarl) {
-                self.apply_undo_redo_restore(graph, snarl, id_map);
+            if let Some((graph, snarl, id_map, settings)) = self.undo.redo(&self.graph, &self.snarl, &self.current_settings()) {
+                self.apply_undo_redo_restore(graph, snarl, id_map, settings);
             }
         }
         if menu_export_image || do_export_image {
+            if !self.image_export_dialog.initialized {
+                self.image_export_dialog.width = self.project_settings.canvas_width;
+                self.image_export_dialog.height = self.project_settings.canvas_height;
+                self.image_export_dialog.initialized = true;
+            }
             self.image_export_dialog.open = true;
         }
         if menu_export_video {
+            if !self.video_export_dialog.initialized {
+                self.video_export_dialog.width = self.project_settings.canvas_width;
+                self.video_export_dialog.height = self.project_settings.canvas_height;
+                self.video_export_dialog.initialized = true;
+            }
             self.video_export_dialog.open = true;
         }
         if menu_graph_screenshot {
@@ -1835,19 +1923,34 @@ impl eframe::App for VectorFlowApp {
         {
             let inset = canvas_panel::TOOLBAR_INSET * 2.0;
             let mut fit_requested = do_fit_all;
+            let mut reset_view = false;
             if !self.pending_graph_screenshot {
                 egui::Area::new(egui::Id::new("graph_toolbar"))
                     .fixed_pos(egui::pos2(snarl_viewport.left() + inset, snarl_viewport.top() + inset))
                     .order(egui::Order::Foreground)
                     .interactable(true)
                     .show(ctx, |ui| {
-                        if ui.button("Show All").on_hover_text("Fit all nodes in view (F)").clicked() {
-                            fit_requested = true;
-                        }
+                        ui.horizontal(|ui| {
+                            if ui.button("Reset").on_hover_text("Reset zoom to 100% and center on origin").clicked() {
+                                reset_view = true;
+                            }
+                            if ui.button("Show All").on_hover_text("Fit all nodes in view (F)").clicked() {
+                                fit_requested = true;
+                            }
+                        });
                     });
             }
             if fit_requested {
                 self.fit_all(ctx, snarl_viewport);
+            }
+            if reset_view {
+                Snarl::<UiNode>::set_view_state(
+                    NODE_EDITOR_ID,
+                    self.node_editor_ui_id,
+                    ctx,
+                    egui::Vec2::ZERO,
+                    1.0,
+                );
             }
         }
 
@@ -1878,7 +1981,18 @@ impl eframe::App for VectorFlowApp {
             selected_snarl = new_ids;
         }
 
-        // 3c. Align / distribute selected nodes.
+        // 3c. Delete selected nodes on Delete/Backspace.
+        if do_delete && !selected_snarl.is_empty() {
+            for &snarl_id in &selected_snarl {
+                if let Some(core_id) = self.id_map.remove_by_snarl(snarl_id) {
+                    let _ = self.graph.remove_node(core_id);
+                }
+                self.snarl.remove_node(snarl_id);
+            }
+            selected_snarl.clear();
+        }
+
+        // 3e. Align / distribute selected nodes.
         if let Some(mode) = menu_align {
             self.align_nodes(&selected_snarl, mode);
         }
@@ -1889,7 +2003,7 @@ impl eframe::App for VectorFlowApp {
         if menu_dist_h || do_dist_h { self.distribute_nodes(&selected_snarl, true); }
         if menu_dist_v || do_dist_v { self.distribute_nodes(&selected_snarl, false); }
 
-        // 3d. Create Network Box from selection (deferred from viewer action).
+        // 3f. Create Network Box from selection (deferred from viewer action).
         if !viewer_actions.create_box_from.is_empty() {
             // Use current selection if available, otherwise fall back to the right-clicked node.
             let nodes_for_box = if selected_snarl.len() > 1 {
@@ -1908,7 +2022,7 @@ impl eframe::App for VectorFlowApp {
             }
         }
 
-        // 3e. Nudge selected nodes with arrow keys.
+        // 3g. Nudge selected nodes with arrow keys.
         if nudge != egui::Vec2::ZERO && !selected_snarl.is_empty() {
             for &sid in &selected_snarl {
                 if let Some(info) = self.snarl.get_node_info_mut(sid) {
@@ -1942,7 +2056,7 @@ impl eframe::App for VectorFlowApp {
                         .collect();
 
                     props_changed =
-                        properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors);
+                        properties_panel::show_properties_panel(ui, &mut self.graph, &selected_core, &self.node_errors, &mut self.project_settings);
 
                     // Sync portal display names after properties edit.
                     if props_changed {
@@ -1961,11 +2075,24 @@ impl eframe::App for VectorFlowApp {
 
         // 5. Remaining central panel: canvas preview.
         let mut canvas_rect = egui::Rect::NOTHING;
+        let canvas_bg = canvas_panel::CanvasBackground {
+            width: self.project_settings.canvas_width as f32,
+            height: self.project_settings.canvas_height as f32,
+            color: self.project_settings.background_color.map(|c| {
+                egui::Color32::from_rgba_unmultiplied(
+                    (c[0] * 255.0) as u8,
+                    (c[1] * 255.0) as u8,
+                    (c[2] * 255.0) as u8,
+                    (c[3] * 255.0) as u8,
+                )
+            }),
+        };
         egui::CentralPanel::default().show(ctx, |ui| {
             canvas_rect = canvas_panel::show_canvas_panel(
                 ui,
                 self.prepared_scene.take(),
                 &mut self.cam_state,
+                Some(&canvas_bg),
             );
         });
 
@@ -2020,6 +2147,8 @@ impl eframe::App for VectorFlowApp {
         }
 
         // Undo: detect changes and auto-push undo entries.
-        self.undo.end_frame(self.state_fingerprint());
+        let current_settings = self.current_settings();
+        let pos_hash = Self::node_position_hash(&self.snarl);
+        self.undo.end_frame(self.state_fingerprint(), &self.graph, &current_settings, pos_hash);
     }
 }

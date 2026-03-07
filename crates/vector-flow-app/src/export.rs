@@ -29,6 +29,8 @@ pub struct ImageExportConfig {
     pub width: u32,
     pub height: u32,
     pub camera: CameraMode,
+    /// Background clear color. `None` = transparent.
+    pub background_color: Option<[f32; 4]>,
 }
 
 pub struct VideoExportConfig {
@@ -41,6 +43,8 @@ pub struct VideoExportConfig {
     pub start_frame: u64,
     pub end_frame: u64,
     pub fps: f32,
+    /// Background clear color. `None` = transparent.
+    pub background_color: Option<[f32; 4]>,
 }
 
 // ---------------------------------------------------------------------------
@@ -83,7 +87,7 @@ pub fn export_canvas_image(
     };
 
     let mut renderer = OffscreenRenderer::new(device, config.width, config.height);
-    let (pixels, _, _) = renderer.render_scene(device, queue, scene, &camera_mode);
+    let (pixels, _, _) = renderer.render_scene_with_bg(device, queue, scene, &camera_mode, config.background_color);
 
     save_png(&config.path, config.width, config.height, &pixels)
 }
@@ -207,7 +211,7 @@ pub fn export_video_frame(
         }
     };
 
-    let (pixels, used_center, used_zoom) = renderer.render_scene(device, queue, scene, &camera_mode);
+    let (pixels, used_center, used_zoom) = renderer.render_scene_with_bg(device, queue, scene, &camera_mode, config.background_color);
 
     // Lock camera on first FitToContent frame so all subsequent frames use the same view.
     if config.camera == CameraMode::FitToContent && locked_camera.is_none() {

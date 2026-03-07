@@ -40,12 +40,21 @@ impl Default for CameraState {
 /// Inset from the content area edge for overlay toolbar buttons.
 pub const TOOLBAR_INSET: f32 = 8.0;
 
+/// Canvas dimensions and background color for drawing the project canvas rect.
+pub struct CanvasBackground {
+    pub width: f32,
+    pub height: f32,
+    /// Background color. `None` = transparent (no rect drawn).
+    pub color: Option<egui::Color32>,
+}
+
 /// Show the canvas preview panel. Returns the screen-space rect of the canvas
 /// so the caller can overlay toolbar buttons.
 pub fn show_canvas_panel(
     ui: &mut Ui,
     scene: Option<PreparedScene>,
     cam_state: &mut CameraState,
+    background: Option<&CanvasBackground>,
 ) -> egui::Rect {
     // Update content bounds from the scene we're about to render.
     if let Some(ref s) = scene {
@@ -74,6 +83,38 @@ pub fn show_canvas_panel(
             if let Some(pos) = ui.input(|i| i.pointer.hover_pos()) {
                 let local = pos - rect.left_top();
                 cam_state.zoom_pos = Vec2::new(local.x, local.y);
+            }
+        }
+    }
+
+    // Draw project canvas background rect (world-space → screen-space).
+    if let Some(bg) = background {
+        if let Some(color) = bg.color {
+            let half_w = bg.width / 2.0;
+            let half_h = bg.height / 2.0;
+            let zoom = cam_state.current_zoom;
+            let center = cam_state.current_center;
+            let vp_center = rect.center();
+
+            // World to screen:
+            //   screen_x = (world_x - cam_center_x) * zoom + viewport_center_x
+            //   screen_y = -(world_y - cam_center_y) * zoom + viewport_center_y  (Y-flip)
+            // Canvas top-left in world: (-half_w, +half_h)
+            // Canvas bottom-right in world: (+half_w, -half_h)
+            let screen_min = egui::pos2(
+                (-half_w - center.x) * zoom + vp_center.x,
+                -(half_h - center.y) * zoom + vp_center.y,
+            );
+            let screen_max = egui::pos2(
+                (half_w - center.x) * zoom + vp_center.x,
+                -(-half_h - center.y) * zoom + vp_center.y,
+            );
+
+            let canvas_screen_rect = egui::Rect::from_min_max(screen_min, screen_max)
+                .intersect(rect);
+
+            if !canvas_screen_rect.is_negative() {
+                ui.painter().rect_filled(canvas_screen_rect, 0.0, color);
             }
         }
     }

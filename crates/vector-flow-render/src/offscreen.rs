@@ -89,6 +89,19 @@ impl OffscreenRenderer {
         scene: &PreparedScene,
         camera_mode: &ExportCamera,
     ) -> (Vec<u8>, Vec2, f32) {
+        self.render_scene_with_bg(device, queue, scene, camera_mode, None)
+    }
+
+    /// Render a scene with an optional background clear color.
+    /// `clear_color`: `None` = transparent black (0,0,0,0).
+    pub fn render_scene_with_bg(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        scene: &PreparedScene,
+        camera_mode: &ExportCamera,
+        clear_color: Option<[f32; 4]>,
+    ) -> (Vec<u8>, Vec2, f32) {
         // Configure camera.
         let mut camera = Camera::new(Vec2::new(self.width as f32, self.height as f32));
         match camera_mode {
@@ -121,11 +134,19 @@ impl OffscreenRenderer {
                     view: &self.msaa_texture_view,
                     resolve_target: Some(&self.texture_view),
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
+                        load: wgpu::LoadOp::Clear(match clear_color {
+                            Some(c) => wgpu::Color {
+                                r: c[0] as f64,
+                                g: c[1] as f64,
+                                b: c[2] as f64,
+                                a: c[3] as f64,
+                            },
+                            None => wgpu::Color {
+                                r: 0.0,
+                                g: 0.0,
+                                b: 0.0,
+                                a: 0.0,
+                            },
                         }),
                         store: wgpu::StoreOp::Store,
                     },

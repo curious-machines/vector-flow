@@ -16,6 +16,8 @@ pub struct ImageExportDialog {
     pub path: PathBuf,
     pub last_error: Option<String>,
     pub last_success: Option<String>,
+    /// Whether dimensions have been initialized from project settings.
+    pub initialized: bool,
 }
 
 impl Default for ImageExportDialog {
@@ -28,6 +30,7 @@ impl Default for ImageExportDialog {
             path: PathBuf::from("export.png"),
             last_error: None,
             last_success: None,
+            initialized: false,
         }
     }
 }
@@ -48,6 +51,8 @@ pub struct VideoExportDialog {
     pub end_frame: u64,
     pub last_error: Option<String>,
     pub last_success: Option<String>,
+    /// Whether dimensions have been initialized from project settings.
+    pub initialized: bool,
 }
 
 impl Default for VideoExportDialog {
@@ -64,6 +69,7 @@ impl Default for VideoExportDialog {
             end_frame: 100,
             last_error: None,
             last_success: None,
+            initialized: false,
         }
     }
 }

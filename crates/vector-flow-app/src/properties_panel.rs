@@ -6,6 +6,7 @@ use vector_flow_core::graph::Graph;
 use vector_flow_core::node::{NodeOp, ParamValue, PortDef, PortIndex};
 use vector_flow_core::types::{DataType, NodeId as CoreNodeId};
 
+use crate::project::ProjectSettings;
 use crate::ui_node::node_op_label;
 
 /// DataTypes available for DSL script ports.
@@ -22,12 +23,13 @@ pub fn show_properties_panel(
     graph: &mut Graph,
     selected_core_ids: &[CoreNodeId],
     node_errors: &HashMap<CoreNodeId, String>,
+    project_settings: &mut ProjectSettings,
 ) -> bool {
     let mut changed = false;
 
     match selected_core_ids.len() {
         0 => {
-            ui.label("No selection");
+            show_project_settings(ui, project_settings);
         }
         1 => {
             let core_id = selected_core_ids[0];
@@ -39,6 +41,60 @@ pub fn show_properties_panel(
     }
 
     changed
+}
+
+fn show_project_settings(ui: &mut Ui, settings: &mut ProjectSettings) {
+    ui.heading("Project Settings");
+    ui.add_space(4.0);
+
+    egui::Grid::new("project_settings_grid")
+        .num_columns(2)
+        .spacing([8.0, 4.0])
+        .show(ui, |ui| {
+            ui.label("Canvas Width:");
+            let mut w = settings.canvas_width as i64;
+            if ui.add(egui::DragValue::new(&mut w).range(1..=8192)).changed() {
+                settings.canvas_width = w.max(1) as u32;
+            }
+            ui.end_row();
+
+            ui.label("Canvas Height:");
+            let mut h = settings.canvas_height as i64;
+            if ui.add(egui::DragValue::new(&mut h).range(1..=8192)).changed() {
+                settings.canvas_height = h.max(1) as u32;
+            }
+            ui.end_row();
+
+            ui.label("Background:");
+            ui.horizontal(|ui| {
+                let has_color = settings.background_color.is_some();
+                let mut use_color = has_color;
+                if ui.checkbox(&mut use_color, "").changed() {
+                    if use_color {
+                        settings.background_color = Some([1.0, 1.0, 1.0, 1.0]);
+                    } else {
+                        settings.background_color = None;
+                    }
+                }
+                if let Some(ref mut color) = settings.background_color {
+                    let mut rgba = egui::Color32::from_rgba_unmultiplied(
+                        (color[0] * 255.0) as u8,
+                        (color[1] * 255.0) as u8,
+                        (color[2] * 255.0) as u8,
+                        (color[3] * 255.0) as u8,
+                    );
+                    if ui.color_edit_button_srgba(&mut rgba).changed() {
+                        color[0] = rgba.r() as f32 / 255.0;
+                        color[1] = rgba.g() as f32 / 255.0;
+                        color[2] = rgba.b() as f32 / 255.0;
+                        color[3] = rgba.a() as f32 / 255.0;
+                    }
+                } else {
+                    ui.label("None (transparent)");
+                }
+            });
+            ui.end_row();
+        });
 }
 
 fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, node_errors: &HashMap<CoreNodeId, String>) -> bool {

@@ -61,6 +61,53 @@ fn default_scale() -> f32 {
     1.0
 }
 
+fn default_canvas_width() -> u32 {
+    640
+}
+
+fn default_canvas_height() -> u32 {
+    480
+}
+
+fn default_fps() -> f32 {
+    30.0
+}
+
+/// Project-level settings: canvas dimensions and background color.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectSettings {
+    #[serde(default = "default_canvas_width")]
+    pub canvas_width: u32,
+    #[serde(default = "default_canvas_height")]
+    pub canvas_height: u32,
+    /// Background color as \[r, g, b, a\] in 0..1 range. `None` = transparent.
+    #[serde(default)]
+    pub background_color: Option<[f32; 4]>,
+    #[serde(default = "default_fps")]
+    pub fps: f32,
+}
+
+impl ProjectSettings {
+    /// Approximate equality for dirty tracking.
+    pub fn approx_eq(&self, other: &Self) -> bool {
+        self.canvas_width == other.canvas_width
+            && self.canvas_height == other.canvas_height
+            && self.background_color == other.background_color
+            && (self.fps - other.fps).abs() < 0.01
+    }
+}
+
+impl Default for ProjectSettings {
+    fn default() -> Self {
+        Self {
+            canvas_width: 640,
+            canvas_height: 480,
+            background_color: Some([40.0 / 255.0, 40.0 / 255.0, 40.0 / 255.0, 1.0]),
+            fps: 30.0,
+        }
+    }
+}
+
 impl ViewState {
     /// Approximate equality check for dirty tracking (tolerates small float drift).
     pub fn approx_eq(&self, other: &Self) -> bool {
@@ -83,6 +130,8 @@ pub struct ProjectFile {
     pub view_state: Option<ViewState>,
     #[serde(default)]
     pub window_geometry: Option<WindowGeometry>,
+    #[serde(default)]
+    pub settings: ProjectSettings,
 }
 
 impl ProjectFile {
