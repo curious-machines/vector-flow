@@ -1,120 +1,6 @@
 {
   "graph": {
     "nodes": {
-      "8": {
-        "id": 8,
-        "name": "Rectangle",
-        "op": "Rectangle",
-        "inputs": [
-          {
-            "name": "width",
-            "data_type": "Scalar",
-            "description": "Width",
-            "default_value": {
-              "Float": 25.0
-            },
-            "expression": null
-          },
-          {
-            "name": "height",
-            "data_type": "Scalar",
-            "description": "Height",
-            "default_value": {
-              "Float": 25.0
-            },
-            "expression": null
-          },
-          {
-            "name": "center",
-            "data_type": "Vec2",
-            "description": "Center position",
-            "default_value": {
-              "Vec2": [
-                0.0,
-                0.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "path",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -460.90158,
-          -594.50433
-        ],
-        "generation": 6
-      },
-      "19": {
-        "id": 19,
-        "name": "Map",
-        "op": {
-          "Map": {
-            "source": "let l = color_light(base_color);\nlet offset = (rand(index) * 80.0) - 40.0;\nresult = set_lightness(base_color, l + offset);\n",
-            "script_inputs": [
-              [
-                "element",
-                "Scalar"
-              ],
-              [
-                "index",
-                "Int"
-              ],
-              [
-                "count",
-                "Int"
-              ],
-              [
-                "base_color",
-                "Color"
-              ]
-            ],
-            "script_outputs": [
-              [
-                "result",
-                "Color"
-              ]
-            ]
-          }
-        },
-        "inputs": [
-          {
-            "name": "batch",
-            "data_type": "Any",
-            "description": "Batch to iterate over",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "base_color",
-            "data_type": "Color",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "data_type": "Color",
-            "description": "Collected output batch",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          363.46292,
-          -891.8241
-        ],
-        "generation": 52
-      },
       "14": {
         "id": 14,
         "name": "Rotate",
@@ -164,14 +50,14 @@
         ],
         "generation": 0
       },
-      "23": {
-        "id": 23,
+      "4": {
+        "id": 4,
         "name": "Output: output",
         "op": {
           "GraphOutput": {
             "name": "output",
             "data_type": "Any",
-            "order": 0
+            "order": 1
           }
         },
         "inputs": [
@@ -185,41 +71,175 @@
         ],
         "outputs": [],
         "position": [
-          142.56903,
-          329.36047
+          277.98438,
+          -171.90625
         ],
-        "generation": 10
+        "generation": 1
       },
-      "15": {
-        "id": 15,
-        "name": "VFS Code",
-        "op": {
-          "DslCode": {
-            "source": "angle = (time / 10.0) * 360.0;",
-            "script_inputs": [],
-            "script_outputs": [
-              [
-                "angle",
-                "Scalar"
+      "22": {
+        "id": 22,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 200.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
               ]
-            ]
+            },
+            "expression": null
           }
-        },
-        "inputs": [],
+        ],
         "outputs": [
           {
-            "name": "angle",
-            "data_type": "Scalar",
+            "name": "path",
+            "data_type": "Path",
             "description": "",
             "default_value": null,
             "expression": null
           }
         ],
         "position": [
-          -297.03662,
-          -950.2514
+          -153.36119,
+          290.11627
         ],
-        "generation": 42
+        "generation": 3
+      },
+      "26": {
+        "id": 26,
+        "name": "Generate",
+        "op": {
+          "Generate": {
+            "source": "let l = color_light(base_color);\nlet offset = (rand(index) * 80.0) - 40.0;\nresult = set_lightness(base_color, l + offset);\n",
+            "script_inputs": [
+              [
+                "index",
+                "Int"
+              ],
+              [
+                "count",
+                "Int"
+              ],
+              [
+                "base_color",
+                "Color"
+              ]
+            ],
+            "script_outputs": [
+              [
+                "result",
+                "Color"
+              ]
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "start",
+            "data_type": "Int",
+            "description": "Range start (inclusive)",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "end",
+            "data_type": "Int",
+            "description": "Range end (exclusive)",
+            "default_value": {
+              "Int": 10
+            },
+            "expression": null
+          },
+          {
+            "name": "base_color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Color",
+            "description": "Collected output batch",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          119.858284,
+          -543.09595
+        ],
+        "generation": 14
+      },
+      "25": {
+        "id": 25,
+        "name": "Adjust Lightness",
+        "op": "AdjustLightness",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Input color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Lightness adjustment (-1..1)",
+            "default_value": {
+              "Float": 0.42
+            },
+            "expression": null
+          },
+          {
+            "name": "absolute",
+            "data_type": "Bool",
+            "description": "If true, set lightness; if false, shift",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -86.464386,
+          70.094475
+        ],
+        "generation": 266
       },
       "7": {
         "id": 7,
@@ -295,34 +315,43 @@
         ],
         "generation": 5
       },
-      "4": {
-        "id": 4,
-        "name": "Output: output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any",
-            "order": 1
-          }
-        },
+      "16": {
+        "id": 16,
+        "name": "Constant Color",
+        "op": "ConstColor",
         "inputs": [
           {
-            "name": "output",
-            "data_type": "Any",
+            "name": "color",
+            "data_type": "Color",
+            "description": "Color value",
+            "default_value": {
+              "Color": [
+                0.7835378,
+                0.27467713,
+                0.1470273,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Color",
             "description": "",
             "default_value": null,
             "expression": null
           }
         ],
-        "outputs": [],
         "position": [
-          277.98438,
-          -171.90625
+          -504.19693,
+          -465.58865
         ],
-        "generation": 1
+        "generation": 11
       },
-      "21": {
-        "id": 21,
+      "24": {
+        "id": 24,
         "name": "Set Fill",
         "op": "SetFill",
         "inputs": [
@@ -358,8 +387,8 @@
           }
         ],
         "position": [
-          418.15042,
-          -794.51306
+          26.617006,
+          216.6061
         ],
         "generation": 0
       },
@@ -405,61 +434,8 @@
         ],
         "generation": 3
       },
-      "25": {
-        "id": 25,
-        "name": "Adjust Lightness",
-        "op": "AdjustLightness",
-        "inputs": [
-          {
-            "name": "color",
-            "data_type": "Color",
-            "description": "Input color",
-            "default_value": {
-              "Color": [
-                1.0,
-                1.0,
-                1.0,
-                1.0
-              ]
-            },
-            "expression": null
-          },
-          {
-            "name": "amount",
-            "data_type": "Scalar",
-            "description": "Lightness adjustment (-1..1)",
-            "default_value": {
-              "Float": 0.42
-            },
-            "expression": null
-          },
-          {
-            "name": "absolute",
-            "data_type": "Bool",
-            "description": "If true, set lightness; if false, shift",
-            "default_value": {
-              "Bool": true
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "color",
-            "data_type": "Color",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -86.464386,
-          70.094475
-        ],
-        "generation": 266
-      },
-      "24": {
-        "id": 24,
+      "21": {
+        "id": 21,
         "name": "Set Fill",
         "op": "SetFill",
         "inputs": [
@@ -495,22 +471,88 @@
           }
         ],
         "position": [
-          26.617006,
-          216.6061
+          418.15042,
+          -794.51306
         ],
         "generation": 0
       },
-      "22": {
-        "id": 22,
-        "name": "Circle",
-        "op": "Circle",
+      "23": {
+        "id": 23,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
         "inputs": [
           {
-            "name": "radius",
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          142.56903,
+          329.36047
+        ],
+        "generation": 10
+      },
+      "15": {
+        "id": 15,
+        "name": "VFS Code",
+        "op": {
+          "DslCode": {
+            "source": "angle = (time / 10.0) * 360.0;",
+            "script_inputs": [],
+            "script_outputs": [
+              [
+                "angle",
+                "Scalar"
+              ]
+            ]
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "angle",
             "data_type": "Scalar",
-            "description": "Circle radius",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -297.03662,
+          -950.2514
+        ],
+        "generation": 42
+      },
+      "8": {
+        "id": 8,
+        "name": "Rectangle",
+        "op": "Rectangle",
+        "inputs": [
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Width",
             "default_value": {
-              "Float": 200.0
+              "Float": 25.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Height",
+            "default_value": {
+              "Float": 25.0
             },
             "expression": null
           },
@@ -537,45 +579,10 @@
           }
         ],
         "position": [
-          -153.36119,
-          290.11627
+          -460.90158,
+          -594.50433
         ],
-        "generation": 3
-      },
-      "16": {
-        "id": 16,
-        "name": "Constant Color",
-        "op": "ConstColor",
-        "inputs": [
-          {
-            "name": "color",
-            "data_type": "Color",
-            "description": "Color value",
-            "default_value": {
-              "Color": [
-                0.7835378,
-                0.27467713,
-                0.1470273,
-                1.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "value",
-            "data_type": "Color",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -504.19693,
-          -465.58865
-        ],
-        "generation": 11
+        "generation": 6
       }
     },
     "edges": [
@@ -615,28 +622,8 @@
           "port": 0
         },
         "to": {
-          "node": 19,
-          "port": 0
-        }
-      },
-      {
-        "from": {
-          "node": 7,
-          "port": 0
-        },
-        "to": {
           "node": 21,
           "port": 0
-        }
-      },
-      {
-        "from": {
-          "node": 19,
-          "port": 0
-        },
-        "to": {
-          "node": 21,
-          "port": 1
         }
       },
       {
@@ -695,7 +682,17 @@
           "port": 0
         },
         "to": {
-          "node": 19,
+          "node": 24,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 3
+        },
+        "to": {
+          "node": 26,
           "port": 1
         }
       },
@@ -705,18 +702,46 @@
           "port": 0
         },
         "to": {
-          "node": 24,
+          "node": 26,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 26,
+          "port": 0
+        },
+        "to": {
+          "node": 21,
           "port": 1
         }
       }
     ],
-    "next_id": 26,
-    "generation": 1122,
+    "next_id": 27,
+    "generation": 1143,
     "network_boxes": {},
     "next_box_id": 1
   },
   "snarl": {
     "nodes": {
+      "0": {
+        "value": {
+          "core_id": 26,
+          "display_name": "Generate",
+          "color": [
+            120,
+            200,
+            160,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 64.41033,
+          "y": 50.595825
+        },
+        "open": true
+      },
       "1": {
         "value": {
           "core_id": 25,
@@ -932,35 +957,17 @@
           "y": 122.7676
         },
         "open": true
-      },
-      "13": {
-        "value": {
-          "core_id": 19,
-          "display_name": "Map",
-          "color": [
-            140,
-            140,
-            140,
-            255
-          ],
-          "pinned": false
-        },
-        "pos": {
-          "x": 68.12985,
-          "y": 51.44507
-        },
-        "open": true
       }
     },
     "wires": [
       {
         "out_pin": {
-          "node": 2,
+          "node": 11,
           "output": 0
         },
         "in_pin": {
-          "node": 4,
-          "input": 0
+          "node": 10,
+          "input": 1
         }
       },
       {
@@ -985,41 +992,21 @@
       },
       {
         "out_pin": {
-          "node": 9,
+          "node": 10,
           "output": 0
         },
         "in_pin": {
-          "node": 2,
+          "node": 6,
           "input": 0
         }
       },
       {
         "out_pin": {
           "node": 6,
-          "output": 0
+          "output": 3
         },
         "in_pin": {
-          "node": 13,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 1,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 13,
-          "input": 1
-        }
-      },
-      {
-        "out_pin": {
-          "node": 1,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 2,
+          "node": 0,
           "input": 1
         }
       },
@@ -1031,6 +1018,36 @@
         "in_pin": {
           "node": 1,
           "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 9,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 1
         }
       },
       {
@@ -1055,42 +1072,32 @@
       },
       {
         "out_pin": {
-          "node": 11,
+          "node": 2,
           "output": 0
         },
         "in_pin": {
-          "node": 10,
-          "input": 1
-        }
-      },
-      {
-        "out_pin": {
-          "node": 10,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 6,
+          "node": 4,
           "input": 0
         }
       },
       {
         "out_pin": {
-          "node": 13,
+          "node": 1,
           "output": 0
         },
         "in_pin": {
-          "node": 8,
-          "input": 1
+          "node": 0,
+          "input": 2
         }
       }
     ]
   },
   "view_state": {
     "graph_offset": [
-      11.655506,
-      84.92771
+      9.512974,
+      70.001755
     ],
-    "graph_scale": 0.85879505,
+    "graph_scale": 0.7087664,
     "canvas_center": [
       0.0,
       0.0
@@ -1098,12 +1105,12 @@
     "canvas_zoom": 1.0
   },
   "window_geometry": {
-    "x": 117.0,
-    "y": 200.0,
-    "width": 2055.5,
-    "height": 1515.5,
-    "node_editor_width": 1053.6562,
-    "properties_width": 226.34375
+    "x": 407.0,
+    "y": 77.0,
+    "width": 1261.5,
+    "height": 1337.5,
+    "node_editor_height": 587.46875,
+    "properties_width": 374.9375
   },
   "settings": {
     "canvas_width": 640,
