@@ -131,7 +131,7 @@ Right-click on the graph background to open the **Add Node** context menu. Nodes
 - **Transforms** — Translate, Rotate, Scale, Apply Transform
 - **Path Ops** — Path Union, Path Intersect, Path Difference, Path Offset, Path Subdivide, Path Reverse, Resample Path
 - **Styling** — Set Fill, Set Stroke
-- **Color** — Adjust Hue, Adjust Saturation, Adjust Lightness, Adjust Luminance, Invert Color, Grayscale, Mix Colors, Set Alpha, Color Parse
+- **Color** — Adjust Hue, Adjust Saturation, Adjust Lightness, Adjust Luminance, Adjust Alpha, Invert Color, Grayscale, Mix Colors, Color Parse
 - **Utility** — Constant Scalar, Constant Int, Constant Vec2, Constant Color, Portal Send, Portal Receive, Merge, Duplicate, DSL Code
 - **Graph I/O** — Graph Output
 

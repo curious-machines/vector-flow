@@ -38,7 +38,7 @@ This document describes every node type available in Vector Flow, organized by c
   - [Invert Color](#invert-color)
   - [Grayscale](#grayscale)
   - [Mix Colors](#mix-colors)
-  - [Set Alpha](#set-alpha)
+  - [Adjust Alpha](#adjust-alpha)
   - [Color Parse](#color-parse)
 - [Constants](#constants)
   - [Constant Scalar](#constant-scalar)
@@ -787,24 +787,25 @@ Example patch: Color Parse ("red") -> Mix Colors (factor: 0.5, lab_mode: true)
 
 ---
 
-### Set Alpha
+### Adjust Alpha
 
-Sets the alpha (transparency) channel of a color.
+Adjusts the alpha (transparency) channel of a color.
 
 **Inputs:**
 
-| Name  | Type   | Default | Description                          |
-|-------|--------|---------|--------------------------------------|
-| color | Color  | White   | Input color                          |
-| alpha | Scalar | 1.0     | Alpha value (0.0 = transparent, 1.0 = opaque) |
+| Name     | Type   | Default | Description                                            |
+|----------|--------|---------|--------------------------------------------------------|
+| color    | Color  | White   | Input color                                            |
+| amount   | Scalar | 0.0     | Alpha adjustment (-1.0 to 1.0)                        |
+| absolute | Bool   | false   | If true, set alpha directly; if false, shift alpha     |
 
 **Outputs:**
 
 | Name  | Type  | Description              |
 |-------|-------|--------------------------|
-| color | Color | Color with new alpha     |
+| color | Color | Color with adjusted alpha |
 
-**Notes:** The alpha value is clamped to [0, 1]. RGB channels are preserved.
+**Notes:** In the default relative mode, the amount is added to the existing alpha (e.g., -0.3 on a color with alpha 0.8 gives 0.5). In absolute mode, the amount replaces the alpha directly. The result is clamped to [0, 1]. RGB channels are preserved.
 
 ---
 
