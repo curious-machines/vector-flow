@@ -12,6 +12,11 @@ pub enum PlaybackState {
 pub struct TransportState {
     pub eval_ctx: EvalContext,
     pub playback: PlaybackState,
+    /// Accumulated wall-clock time since playback started (seconds).
+    /// Used to advance frames at the correct rate regardless of UI refresh rate.
+    accumulated_time: f64,
+    /// Last instant we ticked, for computing elapsed delta.
+    last_tick: Option<std::time::Instant>,
 }
 
 impl Default for TransportState {
@@ -19,24 +24,49 @@ impl Default for TransportState {
         Self {
             eval_ctx: EvalContext::default(),
             playback: PlaybackState::Stopped,
+            accumulated_time: 0.0,
+            last_tick: None,
         }
     }
 }
 
 impl TransportState {
-    /// Advance one frame if playing. Returns true if time changed.
+    /// Advance frames based on real elapsed time. Returns true if frame changed.
     pub fn tick(&mut self) -> bool {
         if self.playback != PlaybackState::Playing {
+            self.last_tick = None;
             return false;
         }
-        self.eval_ctx.frame += 1;
-        self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
-        true
+
+        let now = std::time::Instant::now();
+        let dt = if let Some(prev) = self.last_tick {
+            let raw = now.duration_since(prev).as_secs_f64();
+            // Clamp delta to avoid large jumps (e.g. debugger pause, window drag).
+            raw.min(0.1)
+        } else {
+            // First tick after play — no elapsed time yet.
+            0.0
+        };
+        self.last_tick = Some(now);
+
+        self.accumulated_time += dt;
+        let frame_duration = 1.0 / self.eval_ctx.fps as f64;
+        let target_frame = (self.accumulated_time / frame_duration) as u64;
+
+        if target_frame > self.eval_ctx.frame {
+            self.eval_ctx.frame = target_frame;
+            self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn rewind(&mut self) {
         self.eval_ctx.frame = 0;
         self.eval_ctx.time_secs = 0.0;
+        self.accumulated_time = 0.0;
+        self.last_tick = None;
         self.playback = PlaybackState::Stopped;
     }
 
@@ -44,6 +74,9 @@ impl TransportState {
         self.playback = PlaybackState::Paused;
         self.eval_ctx.frame += 1;
         self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
+        // Keep accumulated_time in sync so resuming play continues from here.
+        self.accumulated_time = self.eval_ctx.frame as f64 / self.eval_ctx.fps as f64;
+        self.last_tick = None;
     }
 }
 

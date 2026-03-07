@@ -71,20 +71,30 @@ impl Scheduler {
     }
 
     /// Evaluate the full graph for a given time context.
+    ///
+    /// When `node_filter` is `Some`, only nodes in the set are evaluated.
+    /// Callers should include all upstream dependencies (via `Graph::upstream_of`)
+    /// to ensure correct results.
     pub fn evaluate(
         &self,
         graph: &mut Graph,
         time_ctx: &EvalContext,
+        node_filter: Option<&std::collections::HashSet<NodeId>>,
     ) -> Result<EvalResult, ComputeError> {
         let topo_order = graph
             .topological_sort()
             .map_err(|e| ComputeError::BackendError(e.to_string()))?;
 
+        // Apply node filter to topo order if provided.
+        let topo_order: Vec<NodeId> = if let Some(filter) = node_filter {
+            topo_order.into_iter().filter(|id| filter.contains(id)).collect()
+        } else {
+            topo_order
+        };
+
         // Build portal send label → NodeId map.
         let portal_map = self.build_portal_map(graph);
         let has_portals = !portal_map.is_empty();
-
-        let subgraphs = graph.independent_subgraphs();
 
         if has_portals {
             // Portal receives may depend on sends in other subgraphs,
@@ -133,10 +143,16 @@ impl Scheduler {
             Ok(EvalResult { outputs: local_outputs, errors: local_errors })
         } else {
             // No portals — use parallel subgraph evaluation.
+            // When filtering, skip subgraphs with no nodes remaining.
+            let subgraphs = graph.independent_subgraphs();
             type SubgraphResult = (HashMap<NodeId, Vec<NodeData>>, HashMap<NodeId, String>);
             let subgraph_results: Vec<Result<SubgraphResult, ComputeError>> =
                 subgraphs
                     .par_iter()
+                    .filter(|subgraph_nodes| {
+                        // If filtering, skip subgraphs that have no nodes in the filter.
+                        node_filter.map_or(true, |f| subgraph_nodes.iter().any(|id| f.contains(id)))
+                    })
                     .map(|subgraph_nodes| {
                         self.evaluate_subgraph(graph, subgraph_nodes, &topo_order, time_ctx)
                     })
@@ -460,7 +476,7 @@ mod tests {
             .unwrap();
 
         let time_ctx = EvalContext::default();
-        let result = scheduler.evaluate(&mut graph, &time_ctx).unwrap();
+        let result = scheduler.evaluate(&mut graph, &time_ctx, None).unwrap();
 
         // Both nodes should have been evaluated.
         assert!(result.outputs.contains_key(&a));
@@ -478,10 +494,10 @@ mod tests {
         let time_ctx = EvalContext::default();
 
         // First evaluation populates cache.
-        scheduler.evaluate(&mut graph, &time_ctx).unwrap();
+        scheduler.evaluate(&mut graph, &time_ctx, None).unwrap();
 
         // Second evaluation should hit cache.
-        let result = scheduler.evaluate(&mut graph, &time_ctx).unwrap();
+        let result = scheduler.evaluate(&mut graph, &time_ctx, None).unwrap();
         assert!(result.outputs.contains_key(&a));
     }
 
@@ -494,12 +510,12 @@ mod tests {
         let a = graph.add_node(NodeDef::circle(NodeId(0)));
 
         let time_ctx = EvalContext::default();
-        scheduler.evaluate(&mut graph, &time_ctx).unwrap();
+        scheduler.evaluate(&mut graph, &time_ctx, None).unwrap();
 
         // Bump generation to invalidate cache.
         graph.node_mut(a).unwrap().touch();
 
-        let result = scheduler.evaluate(&mut graph, &time_ctx).unwrap();
+        let result = scheduler.evaluate(&mut graph, &time_ctx, None).unwrap();
         assert!(result.outputs.contains_key(&a));
     }
 
@@ -512,7 +528,7 @@ mod tests {
         let a = graph.add_node(NodeDef::regular_polygon(NodeId(0)));
 
         let time_ctx = EvalContext::default();
-        let result = scheduler.evaluate(&mut graph, &time_ctx).unwrap();
+        let result = scheduler.evaluate(&mut graph, &time_ctx, None).unwrap();
 
         // The passthrough backend should have received the default values
         // and passed the first one (sides=6 as Int) through as output.

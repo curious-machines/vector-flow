@@ -134,10 +134,14 @@ pub struct VectorFlowApp {
 
     /// Undo/redo history.
     undo: UndoHistory,
+
+    /// File path from command-line argument, loaded after window initializes.
+    /// Counter: starts at 2, decrements each frame, loads when it hits 0.
+    pending_cli_load: Option<(PathBuf, u8)>,
 }
 
 impl VectorFlowApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new_with_file(cc: &eframe::CreationContext<'_>, file: Option<PathBuf>) -> Self {
         // Initialize compute backend.
         let backend = CpuBackend::new().expect("Failed to create CPU backend");
         let scheduler = Scheduler::new(Arc::new(backend));
@@ -195,6 +199,7 @@ impl VectorFlowApp {
             node_rects: HashMap::new(),
             selected_box: None,
             undo: UndoHistory::new(),
+            pending_cli_load: file.map(|f| (f, 2)),
         }
     }
 
@@ -413,6 +418,16 @@ impl VectorFlowApp {
                 }
             }
         }
+    }
+
+    /// Compute the set of nodes that need evaluation: visible nodes + all
+    /// their upstream dependencies. Returns `None` to evaluate everything.
+    fn eval_node_filter(&self, selected_snarl_ids: &[SnarlNodeId]) -> Option<HashSet<CoreNodeId>> {
+        let visible = self.visible_node_set(selected_snarl_ids);
+        visible.map(|vis| {
+            let roots: Vec<_> = vis.into_iter().collect();
+            self.graph.upstream_of(&roots)
+        })
     }
 
     /// Visible nodes for export: only GraphOutput nodes (or all if none exist).
@@ -738,7 +753,7 @@ impl VectorFlowApp {
         gen != self.last_eval_gen || frame != self.last_eval_frame
     }
 
-    fn evaluate(&mut self) {
+    fn evaluate(&mut self, node_filter: Option<&std::collections::HashSet<CoreNodeId>>) {
         // Sync project directory for relative path resolution.
         self.transport.eval_ctx.project_dir = self
             .project_path
@@ -749,7 +764,7 @@ impl VectorFlowApp {
 
         // Clear cache so downstream nodes pick up upstream changes.
         self.scheduler.clear_cache();
-        match self.scheduler.evaluate(&mut self.graph, &self.transport.eval_ctx) {
+        match self.scheduler.evaluate(&mut self.graph, &self.transport.eval_ctx, node_filter) {
             Ok(result) => {
                 // Auto-populate LoadImage width/height from native dimensions.
                 self.auto_populate_image_dims(&result);
@@ -1079,7 +1094,12 @@ impl VectorFlowApp {
                 self.transport.eval_ctx.frame = export_frame;
                 self.transport.eval_ctx.time_secs =
                     export_frame as f32 / self.transport.eval_ctx.fps;
-                self.evaluate();
+                // During export, only evaluate nodes upstream of GraphOutput.
+                let export_filter = self.export_visible_nodes().map(|vis| {
+                    let roots: Vec<_> = vis.into_iter().collect();
+                    self.graph.upstream_of(&roots)
+                });
+                self.evaluate(export_filter.as_ref());
 
                 // Build scene for GraphOutput nodes only.
                 let empty_scene;
@@ -1277,6 +1297,17 @@ impl VectorFlowApp {
 
 impl eframe::App for VectorFlowApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // Load file from command-line argument after the window has initialized.
+        if let Some((_, ref mut countdown)) = self.pending_cli_load {
+            if *countdown > 0 {
+                *countdown -= 1;
+                ctx.request_repaint();
+            } else {
+                let path = self.pending_cli_load.take().unwrap().0;
+                self.load_project_from(&path, ctx);
+            }
+        }
+
         // Re-snapshot saved state after load once viewport commands have settled.
         if self.pending_snapshot_frames > 0 {
             self.pending_snapshot_frames -= 1;
@@ -1958,8 +1989,16 @@ impl eframe::App for VectorFlowApp {
         }
 
         // 6. Evaluate graph if something changed.
-        if self.needs_eval() || time_changed || transport_changed || props_changed {
-            self.evaluate();
+        // Also re-evaluate when selection includes nodes not yet in the eval
+        // result (e.g. selecting an island node that was previously skipped).
+        let eval_filter = self.eval_node_filter(&selected_snarl);
+        let selection_needs_eval = eval_filter.as_ref().map_or(false, |filter| {
+            self.last_eval.as_ref().map_or(true, |eval| {
+                filter.iter().any(|id| !eval.outputs.contains_key(id))
+            })
+        });
+        if self.needs_eval() || time_changed || transport_changed || props_changed || selection_needs_eval {
+            self.evaluate(eval_filter.as_ref());
         }
 
         // 7. Update scene (selection may have changed visible nodes).
