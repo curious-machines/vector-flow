@@ -13,6 +13,8 @@ pub struct CameraState {
     pub viewport_size: Vec2,
     pub do_reset: bool,
     pub do_show_all: bool,
+    /// Canvas size from project settings, used by show_all to fit canvas to view.
+    pub canvas_size: Option<(f32, f32)>,
     /// When set, override the camera zoom to this absolute value (centered on viewport).
     pub set_zoom: Option<f32>,
     /// Content bounds from the last prepared scene, used by show_all.
@@ -32,6 +34,7 @@ impl Default for CameraState {
             viewport_size: Vec2::new(640.0, 480.0),
             do_reset: false,
             do_show_all: false,
+            canvas_size: None,
             set_zoom: None,
             content_bounds: None,
             current_center: Vec2::ZERO,
@@ -148,10 +151,12 @@ pub fn apply_camera_commands(
     }
 
     if cam_state.do_show_all {
-        if let Some((min, max)) = cam_state.content_bounds {
+        if let Some((w, h)) = cam_state.canvas_size {
+            let half = Vec2::new(w * 0.5, h * 0.5);
+            res.camera.show_all(-half, half);
+        } else if let Some((min, max)) = cam_state.content_bounds {
             res.camera.show_all(min, max);
         } else {
-            // No content — just reset.
             res.camera.reset();
         }
         cam_state.do_show_all = false;

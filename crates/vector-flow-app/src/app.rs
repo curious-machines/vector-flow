@@ -2110,6 +2110,7 @@ impl eframe::App for VectorFlowApp {
                 )
             }),
         };
+        self.cam_state.canvas_size = Some((canvas_bg.width, canvas_bg.height));
         egui::CentralPanel::default().show(ctx, |ui| {
             canvas_rect = canvas_panel::show_canvas_panel(
                 ui,
@@ -2131,7 +2132,7 @@ impl eframe::App for VectorFlowApp {
                         if ui.button("Reset").on_hover_text("Reset zoom to 100% and center on origin").clicked() {
                             self.cam_state.do_reset = true;
                         }
-                        if ui.button("Show All").on_hover_text("Fit all content in view").clicked() {
+                        if ui.button("Show All").on_hover_text("Fit canvas to view").clicked() {
                             self.cam_state.do_show_all = true;
                         }
                         ui.separator();
