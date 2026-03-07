@@ -143,7 +143,7 @@ pub enum NodeOp {
     TextToPath,
     // Graph I/O
     GraphInput { name: String, data_type: DataType },
-    GraphOutput { name: String, data_type: DataType },
+    GraphOutput { name: String, data_type: DataType, #[serde(default)] order: i32 },
 }
 
 // ---------------------------------------------------------------------------
@@ -636,6 +636,7 @@ impl NodeDef {
             op: NodeOp::GraphOutput {
                 name: name.clone(),
                 data_type,
+                order: 0,
             },
             inputs: vec![PortDef::new(name, data_type)],
             outputs: vec![],

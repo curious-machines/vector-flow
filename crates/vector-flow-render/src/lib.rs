@@ -11,7 +11,7 @@ pub use camera::{Camera, CameraUniform};
 pub use batch::{
     CollectedImage, CollectedScene, CollectedShape, CollectedText,
     DrawBatch, ImageDrawBatch, PreparedScene,
-    collect_scene, collect_shapes, prepare_scene, prepare_scene_full,
+    collect_scene, collect_scene_ordered, collect_shapes, prepare_scene, prepare_scene_full,
 };
 pub use renderer::{CanvasRenderer, PrimitiveUniform};
 pub use overlay::{CanvasCallback, CanvasRenderResources, canvas_paint_callback};

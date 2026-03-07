@@ -161,6 +161,12 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get GraphOutput order if applicable.
+    let graph_output_order = match &node.op {
+        NodeOp::GraphOutput { order, .. } => Some(*order),
+        _ => None,
+    };
+
     ui.heading(label);
     ui.separator();
 
@@ -200,6 +206,23 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                 changed = true;
             }
         }
+        ui.separator();
+    }
+
+    // GraphOutput order editor.
+    if let Some(mut ord) = graph_output_order {
+        ui.horizontal(|ui| {
+            ui.label("Order");
+            if ui.add(egui::DragValue::new(&mut ord)).on_hover_text("Render order (lower draws first)").changed() {
+                if let Some(node) = graph.node_mut(core_id) {
+                    if let NodeOp::GraphOutput { order, .. } = &mut node.op {
+                        *order = ord;
+                    }
+                    node.touch();
+                    changed = true;
+                }
+            }
+        });
         ui.separator();
     }
 

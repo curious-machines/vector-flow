@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use glam::{Affine2, Mat4};
@@ -154,20 +154,36 @@ pub fn collect_scene(
     eval_result: &EvalResult,
     visible_nodes: Option<&HashSet<NodeId>>,
 ) -> CollectedScene {
+    collect_scene_ordered(eval_result, visible_nodes, None)
+}
+
+pub fn collect_scene_ordered(
+    eval_result: &EvalResult,
+    visible_nodes: Option<&HashSet<NodeId>>,
+    node_order: Option<&HashMap<NodeId, i32>>,
+) -> CollectedScene {
+    // Collect node IDs to render, sorted by order if provided.
+    let mut node_ids: Vec<NodeId> = eval_result
+        .outputs
+        .keys()
+        .copied()
+        .filter(|id| visible_nodes.map_or(true, |vis| vis.contains(id)))
+        .collect();
+
+    if let Some(order) = node_order {
+        node_ids.sort_by_key(|id| order.get(id).copied().unwrap_or(0));
+    }
+
     let mut shapes = Vec::new();
     let mut images = Vec::new();
     let mut texts = Vec::new();
 
-    for (&node_id, outputs) in &eval_result.outputs {
-        if let Some(vis) = visible_nodes {
-            if !vis.contains(&node_id) {
-                continue;
+    for node_id in &node_ids {
+        if let Some(outputs) = eval_result.outputs.get(node_id) {
+            let dimmed = false;
+            for data in outputs {
+                collect_node_data(data, dimmed, &mut shapes, &mut images, &mut texts);
             }
-        }
-        let dimmed = false;
-
-        for data in outputs {
-            collect_node_data(data, dimmed, &mut shapes, &mut images, &mut texts);
         }
     }
 

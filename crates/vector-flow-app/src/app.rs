@@ -14,7 +14,7 @@ use vector_flow_compute::CpuBackend;
 use vector_flow_render::overlay::CanvasRenderResources;
 use vector_flow_render::renderer::CanvasRenderer;
 use vector_flow_render::camera::Camera;
-use vector_flow_render::{collect_scene, prepare_scene_full, PreparedScene};
+use vector_flow_render::{collect_scene_ordered, prepare_scene_full, PreparedScene};
 use vector_flow_render::batch::prepare_scene_full_with_text;
 
 use crate::canvas_panel::{self, CameraState};
@@ -470,6 +470,17 @@ impl VectorFlowApp {
         } else {
             Some(graph_outputs)
         }
+    }
+
+    /// Build a map from NodeId → render order for GraphOutput nodes.
+    fn graph_output_order(&self) -> HashMap<CoreNodeId, i32> {
+        self.graph
+            .nodes()
+            .filter_map(|n| match &n.op {
+                NodeOp::GraphOutput { order, .. } => Some((n.id, *order)),
+                _ => None,
+            })
+            .collect()
     }
 
     // ── Align / Distribute helpers ──────────────────────────────────
@@ -1035,7 +1046,8 @@ impl VectorFlowApp {
     fn update_scene(&mut self, selected_snarl_ids: &[SnarlNodeId]) {
         if let Some(ref eval) = self.last_eval {
             let visible = self.visible_node_set(selected_snarl_ids);
-            let collected = collect_scene(eval, visible.as_ref());
+            let order = self.graph_output_order();
+            let collected = collect_scene_ordered(eval, visible.as_ref(), Some(&order));
             let scene = prepare_scene_full_with_text(
                 &collected,
                 0.5,
@@ -1160,7 +1172,8 @@ impl VectorFlowApp {
                 let empty_scene;
                 let scene = if let Some(ref eval) = self.last_eval {
                     let visible = self.export_visible_nodes();
-                    let collected = collect_scene(eval, visible.as_ref());
+                    let order = self.graph_output_order();
+                    let collected = collect_scene_ordered(eval, visible.as_ref(), Some(&order));
                     empty_scene = prepare_scene_full(&collected, 0.5);
                     &empty_scene
                 } else {
