@@ -1450,7 +1450,7 @@ impl eframe::App for VectorFlowApp {
         let (do_save, do_save_as, do_open, do_new, do_close_file, do_duplicate, do_fit_all, do_quit,
          do_export_image, do_undo, do_redo,
          do_align_left, do_align_right, do_align_top, do_align_bottom,
-         do_dist_h, do_dist_v, nudge, do_delete) = ctx.input_mut(|i| {
+         do_dist_h, do_dist_v, nudge, do_delete, do_select_all) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&egui::KeyboardShortcut::new(
                 egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
                 egui::Key::S,
@@ -1528,9 +1528,14 @@ impl eframe::App for VectorFlowApp {
                 || i.consume_shortcut(&egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::Backspace))
             );
 
+            let select_all = !text_editing && i.consume_shortcut(&egui::KeyboardShortcut::new(
+                egui::Modifiers::COMMAND,
+                egui::Key::A,
+            ));
+
             (save, save_as, open, new, close_file, duplicate, fit_all, quit,
              export_image, undo, redo,
-             false, false, false, false, false, false, nudge, delete)
+             false, false, false, false, false, false, nudge, delete, select_all)
         });
         if do_save {
             self.save_project(ctx);
@@ -1584,6 +1589,7 @@ impl eframe::App for VectorFlowApp {
         let mut menu_align: Option<AlignMode> = None;
         let mut menu_dist_h = false;
         let mut menu_dist_v = false;
+        let mut menu_select_all = false;
         egui::TopBottomPanel::top("transport").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -1644,6 +1650,11 @@ impl eframe::App for VectorFlowApp {
                     if ui.add_enabled(self.undo.can_redo(), egui::Button::new(redo_text)).clicked() {
                         ui.close_menu();
                         menu_redo = true;
+                    }
+                    ui.separator();
+                    if ui.button("Select All  Ctrl+A").clicked() {
+                        ui.close_menu();
+                        menu_select_all = true;
                     }
                 });
                 ui.menu_button("Arrange", |ui| {
@@ -2109,6 +2120,18 @@ impl eframe::App for VectorFlowApp {
         } else {
             Snarl::<UiNode>::get_selected_nodes_at(NODE_EDITOR_ID, self.node_editor_ui_id, ctx)
         };
+
+        // 3a. Select all nodes on Ctrl+A.
+        if (do_select_all || menu_select_all) && !graph_collapsed {
+            let all_ids: Vec<_> = self.snarl.node_ids().map(|(id, _)| id).collect();
+            Snarl::<UiNode>::set_selected_nodes_at(
+                NODE_EDITOR_ID,
+                self.node_editor_ui_id,
+                ctx,
+                all_ids.clone(),
+            );
+            selected_snarl = all_ids;
+        }
 
         // 3b. Duplicate selected nodes on Ctrl+D.
         if do_duplicate && !selected_snarl.is_empty() {
