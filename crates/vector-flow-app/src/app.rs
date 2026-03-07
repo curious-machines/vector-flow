@@ -49,6 +49,13 @@ enum PendingAction {
     CloseFile,
 }
 
+/// Which panel is currently collapsed (minimized to a thin strip).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CollapsedPanel {
+    GraphEditor,
+    Canvas,
+}
+
 pub struct VectorFlowApp {
     graph: Graph,
     snarl: Snarl<UiNode>,
@@ -124,6 +131,13 @@ pub struct VectorFlowApp {
     /// Snarl node selection from the previous frame (used by properties panel
     /// which renders before the graph editor in the new layout).
     selected_snarl_ids: Vec<SnarlNodeId>,
+
+    /// Which panel is collapsed (None = both expanded).
+    collapsed_panel: Option<CollapsedPanel>,
+    /// Graph editor height saved before collapsing, restored on expand.
+    pre_collapse_editor_height: Option<f32>,
+    /// When true, restore `pre_collapse_editor_height` before the next panel render.
+    pending_editor_height_restore: bool,
 
     // ── Export state ──────────────────────────────────────────────────
     export_state: ExportState,
@@ -212,6 +226,9 @@ impl VectorFlowApp {
             node_rects: HashMap::new(),
             selected_box: None,
             selected_snarl_ids: Vec::new(),
+            collapsed_panel: None,
+            pre_collapse_editor_height: None,
+            pending_editor_height_restore: false,
             undo: UndoHistory::new(),
             fps_editing: false,
             pre_edit_fps: None,
@@ -1775,14 +1792,48 @@ impl eframe::App for VectorFlowApp {
             });
 
         // 4. Top panel: node editor (graph view).
+        // Restore editor height before panel renders (deferred from previous frame's expand click).
+        if self.pending_editor_height_restore {
+            self.pending_editor_height_restore = false;
+            if let Some(h) = self.pre_collapse_editor_height {
+                let panel_id = egui::Id::new("node_editor_panel");
+                let panel_rect = egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::Vec2::new(ctx.screen_rect().width(), h),
+                );
+                let state = egui::containers::panel::PanelState { rect: panel_rect };
+                ctx.data_mut(|d| d.insert_persisted(panel_id, state));
+            }
+        }
+        let graph_collapsed = self.collapsed_panel == Some(CollapsedPanel::GraphEditor);
+        let canvas_collapsed = self.collapsed_panel == Some(CollapsedPanel::Canvas);
         let mut snarl_viewport = egui::Rect::NOTHING;
         let mut snarl_layer_id = egui::LayerId::background();
         let mut viewer_actions = ViewerActions::default();
         let mut box_shape_slots = Vec::new();
-        egui::TopBottomPanel::top("node_editor_panel")
-            .default_height(ctx.screen_rect().height() * 0.55)
-            .resizable(true)
-            .show(ctx, |ui| {
+        if graph_collapsed {
+            // Collapsed: thin strip with label and expand button.
+            egui::TopBottomPanel::top("node_editor_panel")
+                .exact_height(24.0)
+                .show(ctx, |ui| {
+                    self.node_editor_ui_id = ui.id();
+                    ui.horizontal_centered(|ui| {
+                        if ui.button("▼ Graph").on_hover_text("Expand graph editor").clicked() {
+                            self.collapsed_panel = None;
+                            self.pending_editor_height_restore = true;
+                        }
+                    });
+                });
+        } else {
+            let panel = egui::TopBottomPanel::top("node_editor_panel")
+                .resizable(!canvas_collapsed);
+            // When canvas is collapsed, fill available space; otherwise use default height.
+            let panel = if canvas_collapsed {
+                panel.min_height(ctx.screen_rect().height() * 0.8)
+            } else {
+                panel.default_height(ctx.screen_rect().height() * 0.55)
+            };
+            panel.show(ctx, |ui| {
                 self.node_editor_ui_id = ui.id();
                 snarl_viewport = ui.max_rect();
                 snarl_layer_id = ui.layer_id();
@@ -1799,9 +1850,10 @@ impl eframe::App for VectorFlowApp {
                 };
                 self.snarl.show(&mut viewer, &self.snarl_style, NODE_EDITOR_ID, ui);
             });
+        }
 
-        // 3.1. Render network boxes behind nodes and handle interaction.
-        {
+        // 4.1. Render network boxes behind nodes and handle interaction.
+        if !graph_collapsed {
             let (view_offset, view_scale) = Snarl::<UiNode>::get_view_state(
                 NODE_EDITOR_ID,
                 self.node_editor_ui_id,
@@ -1949,7 +2001,7 @@ impl eframe::App for VectorFlowApp {
                     self.selected_box = None;
                 }
             }
-        }
+        } // end network boxes
 
         // Apply pending view restore (graph editor offset/scale).
         if let Some(vs) = self.pending_view_restore.take() {
@@ -1967,9 +2019,7 @@ impl eframe::App for VectorFlowApp {
             ));
         }
 
-        // 3a. Handle viewer actions (network box operations).
-        // Note: selected_snarl not yet available here, so create_box_from is
-        // handled after selection query below.
+        // 4a. Handle viewer actions (network box operations).
         if let Some((snarl_id, box_id)) = viewer_actions.add_to_box {
             if let Some(ui_node) = self.snarl.get_node(snarl_id) {
                 self.graph.add_node_to_box(ui_node.core_id, box_id);
@@ -1987,8 +2037,8 @@ impl eframe::App for VectorFlowApp {
             }
         }
 
-        // Overlay "Show All" button on the node editor panel (hidden during screenshot).
-        {
+        // Overlay toolbar on the graph editor panel (hidden when collapsed or during screenshot).
+        if !graph_collapsed {
             let inset = canvas_panel::TOOLBAR_INSET * 2.0;
             let mut fit_requested = do_fit_all;
             let mut reset_view = false;
@@ -2028,6 +2078,14 @@ impl eframe::App for VectorFlowApp {
                                     new_scale,
                                 );
                             }
+                            ui.separator();
+                            if ui.button("▲").on_hover_text("Collapse graph editor").clicked() {
+                                // Save current height before collapsing.
+                                self.pre_collapse_editor_height = egui::containers::panel::PanelState::load(
+                                    ctx, egui::Id::new("node_editor_panel"),
+                                ).map(|s| s.rect.height());
+                                self.collapsed_panel = Some(CollapsedPanel::GraphEditor);
+                            }
                         });
                     });
             }
@@ -2046,8 +2104,11 @@ impl eframe::App for VectorFlowApp {
         }
 
         // Query snarl's built-in selection (must happen after snarl.show).
-        let mut selected_snarl =
-            Snarl::<UiNode>::get_selected_nodes_at(NODE_EDITOR_ID, self.node_editor_ui_id, ctx);
+        let mut selected_snarl = if graph_collapsed {
+            Vec::new()
+        } else {
+            Snarl::<UiNode>::get_selected_nodes_at(NODE_EDITOR_ID, self.node_editor_ui_id, ctx)
+        };
 
         // 3b. Duplicate selected nodes on Ctrl+D.
         if do_duplicate && !selected_snarl.is_empty() {
@@ -2132,56 +2193,77 @@ impl eframe::App for VectorFlowApp {
 
         // 5. Remaining central panel: canvas preview.
         let mut canvas_rect = egui::Rect::NOTHING;
-        let canvas_bg = canvas_panel::CanvasBackground {
-            width: self.project_settings.canvas_width as f32,
-            height: self.project_settings.canvas_height as f32,
-            color: self.project_settings.background_color.map(|c| {
-                egui::Color32::from_rgba_unmultiplied(
-                    (c[0] * 255.0) as u8,
-                    (c[1] * 255.0) as u8,
-                    (c[2] * 255.0) as u8,
-                    (c[3] * 255.0) as u8,
-                )
-            }),
-        };
-        self.cam_state.canvas_size = Some((canvas_bg.width, canvas_bg.height));
-        egui::CentralPanel::default().show(ctx, |ui| {
-            canvas_rect = canvas_panel::show_canvas_panel(
-                ui,
-                self.prepared_scene.take(),
-                &mut self.cam_state,
-                Some(&canvas_bg),
-            );
-        });
-
-        // Overlay toolbar buttons on the canvas panel.
-        {
-            let inset = canvas_panel::TOOLBAR_INSET;
-            egui::Area::new(egui::Id::new("canvas_toolbar"))
-                .fixed_pos(egui::pos2(canvas_rect.left() + inset, canvas_rect.top() + inset))
-                .order(egui::Order::Foreground)
-                .interactable(true)
-                .show(ctx, |ui| {
-                    ui.horizontal(|ui| {
-                        if ui.button("Reset").on_hover_text("Reset zoom to 100% and center on origin").clicked() {
-                            self.cam_state.do_reset = true;
-                        }
-                        if ui.button("Show All").on_hover_text("Fit canvas to view").clicked() {
-                            self.cam_state.do_show_all = true;
-                        }
-                        ui.separator();
-                        let mut zoom_pct = self.cam_state.current_zoom * 100.0;
-                        let resp = ui.add(
-                            egui::DragValue::new(&mut zoom_pct)
-                                .range(1.0..=100000.0)
-                                .suffix("%")
-                                .speed(1.0)
-                        );
-                        if resp.changed() {
-                            self.cam_state.set_zoom = Some((zoom_pct / 100.0).clamp(0.01, 1000.0));
-                        }
-                    });
+        if canvas_collapsed {
+            // Collapsed: thin strip with label and expand button.
+            egui::CentralPanel::default().show(ctx, |ui| {
+                canvas_rect = ui.max_rect();
+                ui.horizontal_centered(|ui| {
+                    if ui.button("▲ Canvas").on_hover_text("Expand canvas preview").clicked() {
+                        self.collapsed_panel = None;
+                        self.pending_editor_height_restore = true;
+                    }
                 });
+            });
+        } else {
+            let canvas_bg = canvas_panel::CanvasBackground {
+                width: self.project_settings.canvas_width as f32,
+                height: self.project_settings.canvas_height as f32,
+                color: self.project_settings.background_color.map(|c| {
+                    egui::Color32::from_rgba_unmultiplied(
+                        (c[0] * 255.0) as u8,
+                        (c[1] * 255.0) as u8,
+                        (c[2] * 255.0) as u8,
+                        (c[3] * 255.0) as u8,
+                    )
+                }),
+            };
+            self.cam_state.canvas_size = Some((canvas_bg.width, canvas_bg.height));
+            egui::CentralPanel::default().show(ctx, |ui| {
+                canvas_rect = canvas_panel::show_canvas_panel(
+                    ui,
+                    self.prepared_scene.take(),
+                    &mut self.cam_state,
+                    Some(&canvas_bg),
+                );
+            });
+
+            // Overlay toolbar buttons on the canvas panel.
+            {
+                let inset = canvas_panel::TOOLBAR_INSET;
+                egui::Area::new(egui::Id::new("canvas_toolbar"))
+                    .fixed_pos(egui::pos2(canvas_rect.left() + inset, canvas_rect.top() + inset))
+                    .order(egui::Order::Foreground)
+                    .interactable(true)
+                    .show(ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            if ui.button("Reset").on_hover_text("Reset zoom to 100% and center on origin").clicked() {
+                                self.cam_state.do_reset = true;
+                            }
+                            if ui.button("Show All").on_hover_text("Fit canvas to view").clicked() {
+                                self.cam_state.do_show_all = true;
+                            }
+                            ui.separator();
+                            let mut zoom_pct = self.cam_state.current_zoom * 100.0;
+                            let resp = ui.add(
+                                egui::DragValue::new(&mut zoom_pct)
+                                    .range(1.0..=100000.0)
+                                    .suffix("%")
+                                    .speed(1.0)
+                            );
+                            if resp.changed() {
+                                self.cam_state.set_zoom = Some((zoom_pct / 100.0).clamp(0.01, 1000.0));
+                            }
+                            ui.separator();
+                            if ui.button("▼").on_hover_text("Collapse canvas preview").clicked() {
+                                // Save current editor height before collapsing canvas (which expands editor).
+                                self.pre_collapse_editor_height = egui::containers::panel::PanelState::load(
+                                    ctx, egui::Id::new("node_editor_panel"),
+                                ).map(|s| s.rect.height());
+                                self.collapsed_panel = Some(CollapsedPanel::Canvas);
+                            }
+                        });
+                    });
+            }
         }
 
         // 6. Evaluate graph if something changed.
