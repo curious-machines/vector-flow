@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use serde::{Deserialize, Serialize};
 
 use crate::error::GraphError;
-use crate::node::{NodeDef, PortId, PortIndex};
+use crate::node::{NodeDef, NodeOp, PortId, PortIndex};
 use crate::types::{NetworkBoxId, NodeId};
 
 // ---------------------------------------------------------------------------
@@ -357,13 +357,36 @@ impl Graph {
 
     /// Return the set of all nodes reachable from `roots` via incoming edges.
     /// The roots themselves ARE included in the result.
+    /// Portal connections are also followed: when a PortalReceive is reached,
+    /// the matching PortalSend (and its upstreams) are included.
     pub fn upstream_of(&self, roots: &[NodeId]) -> HashSet<NodeId> {
+        // Build portal label → send NodeId map.
+        let portal_map: HashMap<&str, NodeId> = self
+            .nodes
+            .iter()
+            .filter_map(|(&id, node)| {
+                if let NodeOp::PortalSend { ref label } = node.op {
+                    Some((label.as_str(), id))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         let mut visited = HashSet::new();
         let mut stack: Vec<NodeId> = roots.to_vec();
         while let Some(current) = stack.pop() {
             if visited.insert(current) {
                 if let Some(neighbors) = self.adjacency_in.get(&current) {
                     stack.extend(neighbors);
+                }
+                // Follow portal connections: receive → matching send.
+                if let Some(node) = self.nodes.get(&current) {
+                    if let NodeOp::PortalReceive { ref label } = node.op {
+                        if let Some(&send_id) = portal_map.get(label.as_str()) {
+                            stack.push(send_id);
+                        }
+                    }
                 }
             }
         }
@@ -906,5 +929,32 @@ mod tests {
 
         g.remove_node_from_any_box(a);
         assert!(!g.network_box(box_id).unwrap().members.contains(&a));
+    }
+
+    #[test]
+    fn upstream_of_follows_portal_connections() {
+        let mut g = Graph::new();
+        let color = g.add_node(NodeDef::const_color(NodeId(0)));
+        let send = g.add_node(NodeDef::portal_send(NodeId(0), "c".into()));
+        let recv = g.add_node(NodeDef::portal_receive(NodeId(0), "c".into()));
+        let fill = g.add_node(NodeDef::set_fill(NodeId(0)));
+
+        // color -> send (graph edge)
+        g.connect(
+            PortId { node: color, port: PortIndex(0) },
+            PortId { node: send, port: PortIndex(0) },
+        ).unwrap();
+        // recv -> fill color port (graph edge)
+        g.connect(
+            PortId { node: recv, port: PortIndex(0) },
+            PortId { node: fill, port: PortIndex(1) },
+        ).unwrap();
+
+        let upstream = g.upstream_of(&[fill]);
+        // Should include fill, recv, and also send + color via portal.
+        assert!(upstream.contains(&fill));
+        assert!(upstream.contains(&recv));
+        assert!(upstream.contains(&send), "portal send should be included via portal connection");
+        assert!(upstream.contains(&color), "upstream of portal send should be included");
     }
 }
