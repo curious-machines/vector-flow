@@ -173,55 +173,10 @@ impl ComputeBackend for CpuBackend {
                 let distance = get_scalar(inputs, 1);
                 NodeData::Path(Arc::new(path_ops::path_offset(&path, distance)))
             }
-            NodeOp::PathUnion => {
-                // Collect all non-empty inputs as shapes, preserving fill/stroke.
-                let mut all_shapes: Vec<Shape> = Vec::new();
-                for i in 0..inputs.data.len() {
-                    match inputs.data.get(i) {
-                        Some(NodeData::Shape(s)) if !s.path.verbs.is_empty() => {
-                            all_shapes.push((**s).clone());
-                        }
-                        Some(NodeData::Shapes(shapes)) => {
-                            for s in shapes.iter() {
-                                if !s.path.verbs.is_empty() {
-                                    all_shapes.push(s.clone());
-                                }
-                            }
-                        }
-                        Some(NodeData::Path(p)) if !p.verbs.is_empty() => {
-                            all_shapes.push(Shape {
-                                path: Arc::clone(p),
-                                fill: None,
-                                stroke: None,
-                                transform: Affine2::IDENTITY,
-                            });
-                        }
-                        Some(NodeData::Paths(paths)) => {
-                            for p in paths.iter() {
-                                if !p.verbs.is_empty() {
-                                    all_shapes.push(Shape {
-                                        path: Arc::new(p.clone()),
-                                        fill: None,
-                                        stroke: None,
-                                        transform: Affine2::IDENTITY,
-                                    });
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                NodeData::Shapes(Arc::new(all_shapes))
-            }
-            NodeOp::PathIntersect => {
+            NodeOp::PathBoolean { operation } => {
                 let a = get_path(inputs, 0);
                 let b = get_path(inputs, 1);
-                NodeData::Path(Arc::new(path_ops::path_intersect(&a, &b)))
-            }
-            NodeOp::PathDifference => {
-                let a = get_path(inputs, 0);
-                let b = get_path(inputs, 1);
-                NodeData::Path(Arc::new(path_ops::path_difference(&a, &b)))
+                NodeData::Path(Arc::new(path_ops::path_boolean(&a, &b, *operation)))
             }
 
             // ── Styling ─────────────────────────────────────────────

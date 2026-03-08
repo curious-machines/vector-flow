@@ -83,9 +83,7 @@ pub enum NodeOp {
     Rotate,
     Scale,
     // Path ops
-    PathUnion,
-    PathIntersect,
-    PathDifference,
+    PathBoolean { operation: i32 },
     PathOffset,
     PathSubdivide,
     PathReverse,
@@ -219,7 +217,7 @@ impl NodeDef {
 
     /// Whether this node supports a variable number of inputs.
     pub fn is_variadic(&self) -> bool {
-        matches!(self.op, NodeOp::PathUnion | NodeOp::Merge)
+        matches!(self.op, NodeOp::Merge)
     }
 
     /// Add another variadic input port. Returns the new port index.
@@ -229,10 +227,7 @@ impl NodeDef {
         }
         let idx = self.inputs.len();
         let name = variadic_port_name(idx);
-        let desc = match self.op {
-            NodeOp::Merge => "Input",
-            _ => "Path input",
-        };
+        let desc = "Input";
         let port = PortDef::new(name, DataType::Any)
             .with_description(desc);
         self.inputs.push(port);
@@ -745,46 +740,14 @@ impl NodeDef {
 }
 
 impl NodeDef {
-    pub fn path_union(id: NodeId) -> Self {
+    pub fn path_boolean(id: NodeId) -> Self {
         Self {
             id,
-            name: "Path Union".into(),
-            op: NodeOp::PathUnion,
-            inputs: vec![
-                PortDef::new("a", DataType::Any).with_description("Path input"),
-                PortDef::new("b", DataType::Any).with_description("Path input"),
-            ],
-            outputs: vec![PortDef::new("result", DataType::Shapes)],
-            position: [0.0, 0.0],
-            generation: 0,
-            version: 0,
-        }
-    }
-
-    pub fn path_intersect(id: NodeId) -> Self {
-        Self {
-            id,
-            name: "Path Intersect".into(),
-            op: NodeOp::PathIntersect,
+            name: "Path Boolean".into(),
+            op: NodeOp::PathBoolean { operation: 0 },
             inputs: vec![
                 PortDef::new("a", DataType::Path).with_description("First path"),
                 PortDef::new("b", DataType::Path).with_description("Second path"),
-            ],
-            outputs: vec![PortDef::new("result", DataType::Path)],
-            position: [0.0, 0.0],
-            generation: 0,
-            version: 0,
-        }
-    }
-
-    pub fn path_difference(id: NodeId) -> Self {
-        Self {
-            id,
-            name: "Path Difference".into(),
-            op: NodeOp::PathDifference,
-            inputs: vec![
-                PortDef::new("a", DataType::Path).with_description("Base path"),
-                PortDef::new("b", DataType::Path).with_description("Path to subtract"),
             ],
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],

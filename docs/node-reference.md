@@ -20,12 +20,10 @@ This document describes every node type available in Vector Flow, organized by c
   - [Scale](#scale)
   - [Translate](#translate)
 - [Path Operations](#path-operations)
-  - [Path Difference](#path-difference)
-  - [Path Intersect](#path-intersect)
+  - [Path Boolean](#path-boolean)
   - [Path Offset](#path-offset)
   - [Path Reverse](#path-reverse)
   - [Path Subdivide](#path-subdivide)
-  - [Path Union](#path-union)
   - [Resample Path](#resample-path)
 - [Styling](#styling)
   - [Set Fill](#set-fill)
@@ -417,30 +415,9 @@ Example patch: Circle -> Translate (offset: 100, 50) -> Graph Output
 
 Path operation nodes modify or combine geometric paths.
 
-### Path Difference
+### Path Boolean
 
-Subtracts one path from another.
-
-**Inputs:**
-
-| Name | Type | Default | Description       |
-|------|------|---------|-------------------|
-| a    | Path | --      | Base path         |
-| b    | Path | --      | Path to subtract  |
-
-**Outputs:**
-
-| Name   | Type | Description        |
-|--------|------|--------------------|
-| result | Path | Difference (a - b) |
-
-**Notes:** Currently stubbed -- passes through the first input path.
-
----
-
-### Path Intersect
-
-Computes the intersection of two paths.
+Performs boolean geometry operations on two closed paths using the [i_overlay](https://crates.io/crates/i_overlay) library.
 
 **Inputs:**
 
@@ -449,13 +426,30 @@ Computes the intersection of two paths.
 | a    | Path | --      | First path   |
 | b    | Path | --      | Second path  |
 
+**Properties:**
+
+| Name      | Values                              | Default | Description              |
+|-----------|-------------------------------------|---------|--------------------------|
+| Operation | Union, Intersect, Difference, Xor   | Union   | Boolean operation to perform |
+
 **Outputs:**
 
-| Name   | Type | Description         |
-|--------|------|---------------------|
-| result | Path | Intersection result |
+| Name   | Type | Description           |
+|--------|------|-----------------------|
+| result | Path | Result of boolean op  |
 
-**Notes:** Boolean path operations are currently stubbed -- the node passes through the first input path. Full boolean geometry is planned for a future release.
+**Operations:**
+
+- **Union** — combines both paths into a single outline covering the area of both.
+- **Intersect** — keeps only the area where both paths overlap.
+- **Difference** — subtracts path `b` from path `a`, keeping only the area in `a` that does not overlap with `b`.
+- **Xor** — keeps the area covered by exactly one of the two paths, excluding the overlap.
+
+**Notes:** Input paths are flattened to polygon approximations before the boolean operation. The output is always a polygon path (no curves). Both paths should be closed for meaningful results. If the paths do not overlap, Union returns both contours, Intersect returns an empty path, and Difference returns path `a` unchanged.
+
+```
+Example patch: Circle (50) -> [a] Path Boolean (Difference) [b] <- Rectangle (40x40)
+```
 
 ---
 
@@ -520,35 +514,6 @@ Adds midpoints to path segments, increasing vertex density.
 | result | Path | Subdivided path |
 
 **Notes:** Each level doubles the number of segments by inserting a midpoint between each pair of consecutive vertices. For curves, De Casteljau splitting at t=0.5 is used. Multiple levels compound: level 2 produces 4x the original segments.
-
----
-
-### Path Union
-
-Merges multiple paths or shapes into a single Shapes batch.
-
-**Inputs:**
-
-| Name | Type | Default | Description    |
-|------|------|---------|----------------|
-| a    | Any  | --      | First input    |
-| b    | Any  | --      | Second input   |
-
-Additional inputs can be added dynamically.
-
-**Outputs:**
-
-| Name   | Type   | Description                         |
-|--------|--------|-------------------------------------|
-| result | Shapes | All inputs merged into one batch    |
-
-**Special behavior:** This node has **variadic inputs**. It starts with two inputs (`a` and `b`), but you can add more using the **+** button in the properties panel. Remove extra inputs with the **-** button. Inputs are named alphabetically: `a`, `b`, `c`, `d`, etc. Each input accepts any geometry type -- paths are automatically promoted to shapes. Empty inputs are skipped.
-
-```
-Example patch:
-  Circle -> Set Fill (red)  -> Path Union
-  Rectangle -> Set Fill (blue) -> Path Union -> Graph Output
-```
 
 ---
 

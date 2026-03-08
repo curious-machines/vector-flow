@@ -26,6 +26,7 @@ This document describes the Vector Flow desktop application from a user's perspe
   - [Load Image Node Properties](#load-image-node-properties)
   - [SVG Path Node Properties](#svg-path-node-properties)
   - [Color Parse Node Properties](#color-parse-node-properties)
+  - [Path Boolean Node Properties](#path-boolean-node-properties)
   - [Portal Node Properties](#portal-node-properties)
   - [Network Box Properties](#network-box-properties)
 - [Network Boxes](#network-boxes)
@@ -129,7 +130,7 @@ Right-click on the graph background to open the **Add Node** context menu. Nodes
 
 - **Generators** — Circle, Rectangle, Regular Polygon, Line, Point Grid, Scatter Points, Load Image, SVG Path
 - **Transforms** — Translate, Rotate, Scale, Apply Transform
-- **Path Ops** — Path Union, Path Intersect, Path Difference, Path Offset, Path Subdivide, Path Reverse, Resample Path
+- **Path Ops** — Path Boolean, Path Offset, Path Reverse, Path Subdivide, Resample Path
 - **Styling** — Set Fill, Set Stroke, Stroke to Path
 - **Color** — Adjust Hue, Adjust Saturation, Adjust Lightness, Adjust Luminance, Adjust Alpha, Invert Color, Grayscale, Mix Colors, Color Parse
 - **Text** — Text, Text to Path
@@ -265,6 +266,15 @@ Shows a text field labeled **Color** where you can type:
 
 - A hex color value (e.g., `#ff0000`, `#f00`).
 - A CSS named color (e.g., `red`, `cornflowerblue`). About 148 named colors are supported.
+
+### Path Boolean Node Properties
+
+Shows an **Operation** dropdown to select the boolean operation mode:
+
+- **Union** — combine both paths into one outline.
+- **Intersect** — keep only the overlapping region.
+- **Difference** — subtract path B from path A.
+- **Xor** — keep non-overlapping regions from both paths.
 
 ### Portal Node Properties
 

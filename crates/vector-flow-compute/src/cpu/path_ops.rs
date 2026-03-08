@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use i_overlay::core::fill_rule::FillRule;
+use i_overlay::core::overlay_rule::OverlayRule;
+use i_overlay::float::single::SingleFloatOverlay;
 use lyon::math::point as lyon_point;
 use lyon::path::iterator::PathIterator;
 use lyon::path::Path as LyonPath;
@@ -406,37 +409,196 @@ pub fn path_offset(path: &PathData, distance: f64) -> PathData {
     }
 }
 
-/// Path union — combine multiple paths into a single compound path.
-/// Each input path becomes a subpath in the result.
-/// Note: PathUnion node now uses shape-aware merging in cpu/mod.rs,
-/// but this is kept for potential future use by boolean path ops.
-#[allow(dead_code)]
-pub fn path_union(paths: &[&PathData]) -> PathData {
-    let total_verbs: usize = paths.iter().map(|p| p.verbs.len()).sum();
-    let mut verbs = Vec::with_capacity(total_verbs);
-    let mut closed = false;
-    for p in paths {
-        verbs.extend_from_slice(&p.verbs);
-        closed = closed || p.closed;
+/// Convert a PathData to a list of closed contours as `Vec<[f32; 2]>` for i_overlay.
+/// Curves are flattened to line segments using lyon.
+fn path_to_contours(path: &PathData) -> Vec<Vec<[f32; 2]>> {
+    let lyon_path = build_lyon_path(path);
+    let mut contours: Vec<Vec<[f32; 2]>> = Vec::new();
+    let mut current: Vec<[f32; 2]> = Vec::new();
+
+    for evt in lyon_path.iter().flattened(FLATTEN_TOLERANCE) {
+        use lyon::path::Event;
+        match evt {
+            Event::Begin { at } => {
+                if current.len() >= 3 {
+                    contours.push(std::mem::take(&mut current));
+                } else {
+                    current.clear();
+                }
+                current.push([at.x, at.y]);
+            }
+            Event::Line { from: _, to } => {
+                current.push([to.x, to.y]);
+            }
+            Event::End { first, close, .. } => {
+                if close {
+                    // Remove duplicate closing point if present
+                    if let Some(last) = current.last() {
+                        if (last[0] - first.x).abs() < 1e-6
+                            && (last[1] - first.y).abs() < 1e-6
+                        {
+                            current.pop();
+                        }
+                    }
+                }
+                if current.len() >= 3 {
+                    contours.push(std::mem::take(&mut current));
+                } else {
+                    current.clear();
+                }
+            }
+            _ => {}
+        }
     }
-    PathData { verbs, closed }
+    // Handle unclosed trailing contour
+    if current.len() >= 3 {
+        contours.push(current);
+    }
+    contours
 }
 
-/// Stub: path intersection — returns first path.
-pub fn path_intersect(a: &PathData, _b: &PathData) -> PathData {
-    log::warn!("PathIntersect is stubbed — returning first path");
-    a.clone()
+/// Convert i_overlay result contours back to PathData.
+fn contours_to_path(shapes: Vec<Vec<Vec<[f32; 2]>>>) -> PathData {
+    let mut verbs = Vec::new();
+    for shape in &shapes {
+        for contour in shape {
+            if contour.is_empty() {
+                continue;
+            }
+            verbs.push(PathVerb::MoveTo(Point {
+                x: contour[0][0],
+                y: contour[0][1],
+            }));
+            for pt in &contour[1..] {
+                verbs.push(PathVerb::LineTo(Point { x: pt[0], y: pt[1] }));
+            }
+            verbs.push(PathVerb::Close);
+        }
+    }
+    PathData {
+        verbs,
+        closed: true,
+    }
 }
 
-/// Stub: path difference — returns first path.
-pub fn path_difference(a: &PathData, _b: &PathData) -> PathData {
-    log::warn!("PathDifference is stubbed — returning first path");
-    a.clone()
+/// Perform a boolean operation on two paths using i_overlay.
+/// operation: 0=Union, 1=Intersect, 2=Difference, 3=Xor
+pub fn path_boolean(a: &PathData, b: &PathData, operation: i32) -> PathData {
+    let subj = path_to_contours(a);
+    let clip = path_to_contours(b);
+
+    if subj.is_empty() && clip.is_empty() {
+        return PathData::new();
+    }
+
+    let rule = match operation {
+        0 => OverlayRule::Union,
+        1 => OverlayRule::Intersect,
+        2 => OverlayRule::Difference,
+        3 => OverlayRule::Xor,
+        _ => OverlayRule::Union,
+    };
+
+    let result = subj.overlay(&clip, rule, FillRule::EvenOdd);
+    contours_to_path(result)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Make a closed square from (0,0) to (10,10).
+    fn make_square(x: f32, y: f32, size: f32) -> PathData {
+        PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x, y }),
+                PathVerb::LineTo(Point { x: x + size, y }),
+                PathVerb::LineTo(Point { x: x + size, y: y + size }),
+                PathVerb::LineTo(Point { x, y: y + size }),
+                PathVerb::Close,
+            ],
+            closed: true,
+        }
+    }
+
+    #[test]
+    fn boolean_union_combines_overlapping_squares() {
+        let a = make_square(0.0, 0.0, 10.0);
+        let b = make_square(5.0, 0.0, 10.0);
+        let result = path_boolean(&a, &b, 0); // Union
+        // Union of two overlapping 10x10 squares should produce a single contour
+        // covering 15x10 area. Result should have verbs and be closed.
+        assert!(!result.verbs.is_empty());
+        assert!(result.closed);
+        // Should have exactly one MoveTo (single contour)
+        let move_count = result.verbs.iter().filter(|v| matches!(v, PathVerb::MoveTo(_))).count();
+        assert_eq!(move_count, 1);
+    }
+
+    #[test]
+    fn boolean_intersect_finds_overlap() {
+        let a = make_square(0.0, 0.0, 10.0);
+        let b = make_square(5.0, 0.0, 10.0);
+        let result = path_boolean(&a, &b, 1); // Intersect
+        // Intersection should be a 5x10 rectangle
+        assert!(!result.verbs.is_empty());
+        assert!(result.closed);
+        let move_count = result.verbs.iter().filter(|v| matches!(v, PathVerb::MoveTo(_))).count();
+        assert_eq!(move_count, 1);
+    }
+
+    #[test]
+    fn boolean_difference_subtracts() {
+        let a = make_square(0.0, 0.0, 10.0);
+        let b = make_square(5.0, 0.0, 10.0);
+        let result = path_boolean(&a, &b, 2); // Difference (a - b)
+        // Should produce a 5x10 rectangle (left half of a)
+        assert!(!result.verbs.is_empty());
+        assert!(result.closed);
+    }
+
+    #[test]
+    fn boolean_xor_excludes_overlap() {
+        let a = make_square(0.0, 0.0, 10.0);
+        let b = make_square(5.0, 0.0, 10.0);
+        let result = path_boolean(&a, &b, 3); // Xor
+        // Xor should produce two separate rectangles (non-overlapping parts)
+        assert!(!result.verbs.is_empty());
+        assert!(result.closed);
+        let move_count = result.verbs.iter().filter(|v| matches!(v, PathVerb::MoveTo(_))).count();
+        assert_eq!(move_count, 2);
+    }
+
+    #[test]
+    fn boolean_disjoint_union() {
+        let a = make_square(0.0, 0.0, 5.0);
+        let b = make_square(20.0, 20.0, 5.0);
+        let result = path_boolean(&a, &b, 0); // Union
+        // Non-overlapping: union should produce two separate contours
+        let move_count = result.verbs.iter().filter(|v| matches!(v, PathVerb::MoveTo(_))).count();
+        assert_eq!(move_count, 2);
+    }
+
+    #[test]
+    fn boolean_disjoint_intersect_is_empty() {
+        let a = make_square(0.0, 0.0, 5.0);
+        let b = make_square(20.0, 20.0, 5.0);
+        let result = path_boolean(&a, &b, 1); // Intersect
+        // Non-overlapping: intersection should be empty
+        assert!(result.verbs.is_empty());
+    }
+
+    #[test]
+    fn boolean_empty_inputs() {
+        let empty = PathData::new();
+        let sq = make_square(0.0, 0.0, 10.0);
+        // Both empty
+        let result = path_boolean(&empty, &empty, 0);
+        assert!(result.verbs.is_empty());
+        // One empty: union should return the non-empty shape
+        let result = path_boolean(&sq, &empty, 0);
+        assert!(!result.verbs.is_empty());
+    }
 
     fn make_triangle() -> PathData {
         PathData {

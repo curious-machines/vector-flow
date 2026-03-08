@@ -156,6 +156,12 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get PathBoolean operation if applicable.
+    let boolean_op = match &node.op {
+        NodeOp::PathBoolean { operation } => Some(*operation),
+        _ => None,
+    };
+
     // Get Text node fields if applicable.
     let text_info = match &node.op {
         NodeOp::Text { text, font_family, font_path } => {
@@ -337,6 +343,35 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                 }
                 node.touch();
                 changed = true;
+            }
+        }
+        ui.separator();
+    }
+
+    // Path Boolean operation selector.
+    if let Some(mut bool_op) = boolean_op {
+        let labels = ["Union", "Intersect", "Difference", "Xor"];
+        let current_label = labels.get(bool_op as usize).unwrap_or(&"Union");
+        ui.horizontal(|ui| {
+            ui.label("Operation");
+            egui::ComboBox::from_id_salt("path_boolean_op")
+                .selected_text(*current_label)
+                .width(100.0)
+                .show_ui(ui, |ui| {
+                    for (i, label) in labels.iter().enumerate() {
+                        if ui.selectable_label(bool_op == i as i32, *label).clicked() {
+                            bool_op = i as i32;
+                        }
+                    }
+                });
+        });
+        if let Some(node) = graph.node_mut(core_id) {
+            if let NodeOp::PathBoolean { operation } = &mut node.op {
+                if *operation != bool_op {
+                    *operation = bool_op;
+                    node.touch();
+                    changed = true;
+                }
             }
         }
         ui.separator();
