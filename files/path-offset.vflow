@@ -1124,10 +1124,10 @@
     ],
     "graph_scale": 1.0,
     "canvas_center": [
-      35.57832,
-      1.181118
+      0.0,
+      0.0
     ],
-    "canvas_zoom": 0.93187964
+    "canvas_zoom": 1.0
   },
   "window_geometry": {
     "x": 336.5,
