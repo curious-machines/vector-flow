@@ -112,9 +112,10 @@ pub enum NodeOp {
     PortalSend { label: String },
     PortalReceive { label: String },
     // Utility
-    Merge,
+    Merge { #[serde(default)] keep_separate: bool },
     Duplicate,
     CopyToPoints,
+    PlaceAtPoints,
 
     // DSL
     DslCode {
@@ -217,7 +218,7 @@ impl NodeDef {
 
     /// Whether this node supports a variable number of inputs.
     pub fn is_variadic(&self) -> bool {
-        matches!(self.op, NodeOp::Merge)
+        matches!(self.op, NodeOp::Merge { .. })
     }
 
     /// Add another variadic input port. Returns the new port index.
@@ -549,7 +550,7 @@ impl NodeDef {
         Self {
             id,
             name: "Merge".into(),
-            op: NodeOp::Merge,
+            op: NodeOp::Merge { keep_separate: false },
             inputs: vec![
                 PortDef::new("a", DataType::Any).with_description("First input"),
                 PortDef::new("b", DataType::Any).with_description("Second input"),
@@ -606,6 +607,29 @@ impl NodeDef {
                     .with_description("Index of each copy (0..count-1)"),
                 PortDef::new("count", DataType::Scalar)
                     .with_description("Total number of copies"),
+            ],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
+        }
+    }
+
+    pub fn place_at_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Place at Points".into(),
+            op: NodeOp::PlaceAtPoints,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any)
+                    .with_description("Shapes to place (batch or single)"),
+                PortDef::new("points", DataType::Points)
+                    .with_description("Target points from Grid, Scatter Points, etc."),
+                PortDef::new("cycle", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("Cycle shorter list to match longer list length"),
+            ],
+            outputs: vec![
+                PortDef::new("geometry", DataType::Shapes),
             ],
             position: [0.0, 0.0],
             generation: 0,

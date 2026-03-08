@@ -87,20 +87,58 @@ fn is_default_value(d: &NodeData) -> bool {
     matches!(d, NodeData::Scalar(v) if *v == 0.0)
 }
 
+/// Promote a Path or Paths value to Shape(s) with no fill/stroke.
+fn promote_to_shape(data: &NodeData) -> NodeData {
+    match data {
+        NodeData::Path(p) => NodeData::Shape(Arc::new(Shape {
+            path: Arc::clone(p),
+            fill: None,
+            stroke: None,
+            transform: Affine2::IDENTITY,
+        })),
+        NodeData::Paths(ps) => {
+            let shapes: Vec<Shape> = ps.iter().map(|p| Shape {
+                path: Arc::new(p.clone()),
+                fill: None,
+                stroke: None,
+                transform: Affine2::IDENTITY,
+            }).collect();
+            NodeData::Shapes(Arc::new(shapes))
+        }
+        other => other.clone(),
+    }
+}
+
 /// Merge N inputs into a single NodeData.
 /// Compatible geometry types (Path/Paths, Shape/Shapes) are merged together.
 /// Incompatible types (Text, Image, etc.) are bundled into a `Mixed` value
 /// so `collect_scene` can render all of them.
-pub fn merge_n(inputs: &ResolvedInputs) -> NodeData {
+///
+/// When `keep_separate` is true, paths are promoted to shapes before merging
+/// so each input stays as a distinct batch element rather than having its
+/// contours combined.
+pub fn merge_n(inputs: &ResolvedInputs, keep_separate: bool) -> NodeData {
     // Filter out unconnected default placeholders.
     let items: Vec<&NodeData> = inputs.data.iter().filter(|d| !is_default_value(d)).collect();
     if items.is_empty() {
         return NodeData::Scalar(0.0);
     }
 
+    if keep_separate {
+        // Promote paths to shapes so they merge as batch items, not contours.
+        let promoted: Vec<NodeData> = items.iter().map(|d| promote_to_shape(d)).collect();
+        let refs: Vec<&NodeData> = promoted.iter().collect();
+        return merge_items(&refs);
+    }
+
+    merge_items(&items)
+}
+
+/// Shared merge logic: group mergeable items, combine compatible types.
+fn merge_items(items: &[&NodeData]) -> NodeData {
     // Group mergeable items together; keep others as separate entries.
     let mut groups: Vec<NodeData> = Vec::new();
-    for item in &items {
+    for item in items {
         let mut merged = false;
         for existing in &mut groups {
             if is_mergeable(existing, item) {
@@ -283,6 +321,63 @@ pub fn copy_to_points(
     };
 
     (shapes, tangent_angles.to_vec(), indices, n as f64)
+}
+
+/// Place shapes at points. Each shape[i] is moved so its origin lands at point[i].
+/// The point translation is prepended (applied in world space after the shape's local transform).
+/// When `cycle` is false, stops at `min(shapes, points)`.
+/// When `cycle` is true, both lists wrap to produce `max(shapes, points)` outputs.
+pub fn place_at_points(
+    data: &NodeData,
+    points: &PointBatch,
+    cycle: bool,
+) -> NodeData {
+    let num_points = points.len();
+
+    // Expand input into a list of shapes.
+    let shapes: Vec<Shape> = match data {
+        NodeData::Shape(s) => vec![(**s).clone()],
+        NodeData::Shapes(ss) => (**ss).clone(),
+        NodeData::Path(p) => vec![Shape {
+            path: Arc::clone(p),
+            fill: None,
+            stroke: None,
+            transform: Affine2::IDENTITY,
+        }],
+        NodeData::Paths(ps) => ps.iter().map(|p| Shape {
+            path: Arc::new(p.clone()),
+            fill: None,
+            stroke: None,
+            transform: Affine2::IDENTITY,
+        }).collect(),
+        _ => Vec::new(),
+    };
+
+    let num_shapes = shapes.len();
+    if num_shapes == 0 || num_points == 0 {
+        return NodeData::Shapes(Arc::new(Vec::new()));
+    }
+
+    let count = if cycle {
+        num_shapes.max(num_points)
+    } else {
+        num_shapes.min(num_points)
+    };
+
+    let out: Vec<Shape> = (0..count)
+        .map(|i| {
+            let s = &shapes[i % num_shapes];
+            let pt = Vec2::new(points.xs[i % num_points], points.ys[i % num_points]);
+            Shape {
+                path: s.path.clone(),
+                fill: s.fill,
+                stroke: s.stroke.clone(),
+                transform: Affine2::from_translation(pt) * s.transform,
+            }
+        })
+        .collect();
+
+    NodeData::Shapes(Arc::new(out))
 }
 
 /// Convert a DataType to a DslType for the compiler.
@@ -784,4 +879,269 @@ pub fn map_batch(
     // For now, only the first output is collected into a batch.
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vector_flow_core::types::{PathVerb, Point};
+
+    fn make_shape(tx: f32, ty: f32) -> Shape {
+        let path = PathData {
+            verbs: vec![PathVerb::MoveTo(Point { x: 0.0, y: 0.0 })],
+            closed: false,
+        };
+        Shape {
+            path: Arc::new(path),
+            fill: None,
+            stroke: None,
+            transform: Affine2::from_translation(Vec2::new(tx, ty)),
+        }
+    }
+
+    fn make_points(coords: &[(f32, f32)]) -> PointBatch {
+        let mut pts = PointBatch::new();
+        for &(x, y) in coords {
+            pts.xs.push(x);
+            pts.ys.push(y);
+        }
+        pts
+    }
+
+    fn translation_of(xform: &Affine2) -> Vec2 {
+        xform.translation
+    }
+
+    #[test]
+    fn place_at_points_basic() {
+        let shapes = NodeData::Shapes(Arc::new(vec![
+            make_shape(0.0, 0.0),
+            make_shape(0.0, 0.0),
+            make_shape(0.0, 0.0),
+        ]));
+        let points = make_points(&[(10.0, 20.0), (30.0, 40.0), (50.0, 60.0)]);
+
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, false) {
+            assert_eq!(out.len(), 3);
+            let t0 = translation_of(&out[0].transform);
+            let t1 = translation_of(&out[1].transform);
+            let t2 = translation_of(&out[2].transform);
+            assert!((t0.x - 10.0).abs() < 1e-5);
+            assert!((t0.y - 20.0).abs() < 1e-5);
+            assert!((t1.x - 30.0).abs() < 1e-5);
+            assert!((t1.y - 40.0).abs() < 1e-5);
+            assert!((t2.x - 50.0).abs() < 1e-5);
+            assert!((t2.y - 60.0).abs() < 1e-5);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn place_at_points_preserves_local_transform() {
+        // Shape has a local translation of (5, 5). Placing at (10, 20) should
+        // result in the local origin at (10, 20) with the local offset on top.
+        let shapes = NodeData::Shape(Arc::new(make_shape(5.0, 5.0)));
+        let points = make_points(&[(10.0, 20.0)]);
+
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, false) {
+            assert_eq!(out.len(), 1);
+            // Transform is translate(10,20) * translate(5,5)
+            // A point at local origin (0,0) would go: (0,0) → +translate(5,5) → (5,5) → +translate(10,20) → (15,25)
+            let transformed = out[0].transform.transform_point2(Vec2::ZERO);
+            assert!((transformed.x - 15.0).abs() < 1e-5);
+            assert!((transformed.y - 25.0).abs() < 1e-5);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn place_at_points_truncates_without_cycle() {
+        let shapes = NodeData::Shapes(Arc::new(vec![
+            make_shape(0.0, 0.0),
+            make_shape(0.0, 0.0),
+        ]));
+        // 3 points but only 2 shapes → output 2
+        let points = make_points(&[(1.0, 0.0), (2.0, 0.0), (3.0, 0.0)]);
+
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, false) {
+            assert_eq!(out.len(), 2);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn place_at_points_cycle_wraps_shapes() {
+        // 2 shapes, 4 points, cycle=true → 4 outputs, shapes cycle
+        let shapes = NodeData::Shapes(Arc::new(vec![
+            make_shape(0.0, 0.0),
+            make_shape(1.0, 0.0), // has a local offset to distinguish
+        ]));
+        let points = make_points(&[(10.0, 0.0), (20.0, 0.0), (30.0, 0.0), (40.0, 0.0)]);
+
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, true) {
+            assert_eq!(out.len(), 4);
+            // Shape 0 at point 0, shape 1 at point 1, shape 0 at point 2, shape 1 at point 3
+            let t0 = translation_of(&out[0].transform);
+            let t2 = translation_of(&out[2].transform);
+            // shape[0] has no local offset → translation is just the point
+            assert!((t0.x - 10.0).abs() < 1e-5);
+            assert!((t2.x - 30.0).abs() < 1e-5);
+            // shape[1] has local offset (1,0) → composed translation is point + local
+            let t1 = translation_of(&out[1].transform);
+            assert!((t1.x - 21.0).abs() < 1e-5);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn place_at_points_cycle_wraps_points() {
+        // 4 shapes, 2 points, cycle=true → 4 outputs, points cycle
+        let shapes = NodeData::Shapes(Arc::new(vec![
+            make_shape(0.0, 0.0),
+            make_shape(0.0, 0.0),
+            make_shape(0.0, 0.0),
+            make_shape(0.0, 0.0),
+        ]));
+        let points = make_points(&[(10.0, 0.0), (20.0, 0.0)]);
+
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, true) {
+            assert_eq!(out.len(), 4);
+            let t0 = translation_of(&out[0].transform);
+            let t1 = translation_of(&out[1].transform);
+            let t2 = translation_of(&out[2].transform);
+            let t3 = translation_of(&out[3].transform);
+            assert!((t0.x - 10.0).abs() < 1e-5);
+            assert!((t1.x - 20.0).abs() < 1e-5);
+            assert!((t2.x - 10.0).abs() < 1e-5); // wraps
+            assert!((t3.x - 20.0).abs() < 1e-5); // wraps
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn place_at_points_empty_inputs() {
+        let shapes = NodeData::Shapes(Arc::new(Vec::new()));
+        let points = make_points(&[(10.0, 0.0)]);
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, false) {
+            assert_eq!(out.len(), 0);
+        } else {
+            panic!("expected Shapes");
+        }
+
+        let shapes = NodeData::Shape(Arc::new(make_shape(0.0, 0.0)));
+        let points = make_points(&[]);
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, false) {
+            assert_eq!(out.len(), 0);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn place_at_points_single_shape() {
+        // Single shape (not batch) at 3 points with cycle
+        let shapes = NodeData::Shape(Arc::new(make_shape(0.0, 0.0)));
+        let points = make_points(&[(10.0, 0.0), (20.0, 0.0), (30.0, 0.0)]);
+
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, true) {
+            assert_eq!(out.len(), 3);
+        } else {
+            panic!("expected Shapes");
+        }
+
+        // Without cycle: min(1, 3) = 1
+        if let NodeData::Shapes(out) = place_at_points(&shapes, &points, false) {
+            assert_eq!(out.len(), 1);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn place_at_points_path_input() {
+        // Path input gets promoted to a shape
+        let path = PathData {
+            verbs: vec![PathVerb::MoveTo(Point { x: 0.0, y: 0.0 })],
+            closed: false,
+        };
+        let data = NodeData::Path(Arc::new(path));
+        let points = make_points(&[(10.0, 20.0)]);
+
+        if let NodeData::Shapes(out) = place_at_points(&data, &points, false) {
+            assert_eq!(out.len(), 1);
+            let t = translation_of(&out[0].transform);
+            assert!((t.x - 10.0).abs() < 1e-5);
+            assert!((t.y - 20.0).abs() < 1e-5);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
+
+    #[test]
+    fn merge_paths_default_combines_contours() {
+        let p1 = NodeData::Path(Arc::new(PathData {
+            verbs: vec![PathVerb::MoveTo(Point { x: 0.0, y: 0.0 })],
+            closed: false,
+        }));
+        let p2 = NodeData::Path(Arc::new(PathData {
+            verbs: vec![PathVerb::MoveTo(Point { x: 10.0, y: 10.0 })],
+            closed: false,
+        }));
+        let inputs = ResolvedInputs { data: vec![p1, p2] };
+        let result = merge_n(&inputs, false);
+        // Default: paths merge into a single Path with combined contours.
+        assert!(matches!(result, NodeData::Path(_)));
+        if let NodeData::Path(p) = &result {
+            assert_eq!(p.verbs.len(), 2);
+        }
+    }
+
+    #[test]
+    fn merge_paths_keep_separate_produces_shapes_batch() {
+        let p1 = NodeData::Path(Arc::new(PathData {
+            verbs: vec![PathVerb::MoveTo(Point { x: 0.0, y: 0.0 })],
+            closed: false,
+        }));
+        let p2 = NodeData::Path(Arc::new(PathData {
+            verbs: vec![PathVerb::MoveTo(Point { x: 10.0, y: 10.0 })],
+            closed: false,
+        }));
+        let inputs = ResolvedInputs { data: vec![p1, p2] };
+        let result = merge_n(&inputs, true);
+        // keep_separate: paths promoted to shapes → merged as Shapes batch.
+        if let NodeData::Shapes(shapes) = &result {
+            assert_eq!(shapes.len(), 2);
+        } else {
+            panic!("expected Shapes batch, got {:?}", result.data_type());
+        }
+    }
+
+    #[test]
+    fn merge_shapes_unaffected_by_keep_separate() {
+        let s1 = NodeData::Shape(Arc::new(make_shape(0.0, 0.0)));
+        let s2 = NodeData::Shape(Arc::new(make_shape(5.0, 5.0)));
+        let inputs = ResolvedInputs { data: vec![s1, s2] };
+        // Both modes should produce a Shapes batch of 2.
+        if let NodeData::Shapes(shapes) = merge_n(&inputs, false) {
+            assert_eq!(shapes.len(), 2);
+        } else {
+            panic!("expected Shapes");
+        }
+        let inputs2 = ResolvedInputs {
+            data: vec![
+                NodeData::Shape(Arc::new(make_shape(0.0, 0.0))),
+                NodeData::Shape(Arc::new(make_shape(5.0, 5.0))),
+            ],
+        };
+        if let NodeData::Shapes(shapes) = merge_n(&inputs2, true) {
+            assert_eq!(shapes.len(), 2);
+        } else {
+            panic!("expected Shapes");
+        }
+    }
 }

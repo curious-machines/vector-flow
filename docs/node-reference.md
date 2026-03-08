@@ -51,6 +51,7 @@ This document describes every node type available in Vector Flow, organized by c
   - [Copy to Points](#copy-to-points)
   - [Duplicate](#duplicate)
   - [Merge](#merge)
+  - [Place at Points](#place-at-points)
   - [Portal Receive](#portal-receive)
   - [Portal Send](#portal-send)
 - [Code](#code)
@@ -1059,7 +1060,7 @@ Example patch: Rectangle (40x40) -> Duplicate (count: 10, transform: Translate 4
 
 ### Merge
 
-Combines two geometry inputs into a single output.
+Combines multiple geometry inputs into a single output. Inputs are variadic -- additional ports are added automatically as you connect wires.
 
 **Inputs:**
 
@@ -1074,6 +1075,12 @@ Combines two geometry inputs into a single output.
 |--------|------|-----------------|
 | merged | Any  | Combined result |
 
+**Properties:**
+
+| Name          | Type | Default | Description                                              |
+|---------------|------|---------|----------------------------------------------------------|
+| Keep Separate | Bool | false   | Promote paths to shapes so each input stays a distinct batch element |
+
 **Notes:** The merge behavior depends on the input types:
 - **Path + Path** -- merged into a single multi-contour Path
 - **Shape + Shape** -- combined into a Shapes batch
@@ -1082,10 +1089,40 @@ Combines two geometry inputs into a single output.
 
 Types are automatically promoted to match when possible.
 
+When **Keep Separate** is enabled, path inputs are promoted to unstyled shapes before merging. This means multiple paths become a Shapes batch (one shape per input) rather than a single combined Path. This is useful when you want to style or transform each input independently downstream, or when feeding into Place at Points for 1:1 distribution.
+
 ```
 Example patch:
   Circle -> Set Fill (red)  -> Merge
   Rectangle -> Set Fill (blue) -> Merge -> Graph Output
+```
+
+---
+
+### Place at Points
+
+Places each shape at the corresponding point. Shape[0] goes to point[0], shape[1] to point[1], and so on.
+
+**Inputs:**
+
+| Name     | Type   | Default | Description                                    |
+|----------|--------|---------|------------------------------------------------|
+| geometry | Any    | --      | Shapes to place (single or batch)              |
+| points   | Points | --      | Target points from Grid, Scatter Points, etc.  |
+| cycle    | Bool   | false   | Cycle shorter list to match longer list length  |
+
+**Outputs:**
+
+| Name     | Type   | Description                      |
+|----------|--------|----------------------------------|
+| geometry | Shapes | Shapes placed at the given points |
+
+**Notes:** The point translation is prepended to each shape's existing transform, so any local transforms (translate, rotate, scale) applied before this node are preserved. When `cycle` is off, output length is `min(shapes, points)`. When on, both lists wrap to produce `max(shapes, points)` outputs — useful for distributing a small set of shapes across a larger grid.
+
+A single shape input is treated as a 1-element list. With `cycle` enabled, this behaves like Copy to Points but using pre-computed points instead of sampling a path.
+
+```
+Example patch: Regular Polygon (sides: 3) -> Set Fill -> Place at Points (points: Point Grid, cycle: true) -> Graph Output
 ```
 
 ---

@@ -1,0 +1,1417 @@
+{
+  "graph": {
+    "nodes": {
+      "12": {
+        "id": 12,
+        "name": "Path Boolean",
+        "op": {
+          "PathBoolean": {
+            "operation": 2
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Path",
+            "description": "First path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Path",
+            "description": "Second path",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          9.947754,
+          62.585754
+        ],
+        "generation": 2,
+        "version": 0
+      },
+      "19": {
+        "id": 19,
+        "name": "Point Grid",
+        "op": "PointGrid",
+        "inputs": [
+          {
+            "name": "columns",
+            "data_type": "Int",
+            "description": "Number of columns",
+            "default_value": {
+              "Int": 2
+            },
+            "expression": null
+          },
+          {
+            "name": "rows",
+            "data_type": "Int",
+            "description": "Number of rows",
+            "default_value": {
+              "Int": 2
+            },
+            "expression": null
+          },
+          {
+            "name": "spacing",
+            "data_type": "Scalar",
+            "description": "Distance between points",
+            "default_value": {
+              "Float": 200.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          296.36948,
+          228.69945
+        ],
+        "generation": 10,
+        "version": 0
+      },
+      "7": {
+        "id": 7,
+        "name": "Set Stroke",
+        "op": {
+          "SetStroke": {
+            "dash_pattern": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Stroke color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.2942439,
+                0.29037032,
+                0.29037032,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          395.375,
+          -94.546875
+        ],
+        "generation": 68,
+        "version": 0
+      },
+      "8": {
+        "id": 8,
+        "name": "Path Boolean",
+        "op": {
+          "PathBoolean": {
+            "operation": 1
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Path",
+            "description": "First path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Path",
+            "description": "Second path",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          7.6398926,
+          -111.20358
+        ],
+        "generation": 1,
+        "version": 0
+      },
+      "3": {
+        "id": 3,
+        "name": "Translate",
+        "op": "Translate",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "offset",
+            "data_type": "Vec2",
+            "description": "Translation offset",
+            "default_value": {
+              "Vec2": [
+                -50.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -220.0,
+          -139.20312
+        ],
+        "generation": 3,
+        "version": 0
+      },
+      "21": {
+        "id": 21,
+        "name": "Scale",
+        "op": "Scale",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "factor",
+            "data_type": "Vec2",
+            "description": "Scale factor (x, y)",
+            "default_value": {
+              "Vec2": [
+                0.5,
+                0.5
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center of scaling",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          373.8511,
+          -160.8226
+        ],
+        "generation": 2,
+        "version": 0
+      },
+      "6": {
+        "id": 6,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.08603243,
+                0.08545711,
+                0.253777,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          338.71875,
+          -92.171875
+        ],
+        "generation": 110,
+        "version": 0
+      },
+      "16": {
+        "id": 16,
+        "name": "Path Boolean",
+        "op": {
+          "PathBoolean": {
+            "operation": 3
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Path",
+            "description": "First path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Path",
+            "description": "Second path",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          230.46312,
+          89.13746
+        ],
+        "generation": 3,
+        "version": 0
+      },
+      "18": {
+        "id": 18,
+        "name": "Place at Points",
+        "op": "PlaceAtPoints",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Shapes to place (batch or single)",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "Target points from Grid, Scatter Points, etc.",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "cycle",
+            "data_type": "Bool",
+            "description": "Cycle shorter list to match longer list length",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Shapes",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          666.2684,
+          46.76011
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "5": {
+        "id": 5,
+        "name": "Path Boolean",
+        "op": {
+          "PathBoolean": {
+            "operation": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Path",
+            "description": "First path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Path",
+            "description": "Second path",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          79.875,
+          -74.109375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "17": {
+        "id": 17,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": true
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "d",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "e",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          269.53125,
+          -22.070312
+        ],
+        "generation": 4,
+        "version": 0
+      },
+      "20": {
+        "id": 20,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          1099.0349,
+          102.45864
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "4": {
+        "id": 4,
+        "name": "Translate",
+        "op": "Translate",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "offset",
+            "data_type": "Vec2",
+            "description": "Translation offset",
+            "default_value": {
+              "Vec2": [
+                50.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -254.62314,
+          -151.5224
+        ],
+        "generation": 5,
+        "version": 0
+      },
+      "1": {
+        "id": 1,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -447.4375,
+          -180.07812
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "2": {
+        "id": 2,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -112.15625,
+          -100.515625
+        ],
+        "generation": 0,
+        "version": 0
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 4,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 4,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 6,
+          "port": 0
+        },
+        "to": {
+          "node": 7,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 8,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 4,
+          "port": 0
+        },
+        "to": {
+          "node": 8,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 12,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 4,
+          "port": 0
+        },
+        "to": {
+          "node": 12,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 16,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 4,
+          "port": 0
+        },
+        "to": {
+          "node": 16,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 5,
+          "port": 0
+        },
+        "to": {
+          "node": 17,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 8,
+          "port": 0
+        },
+        "to": {
+          "node": 17,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 12,
+          "port": 0
+        },
+        "to": {
+          "node": 17,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 16,
+          "port": 0
+        },
+        "to": {
+          "node": 17,
+          "port": 3
+        }
+      },
+      {
+        "from": {
+          "node": 19,
+          "port": 0
+        },
+        "to": {
+          "node": 18,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 18,
+          "port": 0
+        },
+        "to": {
+          "node": 6,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 0
+        },
+        "to": {
+          "node": 20,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 17,
+          "port": 0
+        },
+        "to": {
+          "node": 21,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 21,
+          "port": 0
+        },
+        "to": {
+          "node": 18,
+          "port": 0
+        }
+      }
+    ],
+    "next_id": 22,
+    "generation": 5631,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -907.67786,
+          "y": -72.97648
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -908.2998,
+          "y": 19.691547
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Translate",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -744.86316,
+          "y": -74.42075
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 4,
+          "display_name": "Translate",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -743.49744,
+          "y": 19.155178
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Path Boolean",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -492.75504,
+          "y": -138.8891
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 6,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 332.74393,
+          "y": 3.5575142
+        },
+        "open": true
+      },
+      "6": {
+        "value": {
+          "core_id": 7,
+          "display_name": "Set Stroke",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 536.53687,
+          "y": 4.0874214
+        },
+        "open": true
+      },
+      "7": {
+        "value": {
+          "core_id": 8,
+          "display_name": "Path Boolean",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -493.8024,
+          "y": -55.532837
+        },
+        "open": true
+      },
+      "8": {
+        "value": {
+          "core_id": 18,
+          "display_name": "Place at Points",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 117.73538,
+          "y": -3.5721397
+        },
+        "open": true
+      },
+      "9": {
+        "value": {
+          "core_id": 20,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 768.65906,
+          "y": 3.448841
+        },
+        "open": true
+      },
+      "10": {
+        "value": {
+          "core_id": 19,
+          "display_name": "Point Grid",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -105.67056,
+          "y": 67.38772
+        },
+        "open": true
+      },
+      "11": {
+        "value": {
+          "core_id": 12,
+          "display_name": "Path Boolean",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -494.5884,
+          "y": 31.17849
+        },
+        "open": true
+      },
+      "13": {
+        "value": {
+          "core_id": 21,
+          "display_name": "Scale",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -136.27899,
+          "y": -46.21431
+        },
+        "open": true
+      },
+      "14": {
+        "value": {
+          "core_id": 17,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -306.79782,
+          "y": -52.912373
+        },
+        "open": true
+      },
+      "15": {
+        "value": {
+          "core_id": 16,
+          "display_name": "Path Boolean",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -496.3362,
+          "y": 120.08472
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 11,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 7,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 14,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 11,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 14,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
+          "node": 14,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 13,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 8,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 15,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 15,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 15,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 14,
+          "input": 3
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 10,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 6,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 11,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 14,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 13,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      -0.20577031,
+      12.92021
+    ],
+    "graph_scale": 0.6931211,
+    "canvas_center": [
+      0.0,
+      0.0
+    ],
+    "canvas_zoom": 1.0
+  },
+  "window_geometry": {
+    "x": 104.0,
+    "y": 84.0,
+    "width": 1614.0,
+    "height": 1326.5,
+    "node_editor_height": 614.71875,
+    "properties_width": 250.0
+  },
+  "settings": {
+    "canvas_width": 640,
+    "canvas_height": 480,
+    "background_color": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1.0
+    ],
+    "fps": 30.0
+  }
+}

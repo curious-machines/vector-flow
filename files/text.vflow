@@ -162,7 +162,7 @@
       "5": {
         "id": 5,
         "name": "Merge",
-        "op": "Merge",
+        "op": { "Merge": { "keep_separate": false } },
         "inputs": [
           {
             "name": "a",

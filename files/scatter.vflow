@@ -126,7 +126,7 @@
       "11": {
         "id": 11,
         "name": "Merge",
-        "op": "Merge",
+        "op": { "Merge": { "keep_separate": false } },
         "inputs": [
           {
             "name": "a",

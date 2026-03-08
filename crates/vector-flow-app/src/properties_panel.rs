@@ -162,6 +162,12 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get Merge keep_separate flag if applicable.
+    let merge_keep_separate = match &node.op {
+        NodeOp::Merge { keep_separate } => Some(*keep_separate),
+        _ => None,
+    };
+
     // Get Text node fields if applicable.
     let text_info = match &node.op {
         NodeOp::Text { text, font_family, font_path } => {
@@ -369,6 +375,23 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             if let NodeOp::PathBoolean { operation } = &mut node.op {
                 if *operation != bool_op {
                     *operation = bool_op;
+                    node.touch();
+                    changed = true;
+                }
+            }
+        }
+        ui.separator();
+    }
+
+    // Merge keep_separate toggle.
+    if let Some(mut ks) = merge_keep_separate {
+        if ui.checkbox(&mut ks, "Keep Separate")
+            .on_hover_text("When enabled, paths are promoted to shapes so each input stays as a distinct batch element instead of merging contours")
+            .changed()
+        {
+            if let Some(node) = graph.node_mut(core_id) {
+                if let NodeOp::Merge { keep_separate } = &mut node.op {
+                    *keep_separate = ks;
                     node.touch();
                     changed = true;
                 }

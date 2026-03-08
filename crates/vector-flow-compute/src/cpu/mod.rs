@@ -292,8 +292,8 @@ impl ComputeBackend for CpuBackend {
             }
 
             // ── Utility ─────────────────────────────────────────────
-            NodeOp::Merge => {
-                utility::merge_n(inputs)
+            NodeOp::Merge { keep_separate } => {
+                utility::merge_n(inputs, *keep_separate)
             }
             NodeOp::Duplicate => {
                 let geometry = get_any(inputs, 0);
@@ -324,6 +324,15 @@ impl ComputeBackend for CpuBackend {
                     outputs.data[3] = Some(NodeData::Scalar(total));
                 }
                 return Ok(());
+            }
+            NodeOp::PlaceAtPoints => {
+                let geometry = get_any(inputs, 0);
+                let points = get_points_batch(inputs, 1);
+                let cycle = get_bool(inputs, 2);
+                match points {
+                    Some(pts) => utility::place_at_points(&geometry, &pts, cycle),
+                    None => NodeData::Shapes(Arc::new(Vec::new())),
+                }
             }
             // ── DSL ─────────────────────────────────────────────────
             NodeOp::DslCode { source, script_inputs, script_outputs } => {
