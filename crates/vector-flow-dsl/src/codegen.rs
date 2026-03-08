@@ -5,6 +5,14 @@ use cranelift_codegen::ir::types;
 use cranelift_codegen::ir::{AbiParam, BlockArg, InstBuilder, UserFuncName};
 use cranelift_codegen::isa::CallConv;
 use cranelift_codegen::settings::{self, Configurable};
+
+fn default_call_conv() -> CallConv {
+    if cfg!(target_os = "windows") {
+        CallConv::WindowsFastcall
+    } else {
+        CallConv::SystemV
+    }
+}
 use cranelift_codegen::Context;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
@@ -108,7 +116,7 @@ impl DslCompiler {
         let name = self.next_func_name();
 
         let mut sig = self.module.make_signature();
-        sig.call_conv = CallConv::SystemV;
+        sig.call_conv = default_call_conv();
         sig.params.push(AbiParam::new(self.module.target_config().pointer_type()));
         sig.returns.push(AbiParam::new(types::F64));
 
@@ -282,7 +290,7 @@ impl DslCompiler {
         let name = self.next_func_name();
 
         let mut sig = self.module.make_signature();
-        sig.call_conv = CallConv::SystemV;
+        sig.call_conv = default_call_conv();
         sig.params.push(AbiParam::new(self.module.target_config().pointer_type()));
         sig.returns.push(AbiParam::new(types::F64));
 
@@ -343,7 +351,7 @@ impl DslCompiler {
         let name = self.next_func_name();
 
         let mut sig = self.module.make_signature();
-        sig.call_conv = CallConv::SystemV;
+        sig.call_conv = default_call_conv();
         sig.params.push(AbiParam::new(self.module.target_config().pointer_type()));
         sig.returns.push(AbiParam::new(types::F64));
 
@@ -499,7 +507,7 @@ impl CodegenCtx<'_, '_> {
             id
         } else {
             let mut sig = self.module.make_signature();
-            sig.call_conv = CallConv::SystemV;
+            sig.call_conv = default_call_conv();
             for &pt in param_types {
                 sig.params.push(AbiParam::new(pt));
             }
@@ -527,7 +535,7 @@ impl CodegenCtx<'_, '_> {
             id
         } else {
             let mut sig = self.module.make_signature();
-            sig.call_conv = CallConv::SystemV;
+            sig.call_conv = default_call_conv();
             for &pt in param_types {
                 sig.params.push(AbiParam::new(pt));
             }
