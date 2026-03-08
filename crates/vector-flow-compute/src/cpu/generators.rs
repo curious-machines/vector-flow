@@ -113,7 +113,7 @@ pub fn point_grid(cols: i64, rows: i64, spacing: f64) -> NodeData {
     for row in 0..r {
         for col in 0..c {
             xs.push(col as f32 * sp - ox);
-            ys.push(row as f32 * sp - oy);
+            ys.push(oy - row as f32 * sp);
         }
     }
 
