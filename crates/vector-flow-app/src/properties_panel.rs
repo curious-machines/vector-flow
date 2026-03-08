@@ -419,33 +419,38 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             text_changed = true;
         }
 
-        ui.horizontal(|ui| {
-            ui.label("Font Family");
-            if ui
-                .text_edit_singleline(&mut font_family)
-                .on_hover_text("System font name, e.g. \"Arial\", \"Noto Sans\" (empty = default)")
-                .changed()
-            {
-                family_changed = true;
-            }
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Font Path");
-            if ui.text_edit_singleline(&mut font_path).changed() {
-                path_changed = true;
-            }
-            if ui.button("\u{1F4C2}").on_hover_text("Browse...").clicked() {
-                if let Some(picked) = rfd::FileDialog::new()
-                    .add_filter("Fonts", &["ttf", "otf", "ttc", "otc"])
-                    .add_filter("All files", &["*"])
-                    .pick_file()
+        egui::Grid::new("text_fonts_grid")
+            .num_columns(2)
+            .spacing([8.0, 4.0])
+            .show(ui, |ui| {
+                ui.label("Font Family");
+                if ui
+                    .text_edit_singleline(&mut font_family)
+                    .on_hover_text("System font name, e.g. \"Arial\", \"Noto Sans\" (empty = default)")
+                    .changed()
                 {
-                    font_path = picked.display().to_string();
-                    path_changed = true;
+                    family_changed = true;
                 }
-            }
-        });
+                ui.end_row();
+
+                ui.label("Font Path");
+                ui.horizontal(|ui| {
+                    if ui.text_edit_singleline(&mut font_path).changed() {
+                        path_changed = true;
+                    }
+                    if ui.button("\u{1F4C2}").on_hover_text("Browse...").clicked() {
+                        if let Some(picked) = rfd::FileDialog::new()
+                            .add_filter("Fonts", &["ttf", "otf", "ttc", "otc"])
+                            .add_filter("All files", &["*"])
+                            .pick_file()
+                        {
+                            font_path = picked.display().to_string();
+                            path_changed = true;
+                        }
+                    }
+                });
+                ui.end_row();
+            });
 
         if text_changed || family_changed || path_changed {
             if let Some(node) = graph.node_mut(core_id) {
@@ -511,55 +516,60 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         ui.separator();
     }
 
-    for (idx, name, data_type, default_value) in port_info {
-        // For connected color ports, show a read-only swatch of the actual computed value.
-        let port_id = PortId { node: core_id, port: PortIndex(idx) };
-        if data_type == DataType::Color {
-            if let Some(edge) = graph.input_connection(port_id) {
-                if let Some(color) = eval_result
-                    .and_then(|er| er.outputs.get(&edge.from.node))
-                    .and_then(|outputs| outputs.get(edge.from.port.0))
-                {
-                    match color {
-                        NodeData::Color(c) => {
-                            let rgba = [c.r, c.g, c.b, c.a];
-                            show_connected_color(ui, &name, &rgba);
-                        }
-                        NodeData::Colors(colors) => {
-                            if let Some(c) = colors.first() {
-                                let rgba = [c.r, c.g, c.b, c.a];
-                                let batch_name = format!("{name} ({} colors)", colors.len());
-                                show_connected_color(ui, &batch_name, &rgba);
+    egui::Grid::new("node_params_grid")
+        .num_columns(2)
+        .spacing([8.0, 4.0])
+        .show(ui, |ui| {
+            for (idx, name, data_type, default_value) in port_info {
+                // For connected color ports, show a read-only swatch of the actual computed value.
+                let port_id = PortId { node: core_id, port: PortIndex(idx) };
+                if data_type == DataType::Color {
+                    if let Some(edge) = graph.input_connection(port_id) {
+                        if let Some(color) = eval_result
+                            .and_then(|er| er.outputs.get(&edge.from.node))
+                            .and_then(|outputs| outputs.get(edge.from.port.0))
+                        {
+                            match color {
+                                NodeData::Color(c) => {
+                                    let rgba = [c.r, c.g, c.b, c.a];
+                                    show_connected_color(ui, &name, &rgba);
+                                }
+                                NodeData::Colors(colors) => {
+                                    if let Some(c) = colors.first() {
+                                        let rgba = [c.r, c.g, c.b, c.a];
+                                        let batch_name = format!("{name} ({} colors)", colors.len());
+                                        show_connected_color(ui, &batch_name, &rgba);
+                                    }
+                                }
+                                _ => {}
                             }
                         }
-                        _ => {}
+                        continue;
                     }
                 }
-                continue;
-            }
-        }
-        let Some(param) = default_value else { continue };
-        if let Some(new_val) = show_param_editor(ui, &name, data_type, &param) {
-            if let Some(node) = graph.node_mut(core_id) {
-                node.inputs[idx].default_value = Some(new_val);
-                node.touch();
-                changed = true;
-            }
-        }
-    }
-
-    // Show computed color outputs.
-    if !color_outputs.is_empty() {
-        if let Some(outputs) = eval_result.and_then(|er| er.outputs.get(&core_id)) {
-            for (idx, name) in &color_outputs {
-                if let Some(NodeData::Color(c)) = outputs.get(*idx) {
-                    let rgba = [c.r, c.g, c.b, c.a];
-                    let output_label = format!("{name} (out)");
-                    show_connected_color(ui, &output_label, &rgba);
+                let Some(param) = default_value else { continue };
+                if let Some(new_val) = show_param_editor(ui, &name, data_type, &param) {
+                    if let Some(node) = graph.node_mut(core_id) {
+                        node.inputs[idx].default_value = Some(new_val);
+                        node.touch();
+                        changed = true;
+                    }
                 }
             }
-        }
-    }
+
+            // Show computed color outputs.
+            if !color_outputs.is_empty() {
+                if let Some(outputs) = eval_result.and_then(|er| er.outputs.get(&core_id)) {
+                    for (idx, name) in &color_outputs {
+                        if let Some(NodeData::Color(c)) = outputs.get(*idx) {
+                            let rgba = [c.r, c.g, c.b, c.a];
+                            let output_label = format!("{name} (out)");
+                            show_connected_color(ui, &output_label, &rgba);
+                        }
+                    }
+                }
+            }
+        });
 
     // Variadic input controls.
     if is_variadic {
@@ -589,14 +599,15 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
 
 /// Show a read-only color swatch for a connected color input port.
 /// Uses egui's built-in color button for correct sRGB handling.
+/// Must be called inside an `egui::Grid` with 2 columns.
 fn show_connected_color(ui: &mut Ui, name: &str, rgba: &[f32; 4]) {
-    ui.horizontal(|ui| {
-        ui.label(name);
-        let mut val = *rgba;
-        ui.color_edit_button_rgba_unmultiplied(&mut val);
-    });
+    ui.label(name);
+    let mut val = *rgba;
+    ui.color_edit_button_rgba_unmultiplied(&mut val);
+    ui.end_row();
 }
 
+/// Must be called inside an `egui::Grid` with 2 columns.
 fn show_param_editor(
     ui: &mut Ui,
     name: &str,
@@ -606,51 +617,48 @@ fn show_param_editor(
     match (data_type, value) {
         (DataType::Scalar, ParamValue::Float(v)) => {
             let mut val = *v;
-            ui.horizontal(|ui| {
-                ui.label(name);
-                ui.add(egui::DragValue::new(&mut val).speed(0.1));
-            });
+            ui.label(name);
+            ui.add(egui::DragValue::new(&mut val).speed(0.1));
+            ui.end_row();
             if val != *v {
                 return Some(ParamValue::Float(val));
             }
         }
         (DataType::Int, ParamValue::Int(v)) => {
             let mut val = *v;
-            ui.horizontal(|ui| {
-                ui.label(name);
-                ui.add(egui::DragValue::new(&mut val).speed(1.0));
-            });
+            ui.label(name);
+            ui.add(egui::DragValue::new(&mut val).speed(1.0));
+            ui.end_row();
             if val != *v {
                 return Some(ParamValue::Int(val));
             }
         }
         (DataType::Bool, ParamValue::Bool(v)) => {
             let mut val = *v;
-            ui.horizontal(|ui| {
-                ui.label(name);
-                ui.checkbox(&mut val, "");
-            });
+            ui.label(name);
+            ui.checkbox(&mut val, "");
+            ui.end_row();
             if val != *v {
                 return Some(ParamValue::Bool(val));
             }
         }
         (DataType::Vec2, ParamValue::Vec2(v)) => {
             let mut val = *v;
+            ui.label(name);
             ui.horizontal(|ui| {
-                ui.label(name);
                 ui.add(egui::DragValue::new(&mut val[0]).speed(0.1).prefix("x: "));
                 ui.add(egui::DragValue::new(&mut val[1]).speed(0.1).prefix("y: "));
             });
+            ui.end_row();
             if val != *v {
                 return Some(ParamValue::Vec2(val));
             }
         }
         (DataType::Color, ParamValue::Color(v)) => {
             let mut val = *v;
-            ui.horizontal(|ui| {
-                ui.label(name);
-                ui.color_edit_button_rgba_unmultiplied(&mut val);
-            });
+            ui.label(name);
+            ui.color_edit_button_rgba_unmultiplied(&mut val);
+            ui.end_row();
             if val != *v {
                 return Some(ParamValue::Color(val));
             }
@@ -658,29 +666,26 @@ fn show_param_editor(
         // Scalars used as Scalar params (e.g. angle in degrees).
         (_, ParamValue::Float(v)) => {
             let mut val = *v;
-            ui.horizontal(|ui| {
-                ui.label(name);
-                ui.add(egui::DragValue::new(&mut val).speed(0.1));
-            });
+            ui.label(name);
+            ui.add(egui::DragValue::new(&mut val).speed(0.1));
+            ui.end_row();
             if val != *v {
                 return Some(ParamValue::Float(val));
             }
         }
         (_, ParamValue::Int(v)) => {
             let mut val = *v;
-            ui.horizontal(|ui| {
-                ui.label(name);
-                ui.add(egui::DragValue::new(&mut val).speed(1.0));
-            });
+            ui.label(name);
+            ui.add(egui::DragValue::new(&mut val).speed(1.0));
+            ui.end_row();
             if val != *v {
                 return Some(ParamValue::Int(val));
             }
         }
         _ => {
-            ui.horizontal(|ui| {
-                ui.label(name);
-                ui.label("(no editor)");
-            });
+            ui.label(name);
+            ui.label("(no editor)");
+            ui.end_row();
         }
     }
     None
