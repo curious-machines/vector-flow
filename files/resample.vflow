@@ -50,7 +50,8 @@
           -157.03125,
           -482.65625
         ],
-        "generation": 0
+        "generation": 0,
+        "version": 0
       },
       "4": {
         "id": 4,
@@ -101,7 +102,35 @@
           125.03125,
           -531.78125
         ],
-        "generation": 2
+        "generation": 2,
+        "version": 0
+      },
+      "1": {
+        "id": 1,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          -124.8125,
+          -556.59375
+        ],
+        "generation": 0,
+        "version": 0
       },
       "3": {
         "id": 3,
@@ -138,37 +167,17 @@
           96.53125,
           -468.15625
         ],
-        "generation": 206
-      },
-      "1": {
-        "id": 1,
-        "name": "Output: output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any"
-          }
-        },
-        "inputs": [
-          {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [],
-        "position": [
-          -124.8125,
-          -556.59375
-        ],
-        "generation": 0
+        "generation": 206,
+        "version": 0
       },
       "5": {
         "id": 5,
         "name": "Set Stroke",
-        "op": "SetStroke",
+        "op": {
+          "SetStroke": {
+            "dash_pattern": ""
+          }
+        },
         "inputs": [
           {
             "name": "shape",
@@ -214,7 +223,8 @@
           269.9375,
           -646.21875
         ],
-        "generation": 59
+        "generation": 59,
+        "version": 0
       }
     },
     "edges": [
@@ -260,7 +270,9 @@
       }
     ],
     "next_id": 6,
-    "generation": 283
+    "generation": 283,
+    "network_boxes": {},
+    "next_box_id": 0
   },
   "snarl": {
     "nodes": {
@@ -277,8 +289,8 @@
           "pinned": true
         },
         "pos": {
-          "x": 389.16583,
-          "y": -230.60437
+          "x": 348.8686,
+          "y": -29.2276
         },
         "open": true
       },
@@ -295,8 +307,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -442.96808,
-          "y": -230.60437
+          "x": -483.26532,
+          "y": -29.2276
         },
         "open": true
       },
@@ -313,8 +325,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -234.9346,
-          "y": -230.60437
+          "x": -275.23184,
+          "y": -29.2276
         },
         "open": true
       },
@@ -331,8 +343,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -26.901123,
-          "y": -230.60437
+          "x": -67.198364,
+          "y": -29.2276
         },
         "open": true
       },
@@ -349,8 +361,8 @@
           "pinned": false
         },
         "pos": {
-          "x": 181.13239,
-          "y": -230.60437
+          "x": 140.83514,
+          "y": -29.2276
         },
         "open": true
       }
@@ -364,16 +376,6 @@
         "in_pin": {
           "node": 2,
           "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 3,
-          "input": 1
         }
       },
       {
@@ -395,27 +397,48 @@
           "node": 0,
           "input": 0
         }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 1
+        }
       }
     ]
   },
   "view_state": {
     "graph_offset": [
-      42.302002,
-      -193.60437
+      0.0,
+      0.0
     ],
     "graph_scale": 1.0,
     "canvas_center": [
       0.0,
       0.0
     ],
-    "canvas_zoom": 3.059276
+    "canvas_zoom": 1.0
   },
   "window_geometry": {
-    "x": 119.0,
-    "y": 71.0,
-    "width": 2111.0,
-    "height": 1437.5,
-    "node_editor_width": 1141.375,
-    "properties_width": 138.625
+    "x": 360.0,
+    "y": 162.0,
+    "width": 1279.0,
+    "height": 933.5,
+    "node_editor_height": 300.53125,
+    "properties_width": 172.5625
+  },
+  "settings": {
+    "canvas_width": 640,
+    "canvas_height": 480,
+    "background_color": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1.0
+    ],
+    "fps": 30.0
   }
 }

@@ -7,7 +7,8 @@
         "op": {
           "GraphOutput": {
             "name": "output",
-            "data_type": "Any"
+            "data_type": "Any",
+            "order": 0
           }
         },
         "inputs": [
@@ -24,7 +25,51 @@
           219.71875,
           -193.75
         ],
-        "generation": 0
+        "generation": 0,
+        "version": 0
+      },
+      "6": {
+        "id": 6,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.008568126,
+                0.048171822,
+                0.022173878,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          167.29688,
+          -123.421875
+        ],
+        "generation": 10,
+        "version": 0
       },
       "2": {
         "id": 2,
@@ -75,49 +120,8 @@
           -3.8125,
           -216.59375
         ],
-        "generation": 0
-      },
-      "3": {
-        "id": 3,
-        "name": "Set Fill",
-        "op": "SetFill",
-        "inputs": [
-          {
-            "name": "shape",
-            "data_type": "Shape",
-            "description": "Input shape",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "color",
-            "data_type": "Color",
-            "description": "Fill color",
-            "default_value": {
-              "Color": [
-                0.008724442,
-                0.048147112,
-                0.02184792,
-                1.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "shape",
-            "data_type": "Shape",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          100.34375,
-          -201.25
-        ],
-        "generation": 12
+        "generation": 0,
+        "version": 0
       },
       "1": {
         "id": 1,
@@ -148,7 +152,8 @@
           -141.0,
           -66.0
         ],
-        "generation": 83
+        "generation": 83,
+        "version": 0
       }
     },
     "edges": [
@@ -168,13 +173,13 @@
           "port": 0
         },
         "to": {
-          "node": 3,
+          "node": 6,
           "port": 0
         }
       },
       {
         "from": {
-          "node": 3,
+          "node": 6,
           "port": 0
         },
         "to": {
@@ -183,8 +188,10 @@
         }
       }
     ],
-    "next_id": 6,
-    "generation": 110
+    "next_id": 7,
+    "generation": 126,
+    "network_boxes": {},
+    "next_box_id": 0
   },
   "snarl": {
     "nodes": {
@@ -201,8 +208,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -301.77127,
-          "y": -124.00128
+          "x": -326.23276,
+          "y": -38.78009
         },
         "open": true
       },
@@ -219,26 +226,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -119.563065,
-          "y": -124.00128
-        },
-        "open": true
-      },
-      "2": {
-        "value": {
-          "core_id": 3,
-          "display_name": "Set Fill",
-          "color": [
-            180,
-            80,
-            180,
-            255
-          ],
-          "pinned": false
-        },
-        "pos": {
-          "x": 63.64514,
-          "y": -124.00128
+          "x": -172.46205,
+          "y": -38.78009
         },
         "open": true
       },
@@ -255,8 +244,26 @@
           "pinned": true
         },
         "pos": {
-          "x": 246.85336,
-          "y": -124.00128
+          "x": 222.39186,
+          "y": -38.78009
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 6,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 10.964905,
+          "y": -38.414825
         },
         "open": true
       }
@@ -278,13 +285,13 @@
           "output": 0
         },
         "in_pin": {
-          "node": 2,
+          "node": 4,
           "input": 0
         }
       },
       {
         "out_pin": {
-          "node": 2,
+          "node": 4,
           "output": 0
         },
         "in_pin": {
@@ -296,8 +303,8 @@
   },
   "view_state": {
     "graph_offset": [
-      52.28586,
-      -47.10315
+      0.0,
+      0.0
     ],
     "graph_scale": 1.0,
     "canvas_center": [
@@ -310,8 +317,19 @@
     "x": 303.5,
     "y": 375.0,
     "width": 1513.5,
-    "height": 800.0,
-    "node_editor_width": 766.78125,
+    "height": 984.0,
+    "node_editor_height": 384.34375,
     "properties_width": 361.59375
+  },
+  "settings": {
+    "canvas_width": 640,
+    "canvas_height": 480,
+    "background_color": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1.0
+    ],
+    "fps": 30.0
   }
 }
