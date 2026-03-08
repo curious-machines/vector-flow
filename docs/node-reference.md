@@ -424,8 +424,9 @@ Performs boolean geometry operations on two closed paths using the [i_overlay](h
 
 | Name | Type | Default | Description  |
 |------|------|---------|--------------|
-| a    | Path | --      | First path   |
-| b    | Path | --      | Second path  |
+| a         | Path   | --      | First path   |
+| b         | Path   | --      | Second path  |
+| tolerance | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise) |
 
 **Properties:**
 
@@ -446,7 +447,7 @@ Performs boolean geometry operations on two closed paths using the [i_overlay](h
 - **Difference** — subtracts path `b` from path `a`, keeping only the area in `a` that does not overlap with `b`.
 - **Xor** — keeps the area covered by exactly one of the two paths, excluding the overlap.
 
-**Notes:** Input paths are flattened to polygon approximations before the boolean operation. The output is always a polygon path (no curves). Both paths should be closed for meaningful results. If the paths do not overlap, Union returns both contours, Intersect returns an empty path, and Difference returns path `a` unchanged.
+**Notes:** Input paths are flattened to polygon approximations before the boolean operation. The `tolerance` parameter controls the maximum allowed distance between the true curve and the approximating line segments — smaller values produce more precise results with more vertices. The output is always a polygon path (no curves). Both paths should be closed for meaningful results. If the paths do not overlap, Union returns both contours, Intersect returns an empty path, and Difference returns path `a` unchanged.
 
 ```
 Example patch: Circle (50) -> [a] Path Boolean (Difference) [b] <- Rectangle (40x40)
@@ -526,8 +527,9 @@ Samples evenly-spaced points along a path.
 
 | Name  | Type | Default | Description                        |
 |-------|------|---------|------------------------------------|
-| path  | Path | --      | Input path                         |
-| count | Int  | 32      | Number of points to sample         |
+| path      | Path   | --      | Input path                         |
+| count     | Int    | 32      | Number of points to sample         |
+| tolerance | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise) |
 
 **Outputs:**
 
@@ -535,7 +537,7 @@ Samples evenly-spaced points along a path.
 |--------|--------|----------------------------------|
 | points | Points | Evenly-distributed sample points |
 
-**Notes:** Points are distributed by arc length, so they are evenly spaced along the path regardless of how the original vertices are distributed. This is useful for instancing geometry along a path or extracting a point cloud from a shape.
+**Notes:** Points are distributed by arc length, so they are evenly spaced along the path regardless of how the original vertices are distributed. The `tolerance` parameter controls the precision of curve flattening before sampling — smaller values produce more accurate point placement on curved paths. This is useful for instancing geometry along a path or extracting a point cloud from a shape.
 
 ```
 Example patch: Circle (100) -> Resample Path (count: 12) -> Regular Polygon (sides: 3, radius: 10) -> Set Fill -> Graph Output
@@ -1010,10 +1012,11 @@ Places copies of geometry at evenly-spaced points along a target path.
 
 | Name        | Type | Default | Description                                      |
 |-------------|------|---------|--------------------------------------------------|
-| geometry    | Any  | --      | Shape to copy to each point                      |
-| target_path | Path | --      | Path whose sampled points receive copies         |
-| count       | Int  | 10      | Number of copies along the path                  |
-| align       | Bool | true    | Rotate copies to align with the path tangent     |
+| geometry    | Any    | --      | Shape to copy to each point                      |
+| target_path | Path   | --      | Path whose sampled points receive copies         |
+| count       | Int    | 10      | Number of copies along the path                  |
+| align       | Bool   | true    | Rotate copies to align with the path tangent     |
+| tolerance   | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise) |
 
 **Outputs:**
 
@@ -1024,7 +1027,7 @@ Places copies of geometry at evenly-spaced points along a target path.
 | indices        | Scalars| Index of each copy (0 to count-1)         |
 | count          | Scalar | Total number of copies                     |
 
-**Notes:** Points are distributed by arc length, so copies are evenly spaced regardless of the path's vertex distribution. When `align` is true, each copy is rotated to follow the path's direction at that point. The `tangent_angles` and `indices` outputs are useful for driving per-copy variations via downstream nodes.
+**Notes:** Points are distributed by arc length, so copies are evenly spaced regardless of the path's vertex distribution. When `align` is true, each copy is rotated to follow the path's direction at that point. The `tolerance` parameter controls the precision of curve flattening before sampling — smaller values produce more accurate placement on curved paths. The `tangent_angles` and `indices` outputs are useful for driving per-copy variations via downstream nodes.
 
 ```
 Example patch: Regular Polygon (sides: 3, radius: 10) -> Set Fill -> Copy to Points (target: Circle, count: 12) -> Graph Output

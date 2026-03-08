@@ -166,7 +166,9 @@ impl ComputeBackend for CpuBackend {
             NodeOp::ResamplePath => {
                 let path = get_path(inputs, 0);
                 let count = get_int(inputs, 1);
-                path_ops::resample_path(&path, count)
+                let tolerance = get_scalar(inputs, 2) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                path_ops::resample_path(&path, count, tolerance)
             }
             NodeOp::PathOffset => {
                 let path = get_path(inputs, 0);
@@ -176,7 +178,9 @@ impl ComputeBackend for CpuBackend {
             NodeOp::PathBoolean { operation } => {
                 let a = get_path(inputs, 0);
                 let b = get_path(inputs, 1);
-                NodeData::Path(Arc::new(path_ops::path_boolean(&a, &b, *operation)))
+                let tolerance = get_scalar(inputs, 2) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                NodeData::Path(Arc::new(path_ops::path_boolean(&a, &b, *operation, tolerance)))
             }
 
             // ── Styling ─────────────────────────────────────────────
@@ -306,8 +310,10 @@ impl ComputeBackend for CpuBackend {
                 let target_path = get_path(inputs, 1);
                 let count = get_int(inputs, 2);
                 let align = get_bool(inputs, 3);
+                let tolerance = get_scalar(inputs, 4) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
                 let (points, tangent_angles) =
-                    path_ops::resample_with_tangents(&target_path, count);
+                    path_ops::resample_with_tangents(&target_path, count, tolerance);
                 let (shapes, angles, indices, total) =
                     utility::copy_to_points(&geometry, &points, &tangent_angles, align);
                 // Multi-output: write all outputs and return early.

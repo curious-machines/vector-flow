@@ -118,11 +118,11 @@ fn midpoint(a: Point, b: Point) -> Point {
 /// Resample a path into `count` evenly-spaced points along its length.
 /// For closed paths, points are distributed around the loop (no overlap).
 /// For open paths, points span from start to end inclusive.
-pub fn resample_path(path: &PathData, count: i64) -> NodeData {
+pub fn resample_path(path: &PathData, count: i64, tolerance: f32) -> NodeData {
     let n = count.max(2) as usize;
 
     // Collect line segments (subdividing curves for accuracy).
-    let segments = flatten_to_segments(path);
+    let segments = flatten_to_segments(path, tolerance);
     if segments.is_empty() {
         return NodeData::Points(Arc::new(PointBatch::new()));
     }
@@ -182,10 +182,10 @@ pub fn resample_path(path: &PathData, count: i64) -> NodeData {
 
 /// Resample a path into `count` evenly-spaced points, returning both
 /// the point positions and tangent angles (in degrees) at each sample.
-pub fn resample_with_tangents(path: &PathData, count: i64) -> (PointBatch, Vec<f64>) {
+pub fn resample_with_tangents(path: &PathData, count: i64, tolerance: f32) -> (PointBatch, Vec<f64>) {
     let n = count.max(2) as usize;
 
-    let segments = flatten_to_segments(path);
+    let segments = flatten_to_segments(path, tolerance);
     if segments.is_empty() {
         return (PointBatch::new(), vec![0.0; n]);
     }
@@ -256,8 +256,11 @@ pub fn resample_with_tangents(path: &PathData, count: i64) -> (PointBatch, Vec<f
     (PointBatch { xs, ys }, angles)
 }
 
-/// Tolerance for lyon's adaptive curve flattening.
-const FLATTEN_TOLERANCE: f32 = 0.5;
+/// Default tolerance for lyon's adaptive curve flattening.
+pub const DEFAULT_FLATTEN_TOLERANCE: f32 = 0.5;
+
+/// Minimum tolerance to prevent degenerate flattening (e.g. from missing ports).
+const MIN_TOLERANCE: f32 = 0.001;
 
 /// Convert our PathData to a lyon Path.
 pub(crate) fn build_lyon_path(path: &PathData) -> LyonPath {
@@ -313,12 +316,13 @@ pub(crate) fn build_lyon_path(path: &PathData) -> LyonPath {
 }
 
 /// Flatten path to line segments using lyon's adaptive subdivision.
-fn flatten_to_segments(path: &PathData) -> Vec<(Point, Point)> {
+fn flatten_to_segments(path: &PathData, tolerance: f32) -> Vec<(Point, Point)> {
+    let tol = tolerance.max(MIN_TOLERANCE);
     let lyon_path = build_lyon_path(path);
     let mut segs = Vec::new();
     let mut last = Point { x: 0.0, y: 0.0 };
 
-    for evt in lyon_path.iter().flattened(FLATTEN_TOLERANCE) {
+    for evt in lyon_path.iter().flattened(tol) {
         use lyon::path::Event;
         match evt {
             Event::Begin { at } => {
@@ -411,12 +415,13 @@ pub fn path_offset(path: &PathData, distance: f64) -> PathData {
 
 /// Convert a PathData to a list of closed contours as `Vec<[f32; 2]>` for i_overlay.
 /// Curves are flattened to line segments using lyon.
-fn path_to_contours(path: &PathData) -> Vec<Vec<[f32; 2]>> {
+fn path_to_contours(path: &PathData, tolerance: f32) -> Vec<Vec<[f32; 2]>> {
+    let tol = tolerance.max(MIN_TOLERANCE);
     let lyon_path = build_lyon_path(path);
     let mut contours: Vec<Vec<[f32; 2]>> = Vec::new();
     let mut current: Vec<[f32; 2]> = Vec::new();
 
-    for evt in lyon_path.iter().flattened(FLATTEN_TOLERANCE) {
+    for evt in lyon_path.iter().flattened(tol) {
         use lyon::path::Event;
         match evt {
             Event::Begin { at } => {
@@ -483,9 +488,9 @@ fn contours_to_path(shapes: Vec<Vec<Vec<[f32; 2]>>>) -> PathData {
 
 /// Perform a boolean operation on two paths using i_overlay.
 /// operation: 0=Union, 1=Intersect, 2=Difference, 3=Xor
-pub fn path_boolean(a: &PathData, b: &PathData, operation: i32) -> PathData {
-    let subj = path_to_contours(a);
-    let clip = path_to_contours(b);
+pub fn path_boolean(a: &PathData, b: &PathData, operation: i32, tolerance: f32) -> PathData {
+    let subj = path_to_contours(a, tolerance);
+    let clip = path_to_contours(b, tolerance);
 
     if subj.is_empty() && clip.is_empty() {
         return PathData::new();
@@ -521,11 +526,13 @@ mod tests {
         }
     }
 
+    const TOL: f32 = DEFAULT_FLATTEN_TOLERANCE;
+
     #[test]
     fn boolean_union_combines_overlapping_squares() {
         let a = make_square(0.0, 0.0, 10.0);
         let b = make_square(5.0, 0.0, 10.0);
-        let result = path_boolean(&a, &b, 0); // Union
+        let result = path_boolean(&a, &b, 0, TOL); // Union
         // Union of two overlapping 10x10 squares should produce a single contour
         // covering 15x10 area. Result should have verbs and be closed.
         assert!(!result.verbs.is_empty());
@@ -539,7 +546,7 @@ mod tests {
     fn boolean_intersect_finds_overlap() {
         let a = make_square(0.0, 0.0, 10.0);
         let b = make_square(5.0, 0.0, 10.0);
-        let result = path_boolean(&a, &b, 1); // Intersect
+        let result = path_boolean(&a, &b, 1, TOL); // Intersect
         // Intersection should be a 5x10 rectangle
         assert!(!result.verbs.is_empty());
         assert!(result.closed);
@@ -551,7 +558,7 @@ mod tests {
     fn boolean_difference_subtracts() {
         let a = make_square(0.0, 0.0, 10.0);
         let b = make_square(5.0, 0.0, 10.0);
-        let result = path_boolean(&a, &b, 2); // Difference (a - b)
+        let result = path_boolean(&a, &b, 2, TOL); // Difference (a - b)
         // Should produce a 5x10 rectangle (left half of a)
         assert!(!result.verbs.is_empty());
         assert!(result.closed);
@@ -561,7 +568,7 @@ mod tests {
     fn boolean_xor_excludes_overlap() {
         let a = make_square(0.0, 0.0, 10.0);
         let b = make_square(5.0, 0.0, 10.0);
-        let result = path_boolean(&a, &b, 3); // Xor
+        let result = path_boolean(&a, &b, 3, TOL); // Xor
         // Xor should produce two separate rectangles (non-overlapping parts)
         assert!(!result.verbs.is_empty());
         assert!(result.closed);
@@ -573,7 +580,7 @@ mod tests {
     fn boolean_disjoint_union() {
         let a = make_square(0.0, 0.0, 5.0);
         let b = make_square(20.0, 20.0, 5.0);
-        let result = path_boolean(&a, &b, 0); // Union
+        let result = path_boolean(&a, &b, 0, TOL); // Union
         // Non-overlapping: union should produce two separate contours
         let move_count = result.verbs.iter().filter(|v| matches!(v, PathVerb::MoveTo(_))).count();
         assert_eq!(move_count, 2);
@@ -583,7 +590,7 @@ mod tests {
     fn boolean_disjoint_intersect_is_empty() {
         let a = make_square(0.0, 0.0, 5.0);
         let b = make_square(20.0, 20.0, 5.0);
-        let result = path_boolean(&a, &b, 1); // Intersect
+        let result = path_boolean(&a, &b, 1, TOL); // Intersect
         // Non-overlapping: intersection should be empty
         assert!(result.verbs.is_empty());
     }
@@ -593,10 +600,10 @@ mod tests {
         let empty = PathData::new();
         let sq = make_square(0.0, 0.0, 10.0);
         // Both empty
-        let result = path_boolean(&empty, &empty, 0);
+        let result = path_boolean(&empty, &empty, 0, TOL);
         assert!(result.verbs.is_empty());
         // One empty: union should return the non-empty shape
-        let result = path_boolean(&sq, &empty, 0);
+        let result = path_boolean(&sq, &empty, 0, TOL);
         assert!(!result.verbs.is_empty());
     }
 
@@ -645,9 +652,63 @@ mod tests {
     #[test]
     fn resample_returns_correct_count() {
         let tri = make_triangle();
-        let result = resample_path(&tri, 10);
+        let result = resample_path(&tri, 10, TOL);
         if let NodeData::Points(pts) = result {
             assert_eq!(pts.len(), 10);
+        } else {
+            panic!("expected Points");
+        }
+    }
+
+    fn make_circle_with_curves() -> PathData {
+        let r = 50.0f32;
+        let k = 0.5522847498f32 * r; // cubic bezier approximation of quarter circle
+        PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: r, y: 0.0 }),
+                PathVerb::CubicTo { ctrl1: Point { x: r, y: k }, ctrl2: Point { x: k, y: r }, to: Point { x: 0.0, y: r } },
+                PathVerb::CubicTo { ctrl1: Point { x: -k, y: r }, ctrl2: Point { x: -r, y: k }, to: Point { x: -r, y: 0.0 } },
+                PathVerb::CubicTo { ctrl1: Point { x: -r, y: -k }, ctrl2: Point { x: -k, y: -r }, to: Point { x: 0.0, y: -r } },
+                PathVerb::CubicTo { ctrl1: Point { x: k, y: -r }, ctrl2: Point { x: r, y: -k }, to: Point { x: r, y: 0.0 } },
+                PathVerb::Close,
+            ],
+            closed: true,
+        }
+    }
+
+    #[test]
+    fn lower_tolerance_produces_more_segments() {
+        let circle = make_circle_with_curves();
+        let coarse = flatten_to_segments(&circle, 5.0);
+        let fine = flatten_to_segments(&circle, 0.1);
+        assert!(fine.len() > coarse.len(),
+            "fine ({}) should have more segments than coarse ({})", fine.len(), coarse.len());
+    }
+
+    #[test]
+    fn tolerance_clamped_above_zero() {
+        let circle = make_circle_with_curves();
+        let result = flatten_to_segments(&circle, 0.0);
+        assert!(!result.is_empty(), "zero tolerance should be clamped and still produce segments");
+        let result_neg = flatten_to_segments(&circle, -1.0);
+        assert!(!result_neg.is_empty(), "negative tolerance should be clamped and still produce segments");
+    }
+
+    #[test]
+    fn boolean_with_custom_tolerance() {
+        let a = make_square(0.0, 0.0, 10.0);
+        let b = make_square(5.0, 0.0, 10.0);
+        let result = path_boolean(&a, &b, 0, 0.1);
+        assert!(!result.verbs.is_empty());
+        assert!(result.closed);
+    }
+
+    #[test]
+    fn resample_with_custom_tolerance() {
+        let circle = make_circle_with_curves();
+        let result = resample_path(&circle, 20, 0.1);
+        if let NodeData::Points(pts) = result {
+            assert_eq!(pts.len(), 20);
         } else {
             panic!("expected Points");
         }

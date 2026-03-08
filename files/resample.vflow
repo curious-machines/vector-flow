@@ -152,6 +152,15 @@
               "Int": 8
             },
             "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
           }
         ],
         "outputs": [
@@ -168,7 +177,7 @@
           -468.15625
         ],
         "generation": 206,
-        "version": 0
+        "version": 1
       },
       "5": {
         "id": 5,

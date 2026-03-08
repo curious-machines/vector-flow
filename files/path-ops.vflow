@@ -1,6 +1,260 @@
 {
   "graph": {
     "nodes": {
+      "19": {
+        "id": 19,
+        "name": "Point Grid",
+        "op": "PointGrid",
+        "inputs": [
+          {
+            "name": "columns",
+            "data_type": "Int",
+            "description": "Number of columns",
+            "default_value": {
+              "Int": 4
+            },
+            "expression": null
+          },
+          {
+            "name": "rows",
+            "data_type": "Int",
+            "description": "Number of rows",
+            "default_value": {
+              "Int": 1
+            },
+            "expression": null
+          },
+          {
+            "name": "spacing",
+            "data_type": "Scalar",
+            "description": "Distance between points",
+            "default_value": {
+              "Float": 150.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          296.36948,
+          228.69945
+        ],
+        "generation": 17,
+        "version": 0
+      },
+      "6": {
+        "id": 6,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.08603243,
+                0.08545711,
+                0.253777,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          338.71875,
+          -92.171875
+        ],
+        "generation": 110,
+        "version": 0
+      },
+      "20": {
+        "id": 20,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          1099.0349,
+          102.45864
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "2": {
+        "id": 2,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -112.15625,
+          -100.515625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "1": {
+        "id": 1,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -447.4375,
+          -180.07812
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "5": {
+        "id": 5,
+        "name": "Path Boolean",
+        "op": {
+          "PathBoolean": {
+            "operation": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Path",
+            "description": "First path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Path",
+            "description": "Second path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.23
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          79.875,
+          -74.109375
+        ],
+        "generation": 52,
+        "version": 1
+      },
       "12": {
         "id": 12,
         "name": "Path Boolean",
@@ -23,6 +277,15 @@
             "description": "Second path",
             "default_value": null,
             "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
           }
         ],
         "outputs": [
@@ -39,55 +302,323 @@
           62.585754
         ],
         "generation": 2,
-        "version": 0
+        "version": 1
       },
-      "19": {
-        "id": 19,
-        "name": "Point Grid",
-        "op": "PointGrid",
+      "22": {
+        "id": 22,
+        "name": "Constant Scalar",
+        "op": "ConstScalar",
         "inputs": [
           {
-            "name": "columns",
-            "data_type": "Int",
-            "description": "Number of columns",
-            "default_value": {
-              "Int": 2
-            },
-            "expression": null
-          },
-          {
-            "name": "rows",
-            "data_type": "Int",
-            "description": "Number of rows",
-            "default_value": {
-              "Int": 2
-            },
-            "expression": null
-          },
-          {
-            "name": "spacing",
+            "name": "value",
             "data_type": "Scalar",
-            "description": "Distance between points",
+            "description": "Scalar value",
             "default_value": {
-              "Float": 200.0
+              "Float": 0.1
             },
             "expression": null
           }
         ],
         "outputs": [
           {
-            "name": "points",
-            "data_type": "Points",
+            "name": "value",
+            "data_type": "Scalar",
             "description": "",
             "default_value": null,
             "expression": null
           }
         ],
         "position": [
-          296.36948,
-          228.69945
+          -569.1072,
+          -283.59375
         ],
-        "generation": 10,
+        "generation": 51,
+        "version": 0
+      },
+      "8": {
+        "id": 8,
+        "name": "Path Boolean",
+        "op": {
+          "PathBoolean": {
+            "operation": 1
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Path",
+            "description": "First path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Path",
+            "description": "Second path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          7.6398926,
+          -111.20358
+        ],
+        "generation": 1,
+        "version": 1
+      },
+      "3": {
+        "id": 3,
+        "name": "Translate",
+        "op": "Translate",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "offset",
+            "data_type": "Vec2",
+            "description": "Translation offset",
+            "default_value": {
+              "Vec2": [
+                -50.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -220.0,
+          -139.20312
+        ],
+        "generation": 3,
+        "version": 0
+      },
+      "17": {
+        "id": 17,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": true
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "d",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "e",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          269.53125,
+          -22.070312
+        ],
+        "generation": 4,
+        "version": 0
+      },
+      "18": {
+        "id": 18,
+        "name": "Place at Points",
+        "op": "PlaceAtPoints",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Shapes to place (batch or single)",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "Target points from Grid, Scatter Points, etc.",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "cycle",
+            "data_type": "Bool",
+            "description": "Cycle shorter list to match longer list length",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Shapes",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          666.2684,
+          46.76011
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "16": {
+        "id": 16,
+        "name": "Path Boolean",
+        "op": {
+          "PathBoolean": {
+            "operation": 3
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Path",
+            "description": "First path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Path",
+            "description": "Second path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          230.46312,
+          89.13746
+        ],
+        "generation": 3,
+        "version": 1
+      },
+      "4": {
+        "id": 4,
+        "name": "Translate",
+        "op": "Translate",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "offset",
+            "data_type": "Vec2",
+            "description": "Translation offset",
+            "default_value": {
+              "Vec2": [
+                50.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -254.62314,
+          -151.5224
+        ],
+        "generation": 5,
         "version": 0
       },
       "7": {
@@ -182,87 +713,6 @@
         "generation": 68,
         "version": 0
       },
-      "8": {
-        "id": 8,
-        "name": "Path Boolean",
-        "op": {
-          "PathBoolean": {
-            "operation": 1
-          }
-        },
-        "inputs": [
-          {
-            "name": "a",
-            "data_type": "Path",
-            "description": "First path",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "b",
-            "data_type": "Path",
-            "description": "Second path",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          7.6398926,
-          -111.20358
-        ],
-        "generation": 1,
-        "version": 0
-      },
-      "3": {
-        "id": 3,
-        "name": "Translate",
-        "op": "Translate",
-        "inputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "Input geometry",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "offset",
-            "data_type": "Vec2",
-            "description": "Translation offset",
-            "default_value": {
-              "Vec2": [
-                -50.0,
-                0.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -220.0,
-          -139.20312
-        ],
-        "generation": 3,
-        "version": 0
-      },
       "21": {
         "id": 21,
         "name": "Scale",
@@ -314,389 +764,6 @@
           -160.8226
         ],
         "generation": 2,
-        "version": 0
-      },
-      "6": {
-        "id": 6,
-        "name": "Set Fill",
-        "op": "SetFill",
-        "inputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "Input geometry",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "color",
-            "data_type": "Color",
-            "description": "Fill color (single or batch)",
-            "default_value": {
-              "Color": [
-                0.08603243,
-                0.08545711,
-                0.253777,
-                1.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          338.71875,
-          -92.171875
-        ],
-        "generation": 110,
-        "version": 0
-      },
-      "16": {
-        "id": 16,
-        "name": "Path Boolean",
-        "op": {
-          "PathBoolean": {
-            "operation": 3
-          }
-        },
-        "inputs": [
-          {
-            "name": "a",
-            "data_type": "Path",
-            "description": "First path",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "b",
-            "data_type": "Path",
-            "description": "Second path",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          230.46312,
-          89.13746
-        ],
-        "generation": 3,
-        "version": 0
-      },
-      "18": {
-        "id": 18,
-        "name": "Place at Points",
-        "op": "PlaceAtPoints",
-        "inputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "Shapes to place (batch or single)",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "points",
-            "data_type": "Points",
-            "description": "Target points from Grid, Scatter Points, etc.",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "cycle",
-            "data_type": "Bool",
-            "description": "Cycle shorter list to match longer list length",
-            "default_value": {
-              "Bool": false
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Shapes",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          666.2684,
-          46.76011
-        ],
-        "generation": 0,
-        "version": 0
-      },
-      "5": {
-        "id": 5,
-        "name": "Path Boolean",
-        "op": {
-          "PathBoolean": {
-            "operation": 0
-          }
-        },
-        "inputs": [
-          {
-            "name": "a",
-            "data_type": "Path",
-            "description": "First path",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "b",
-            "data_type": "Path",
-            "description": "Second path",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          79.875,
-          -74.109375
-        ],
-        "generation": 0,
-        "version": 0
-      },
-      "17": {
-        "id": 17,
-        "name": "Merge",
-        "op": {
-          "Merge": {
-            "keep_separate": true
-          }
-        },
-        "inputs": [
-          {
-            "name": "a",
-            "data_type": "Any",
-            "description": "First input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "b",
-            "data_type": "Any",
-            "description": "Second input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "c",
-            "data_type": "Any",
-            "description": "Input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "d",
-            "data_type": "Any",
-            "description": "Input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "e",
-            "data_type": "Any",
-            "description": "Input",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "merged",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          269.53125,
-          -22.070312
-        ],
-        "generation": 4,
-        "version": 0
-      },
-      "20": {
-        "id": 20,
-        "name": "Output: output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any",
-            "order": 0
-          }
-        },
-        "inputs": [
-          {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [],
-        "position": [
-          1099.0349,
-          102.45864
-        ],
-        "generation": 0,
-        "version": 0
-      },
-      "4": {
-        "id": 4,
-        "name": "Translate",
-        "op": "Translate",
-        "inputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "Input geometry",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "offset",
-            "data_type": "Vec2",
-            "description": "Translation offset",
-            "default_value": {
-              "Vec2": [
-                50.0,
-                0.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -254.62314,
-          -151.5224
-        ],
-        "generation": 5,
-        "version": 0
-      },
-      "1": {
-        "id": 1,
-        "name": "Circle",
-        "op": "Circle",
-        "inputs": [
-          {
-            "name": "radius",
-            "data_type": "Scalar",
-            "description": "Circle radius",
-            "default_value": {
-              "Float": 100.0
-            },
-            "expression": null
-          },
-          {
-            "name": "center",
-            "data_type": "Vec2",
-            "description": "Center position",
-            "default_value": {
-              "Vec2": [
-                0.0,
-                0.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "path",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -447.4375,
-          -180.07812
-        ],
-        "generation": 0,
-        "version": 0
-      },
-      "2": {
-        "id": 2,
-        "name": "Circle",
-        "op": "Circle",
-        "inputs": [
-          {
-            "name": "radius",
-            "data_type": "Scalar",
-            "description": "Circle radius",
-            "default_value": {
-              "Float": 100.0
-            },
-            "expression": null
-          },
-          {
-            "name": "center",
-            "data_type": "Vec2",
-            "description": "Center position",
-            "default_value": {
-              "Vec2": [
-                0.0,
-                0.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "path",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -112.15625,
-          -100.515625
-        ],
-        "generation": 0,
         "version": 0
       }
     },
@@ -863,26 +930,6 @@
       },
       {
         "from": {
-          "node": 18,
-          "port": 0
-        },
-        "to": {
-          "node": 6,
-          "port": 0
-        }
-      },
-      {
-        "from": {
-          "node": 7,
-          "port": 0
-        },
-        "to": {
-          "node": 20,
-          "port": 0
-        }
-      },
-      {
-        "from": {
           "node": 17,
           "port": 0
         },
@@ -897,13 +944,73 @@
           "port": 0
         },
         "to": {
+          "node": 6,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 0
+        },
+        "to": {
           "node": 18,
           "port": 0
         }
+      },
+      {
+        "from": {
+          "node": 18,
+          "port": 0
+        },
+        "to": {
+          "node": 20,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 22,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 22,
+          "port": 0
+        },
+        "to": {
+          "node": 8,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 22,
+          "port": 0
+        },
+        "to": {
+          "node": 12,
+          "port": 2
+        }
+      },
+      {
+        "from": {
+          "node": 22,
+          "port": 0
+        },
+        "to": {
+          "node": 16,
+          "port": 2
+        }
       }
     ],
-    "next_id": 22,
-    "generation": 5631,
+    "next_id": 23,
+    "generation": 15334,
     "network_boxes": {},
     "next_box_id": 1
   },
@@ -922,8 +1029,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -907.67786,
-          "y": -72.97648
+          "x": -856.29004,
+          "y": -74.40505
         },
         "open": true
       },
@@ -940,8 +1047,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -908.2998,
-          "y": 19.691547
+          "x": -856.912,
+          "y": 18.262976
         },
         "open": true
       },
@@ -958,8 +1065,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -744.86316,
-          "y": -74.42075
+          "x": -693.47534,
+          "y": -75.84933
         },
         "open": true
       },
@@ -976,8 +1083,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -743.49744,
-          "y": 19.155178
+          "x": -692.1096,
+          "y": 17.726606
         },
         "open": true
       },
@@ -994,8 +1101,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -492.75504,
-          "y": -138.8891
+          "x": -443.58163,
+          "y": -172.09296
         },
         "open": true
       },
@@ -1012,8 +1119,8 @@
           "pinned": false
         },
         "pos": {
-          "x": 332.74393,
-          "y": 3.5575142
+          "x": 83.16623,
+          "y": -43.256752
         },
         "open": true
       },
@@ -1030,8 +1137,8 @@
           "pinned": false
         },
         "pos": {
-          "x": 536.53687,
-          "y": 4.0874214
+          "x": 286.959,
+          "y": -42.726845
         },
         "open": true
       },
@@ -1048,8 +1155,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -493.8024,
-          "y": -55.532837
+          "x": -443.58167,
+          "y": -68.582245
         },
         "open": true
       },
@@ -1066,8 +1173,8 @@
           "pinned": false
         },
         "pos": {
-          "x": 117.73538,
-          "y": -3.5721397
+          "x": 504.73923,
+          "y": 0.108222246
         },
         "open": true
       },
@@ -1084,8 +1191,8 @@
           "pinned": true
         },
         "pos": {
-          "x": 768.65906,
-          "y": 3.448841
+          "x": 710.49524,
+          "y": 4.76202
         },
         "open": true
       },
@@ -1102,8 +1209,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -105.67056,
-          "y": 67.38772
+          "x": 317.13693,
+          "y": 148.27861
         },
         "open": true
       },
@@ -1120,8 +1227,26 @@
           "pinned": false
         },
         "pos": {
-          "x": -494.5884,
-          "y": 31.17849
+          "x": -443.58167,
+          "y": 34.92848
+        },
+        "open": true
+      },
+      "12": {
+        "value": {
+          "core_id": 22,
+          "display_name": "Constant Scalar",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -654.1025,
+          "y": -224.27881
         },
         "open": true
       },
@@ -1138,8 +1263,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -136.27899,
-          "y": -46.21431
+          "x": -108.7813,
+          "y": -47.654343
         },
         "open": true
       },
@@ -1156,8 +1281,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -306.79782,
-          "y": -52.912373
+          "x": -255.40956,
+          "y": -54.340942
         },
         "open": true
       },
@@ -1174,53 +1299,13 @@
           "pinned": false
         },
         "pos": {
-          "x": -496.3362,
-          "y": 120.08472
+          "x": -443.58167,
+          "y": 138.4392
         },
         "open": true
       }
     },
     "wires": [
-      {
-        "out_pin": {
-          "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 11,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 1,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 3,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 7,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 14,
-          "input": 1
-        }
-      },
-      {
-        "out_pin": {
-          "node": 11,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 14,
-          "input": 2
-        }
-      },
       {
         "out_pin": {
           "node": 14,
@@ -1233,12 +1318,22 @@
       },
       {
         "out_pin": {
-          "node": 2,
+          "node": 12,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
           "output": 0
         },
         "in_pin": {
           "node": 7,
-          "input": 0
+          "input": 1
         }
       },
       {
@@ -1253,32 +1348,42 @@
       },
       {
         "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 14,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 11,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 14,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
           "node": 8,
           "output": 0
         },
         "in_pin": {
+          "node": 9,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
           "node": 5,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 2,
           "output": 0
         },
         "in_pin": {
-          "node": 15,
+          "node": 6,
           "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 3,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 15,
-          "input": 1
         }
       },
       {
@@ -1293,22 +1398,22 @@
       },
       {
         "out_pin": {
-          "node": 3,
+          "node": 12,
           "output": 0
         },
         "in_pin": {
-          "node": 4,
-          "input": 1
+          "node": 11,
+          "input": 2
         }
       },
       {
         "out_pin": {
-          "node": 10,
+          "node": 6,
           "output": 0
         },
         "in_pin": {
           "node": 8,
-          "input": 1
+          "input": 0
         }
       },
       {
@@ -1323,11 +1428,21 @@
       },
       {
         "out_pin": {
-          "node": 5,
+          "node": 7,
           "output": 0
         },
         "in_pin": {
-          "node": 6,
+          "node": 14,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
           "input": 0
         }
       },
@@ -1343,11 +1458,21 @@
       },
       {
         "out_pin": {
-          "node": 4,
+          "node": 1,
           "output": 0
         },
         "in_pin": {
-          "node": 14,
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 11,
           "input": 0
         }
       },
@@ -1357,18 +1482,18 @@
           "output": 0
         },
         "in_pin": {
-          "node": 7,
+          "node": 15,
           "input": 1
         }
       },
       {
         "out_pin": {
-          "node": 6,
+          "node": 3,
           "output": 0
         },
         "in_pin": {
-          "node": 9,
-          "input": 0
+          "node": 4,
+          "input": 1
         }
       },
       {
@@ -1377,18 +1502,58 @@
           "output": 0
         },
         "in_pin": {
-          "node": 8,
+          "node": 5,
           "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 15,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 12,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
+          "node": 10,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 12,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 15,
+          "input": 2
         }
       }
     ]
   },
   "view_state": {
     "graph_offset": [
-      -0.20577031,
-      12.92021
+      2.2651186,
+      -0.098632276
     ],
-    "graph_scale": 0.6931211,
+    "graph_scale": 0.7,
     "canvas_center": [
       0.0,
       0.0
@@ -1399,7 +1564,7 @@
     "x": 104.0,
     "y": 84.0,
     "width": 1614.0,
-    "height": 1326.5,
+    "height": 1400.5,
     "node_editor_height": 614.71875,
     "properties_width": 250.0
   },

@@ -166,7 +166,12 @@ impl NodeOp {
             | NodeOp::GraphInput { .. }
             | NodeOp::GraphOutput { .. } => 0,
 
-            // All built-in ops start at version 0. Bump individually when
+            // Version 1: added tolerance input port.
+            NodeOp::PathBoolean { .. }
+            | NodeOp::ResamplePath
+            | NodeOp::CopyToPoints => 1,
+
+            // All other built-in ops start at version 0. Bump individually when
             // a node's port layout or behavior changes.
             _ => 0,
         }
@@ -598,6 +603,9 @@ impl NodeDef {
                 PortDef::new("align", DataType::Bool)
                     .with_default(ParamValue::Bool(true))
                     .with_description("Rotate copies to align with path tangent"),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance (smaller = more precise)"),
             ],
             outputs: vec![
                 PortDef::new("geometry", DataType::Shapes),
@@ -610,7 +618,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
         }
     }
 
@@ -772,11 +780,14 @@ impl NodeDef {
             inputs: vec![
                 PortDef::new("a", DataType::Path).with_description("First path"),
                 PortDef::new("b", DataType::Path).with_description("Second path"),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance (smaller = more precise)"),
             ],
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
         }
     }
 
@@ -841,11 +852,14 @@ impl NodeDef {
                 PortDef::new("count", DataType::Int)
                     .with_default(ParamValue::Int(32))
                     .with_description("Number of samples"),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance (smaller = more precise)"),
             ],
             outputs: vec![PortDef::new("points", DataType::Points)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
         }
     }
 
@@ -1335,28 +1349,16 @@ mod tests {
 
     #[test]
     fn outdated_detection_after_version_bump() {
-        // Simulate what happens when we bump a node version in the future:
-        // A node saved with version 0 loaded into code where current_version > 0.
-        // We can't easily test this without changing current_version(), so we
-        // verify the is_outdated logic directly.
-        let node = NodeDef {
-            id: NodeId(1),
-            name: "Test".into(),
-            op: NodeOp::Circle,
-            inputs: vec![],
-            outputs: vec![],
-            position: [0.0, 0.0],
-            generation: 0,
-            // Node was saved at version 0, but if current_version() were 1,
-            // is_outdated() should return true. Since we can't change
-            // current_version() in tests, we verify the field is preserved.
-            version: 0,
-        };
-        // With current_version() == 0 for Circle, version 0 is NOT outdated.
+        // Simulate a node saved at version 0 loaded into code where
+        // current_version is now 1 (e.g. PathBoolean gained a tolerance port).
+        let mut node = NodeDef::path_boolean(NodeId(1));
+        assert_eq!(node.op.current_version(), 1);
+        assert_eq!(node.version, 1);
         assert!(!node.is_outdated());
-        // But the field is there and ready for when we bump.
-        assert_eq!(node.version, 0);
-        assert_eq!(node.op.current_version(), 0);
+
+        // A node saved before the bump would have version 0.
+        node.version = 0;
+        assert!(node.is_outdated());
     }
 
     #[test]
@@ -1367,5 +1369,26 @@ mod tests {
         let json = serde_json::to_string(&node).unwrap();
         let deserialized: NodeDef = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.version, 5);
+    }
+
+    #[test]
+    fn tolerance_port_nodes_at_version_1() {
+        let pb = NodeDef::path_boolean(NodeId(1));
+        assert_eq!(pb.version, 1);
+        assert_eq!(pb.op.current_version(), 1);
+        assert!(!pb.is_outdated());
+        assert!(pb.inputs.iter().any(|p| p.name == "tolerance"));
+
+        let rp = NodeDef::resample_path(NodeId(2));
+        assert_eq!(rp.version, 1);
+        assert_eq!(rp.op.current_version(), 1);
+        assert!(!rp.is_outdated());
+        assert!(rp.inputs.iter().any(|p| p.name == "tolerance"));
+
+        let cp = NodeDef::copy_to_points(NodeId(3));
+        assert_eq!(cp.version, 1);
+        assert_eq!(cp.op.current_version(), 1);
+        assert!(!cp.is_outdated());
+        assert!(cp.inputs.iter().any(|p| p.name == "tolerance"));
     }
 }
