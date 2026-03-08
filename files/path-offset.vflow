@@ -1,0 +1,1151 @@
+{
+  "graph": {
+    "nodes": {
+      "18": {
+        "id": 18,
+        "name": "Path Offset",
+        "op": "PathOffset",
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "Input path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "distance",
+            "data_type": "Scalar",
+            "description": "Offset distance",
+            "default_value": {
+              "Float": -10.0
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -346.8125,
+          136.90625
+        ],
+        "generation": 2,
+        "version": 1
+      },
+      "16": {
+        "id": 16,
+        "name": "Place at Points",
+        "op": "PlaceAtPoints",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Shapes to place (batch or single)",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "Target points from Grid, Scatter Points, etc.",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "cycle",
+            "data_type": "Bool",
+            "description": "Cycle shorter list to match longer list length",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Shapes",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          525.1875,
+          -143.90625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "8": {
+        "id": 8,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -444.75,
+          89.765625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "13": {
+        "id": 13,
+        "name": "Point Grid",
+        "op": "PointGrid",
+        "inputs": [
+          {
+            "name": "columns",
+            "data_type": "Int",
+            "description": "Number of columns",
+            "default_value": {
+              "Int": 2
+            },
+            "expression": null
+          },
+          {
+            "name": "rows",
+            "data_type": "Int",
+            "description": "Number of rows",
+            "default_value": {
+              "Int": 1
+            },
+            "expression": null
+          },
+          {
+            "name": "spacing",
+            "data_type": "Scalar",
+            "description": "Distance between points",
+            "default_value": {
+              "Float": 250.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          282.28125,
+          -46.1875
+        ],
+        "generation": 41,
+        "version": 0
+      },
+      "1": {
+        "id": 1,
+        "name": "Rectangle",
+        "op": "Rectangle",
+        "inputs": [
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Width",
+            "default_value": {
+              "Float": 200.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Height",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -268.4375,
+          -136.125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "17": {
+        "id": 17,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.056080613,
+                0.05674307,
+                0.54890126,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          208.3125,
+          -201.96875
+        ],
+        "generation": 68,
+        "version": 0
+      },
+      "3": {
+        "id": 3,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          384.75,
+          -161.15625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "11": {
+        "id": 11,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          120.9375,
+          -79.0625
+        ],
+        "generation": 3,
+        "version": 0
+      },
+      "12": {
+        "id": 12,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          43.1875,
+          55.4375
+        ],
+        "generation": 3,
+        "version": 0
+      },
+      "19": {
+        "id": 19,
+        "name": "Path Offset",
+        "op": "PathOffset",
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "Input path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "distance",
+            "data_type": "Scalar",
+            "description": "Offset distance",
+            "default_value": {
+              "Float": 10.0
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -301.2102,
+          -109.721436
+        ],
+        "generation": 297,
+        "version": 1
+      },
+      "9": {
+        "id": 9,
+        "name": "Path Offset",
+        "op": "PathOffset",
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "Input path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "distance",
+            "data_type": "Scalar",
+            "description": "Offset distance",
+            "default_value": {
+              "Float": 10.0
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -258.28125,
+          146.04688
+        ],
+        "generation": 274,
+        "version": 1
+      },
+      "2": {
+        "id": 2,
+        "name": "Path Offset",
+        "op": "PathOffset",
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "Input path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "distance",
+            "data_type": "Scalar",
+            "description": "Offset distance",
+            "default_value": {
+              "Float": -10.0
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          56.75,
+          -52.40625
+        ],
+        "generation": 298,
+        "version": 1
+      },
+      "14": {
+        "id": 14,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": true
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          141.5625,
+          -62.15625
+        ],
+        "generation": 2,
+        "version": 0
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 11,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 11,
+          "port": 0
+        },
+        "to": {
+          "node": 14,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 12,
+          "port": 0
+        },
+        "to": {
+          "node": 14,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 13,
+          "port": 0
+        },
+        "to": {
+          "node": 16,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 16,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 8,
+          "port": 0
+        },
+        "to": {
+          "node": 9,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 14,
+          "port": 0
+        },
+        "to": {
+          "node": 17,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 17,
+          "port": 0
+        },
+        "to": {
+          "node": 16,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 8,
+          "port": 0
+        },
+        "to": {
+          "node": 18,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 9,
+          "port": 0
+        },
+        "to": {
+          "node": 12,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 18,
+          "port": 0
+        },
+        "to": {
+          "node": 12,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 19,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 19,
+          "port": 0
+        },
+        "to": {
+          "node": 11,
+          "port": 0
+        }
+      }
+    ],
+    "next_id": 20,
+    "generation": 1027,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "Rectangle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -558.52704,
+          "y": -147.17072
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Path Offset",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -410.30847,
+          "y": -91.09009
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 430.05438,
+          "y": -17.89383
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 11,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -243.56992,
+          "y": -159.69464
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 18,
+          "display_name": "Path Offset",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -410.30847,
+          "y": 138.41779
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 19,
+          "display_name": "Path Offset",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -410.71277,
+          "y": -202.4559
+        },
+        "open": true
+      },
+      "6": {
+        "value": {
+          "core_id": 8,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -555.4747,
+          "y": 75.27759
+        },
+        "open": true
+      },
+      "7": {
+        "value": {
+          "core_id": 9,
+          "display_name": "Path Offset",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -410.30847,
+          "y": 27.042542
+        },
+        "open": true
+      },
+      "8": {
+        "value": {
+          "core_id": 12,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -243.00845,
+          "y": 90.38458
+        },
+        "open": true
+      },
+      "9": {
+        "value": {
+          "core_id": 13,
+          "display_name": "Point Grid",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 46.73996,
+          "y": 64.95004
+        },
+        "open": true
+      },
+      "10": {
+        "value": {
+          "core_id": 14,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -103.74747,
+          "y": -33.89383
+        },
+        "open": true
+      },
+      "11": {
+        "value": {
+          "core_id": 17,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 35.51982,
+          "y": -25.14383
+        },
+        "open": true
+      },
+      "12": {
+        "value": {
+          "core_id": 16,
+          "display_name": "Place at Points",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 232.78711,
+          "y": -33.89383
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 8,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 10,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 7,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 11,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 12,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 10,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 11,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 12,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 10,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 9,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 12,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      0.0,
+      0.0
+    ],
+    "graph_scale": 1.0,
+    "canvas_center": [
+      35.57832,
+      1.181118
+    ],
+    "canvas_zoom": 0.93187964
+  },
+  "window_geometry": {
+    "x": 336.5,
+    "y": 142.0,
+    "width": 1487.5,
+    "height": 1332.0,
+    "node_editor_height": 594.3125,
+    "properties_width": 250.0625
+  },
+  "settings": {
+    "canvas_width": 640,
+    "canvas_height": 480,
+    "background_color": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1.0
+    ],
+    "fps": 30.0
+  }
+}

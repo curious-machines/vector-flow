@@ -809,11 +809,14 @@ impl NodeDef {
                 PortDef::new("distance", DataType::Scalar)
                     .with_default(ParamValue::Float(10.0))
                     .with_description("Offset distance"),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance (smaller = more precise)"),
             ],
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
         }
     }
 

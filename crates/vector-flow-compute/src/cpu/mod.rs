@@ -173,7 +173,9 @@ impl ComputeBackend for CpuBackend {
             NodeOp::PathOffset => {
                 let path = get_path(inputs, 0);
                 let distance = get_scalar(inputs, 1);
-                NodeData::Path(Arc::new(path_ops::path_offset(&path, distance)))
+                let tolerance = get_scalar(inputs, 2) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                NodeData::Path(Arc::new(path_ops::path_offset(&path, distance, tolerance)))
             }
             NodeOp::PathBoolean { operation } => {
                 let a = get_path(inputs, 0);
