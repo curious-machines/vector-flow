@@ -394,6 +394,11 @@ impl ComputeBackend for CpuBackend {
 
             // ── Image ───────────────────────────────────────────────
             NodeOp::LoadImage { path } => {
+                // Empty path means no image configured yet — skip silently
+                if path.is_empty() {
+                    return Ok(());
+                }
+
                 let position = get_vec2(inputs, 0);
                 let width = get_scalar(inputs, 1) as f32;
                 let height = get_scalar(inputs, 2) as f32;

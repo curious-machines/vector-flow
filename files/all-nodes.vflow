@@ -1,0 +1,3019 @@
+{
+  "graph": {
+    "nodes": {
+      "43": {
+        "id": 43,
+        "name": "Place at Points",
+        "op": "PlaceAtPoints",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Shapes to place (batch or single)",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "Target points from Grid, Scatter Points, etc.",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "cycle",
+            "data_type": "Bool",
+            "description": "Cycle shorter list to match longer list length",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Shapes",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          382.60938,
+          223.625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "1": {
+        "id": 1,
+        "name": "Generate",
+        "op": {
+          "Generate": {
+            "source": "result = index;",
+            "script_inputs": [
+              [
+                "index",
+                "Int"
+              ],
+              [
+                "count",
+                "Int"
+              ]
+            ],
+            "script_outputs": [
+              [
+                "result",
+                "Scalar"
+              ]
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "start",
+            "data_type": "Int",
+            "description": "Range start (inclusive)",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "end",
+            "data_type": "Int",
+            "description": "Range end (exclusive)",
+            "default_value": {
+              "Int": 10
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Any",
+            "description": "Collected output batch",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -455.375,
+          -299.28125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "45": {
+        "id": 45,
+        "name": "Send: net",
+        "op": {
+          "PortalSend": {
+            "label": "net"
+          }
+        },
+        "inputs": [
+          {
+            "name": "value",
+            "data_type": "Any",
+            "description": "Value to send",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "through",
+            "data_type": "Any",
+            "description": "Pass-through of the input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          478.95312,
+          288.9375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "10": {
+        "id": 10,
+        "name": "Grayscale",
+        "op": "Grayscale",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Input color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -41.5,
+          84.46875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "18": {
+        "id": 18,
+        "name": "Regular Polygon",
+        "op": "RegularPolygon",
+        "inputs": [
+          {
+            "name": "sides",
+            "data_type": "Int",
+            "description": "Number of sides",
+            "default_value": {
+              "Int": 6
+            },
+            "expression": null
+          },
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Outer radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          33.234375,
+          -11.9375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "16": {
+        "id": 16,
+        "name": "Point Grid",
+        "op": "PointGrid",
+        "inputs": [
+          {
+            "name": "columns",
+            "data_type": "Int",
+            "description": "Number of columns",
+            "default_value": {
+              "Int": 10
+            },
+            "expression": null
+          },
+          {
+            "name": "rows",
+            "data_type": "Int",
+            "description": "Number of rows",
+            "default_value": {
+              "Int": 10
+            },
+            "expression": null
+          },
+          {
+            "name": "spacing",
+            "data_type": "Scalar",
+            "description": "Distance between points",
+            "default_value": {
+              "Float": 20.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -158.26562,
+          -34.46875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "22": {
+        "id": 22,
+        "name": "Path Boolean",
+        "op": {
+          "PathBoolean": {
+            "operation": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Path",
+            "description": "First path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Path",
+            "description": "Second path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          25.015625,
+          -336.84375
+        ],
+        "generation": 0,
+        "version": 1
+      },
+      "26": {
+        "id": 26,
+        "name": "Resample Path",
+        "op": "ResamplePath",
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "Input path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of samples",
+            "default_value": {
+              "Int": 32
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          272.98438,
+          -176.84375
+        ],
+        "generation": 0,
+        "version": 1
+      },
+      "37": {
+        "id": 37,
+        "name": "Constant Int",
+        "op": "ConstInt",
+        "inputs": [
+          {
+            "name": "value",
+            "data_type": "Int",
+            "description": "Integer value",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Int",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          148.57812,
+          233.28125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "40": {
+        "id": 40,
+        "name": "Copy to Points",
+        "op": "CopyToPoints",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Shape to copy to each point",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "target_path",
+            "data_type": "Path",
+            "description": "Path whose sampled points receive copies",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of copies along path",
+            "default_value": {
+              "Int": 10
+            },
+            "expression": null
+          },
+          {
+            "name": "align",
+            "data_type": "Bool",
+            "description": "Rotate copies to align with path tangent",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Shapes",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "tangent_angles",
+            "data_type": "Scalars",
+            "description": "Tangent angle in degrees at each point",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "indices",
+            "data_type": "Scalars",
+            "description": "Index of each copy (0..count-1)",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "count",
+            "data_type": "Scalar",
+            "description": "Total number of copies",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          180.42188,
+          155.21875
+        ],
+        "generation": 0,
+        "version": 1
+      },
+      "3": {
+        "id": 3,
+        "name": "VFS Code",
+        "op": {
+          "DslCode": {
+            "source": "",
+            "script_inputs": [],
+            "script_outputs": []
+          }
+        },
+        "inputs": [],
+        "outputs": [],
+        "position": [
+          -374.09375,
+          -117.375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "36": {
+        "id": 36,
+        "name": "Constant Color",
+        "op": "ConstColor",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Color value",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -13.296875,
+          204.84375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "25": {
+        "id": 25,
+        "name": "Path Subdivide",
+        "op": "PathSubdivide",
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "Input path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "levels",
+            "data_type": "Int",
+            "description": "Subdivision levels",
+            "default_value": {
+              "Int": 1
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          246.32812,
+          -237.6875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "8": {
+        "id": 8,
+        "name": "Adjust Saturation",
+        "op": "AdjustSaturation",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Input color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Saturation adjustment (-1..1)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "absolute",
+            "data_type": "Bool",
+            "description": "If true, set saturation; if false, shift",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -92.9375,
+          -29.90625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "30": {
+        "id": 30,
+        "name": "Text",
+        "op": {
+          "Text": {
+            "text": "Hello World",
+            "font_family": "",
+            "font_path": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "position",
+            "data_type": "Vec2",
+            "description": "Text anchor position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "font_size",
+            "data_type": "Scalar",
+            "description": "Font size in canvas units",
+            "default_value": {
+              "Float": 24.0
+            },
+            "expression": null
+          },
+          {
+            "name": "font_weight",
+            "data_type": "Int",
+            "description": "Font weight (100-900, 400=regular, 700=bold)",
+            "default_value": {
+              "Int": 400
+            },
+            "expression": null
+          },
+          {
+            "name": "font_style",
+            "data_type": "Int",
+            "description": "Font style: 0=Normal, 1=Italic, 2=Oblique",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "letter_spacing",
+            "data_type": "Scalar",
+            "description": "Extra spacing between glyphs",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "line_height",
+            "data_type": "Scalar",
+            "description": "Line height multiplier",
+            "default_value": {
+              "Float": 1.2
+            },
+            "expression": null
+          },
+          {
+            "name": "alignment",
+            "data_type": "Int",
+            "description": "Text alignment: 0=Left, 1=Center, 2=Right",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "box_width",
+            "data_type": "Scalar",
+            "description": "Text box width (0 = unconstrained)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "box_height",
+            "data_type": "Scalar",
+            "description": "Text box height (0 = unconstrained)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "wrap",
+            "data_type": "Bool",
+            "description": "Enable word wrapping",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Text color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "opacity",
+            "data_type": "Scalar",
+            "description": "Opacity (0..1)",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "text",
+            "data_type": "Text",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          356.17188,
+          -302.40625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "29": {
+        "id": 29,
+        "name": "Stroke to Path",
+        "op": {
+          "StrokeToPath": {
+            "dash_pattern": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Any",
+            "description": "Input shape or path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          380.92188,
+          -171.9375
+        ],
+        "generation": 0,
+        "version": 1
+      },
+      "42": {
+        "id": 42,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          391.98438,
+          172.15625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "11": {
+        "id": 11,
+        "name": "Invert Color",
+        "op": "InvertColor",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Input color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          22.625,
+          58.75
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "28": {
+        "id": 28,
+        "name": "Set Stroke",
+        "op": {
+          "SetStroke": {
+            "dash_pattern": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Stroke color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance for dash pattern (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          244.67188,
+          -245.65625
+        ],
+        "generation": 0,
+        "version": 1
+      },
+      "13": {
+        "id": 13,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -8.71875,
+          -304.0
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "32": {
+        "id": 32,
+        "name": "Apply Transform",
+        "op": "ApplyTransform",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "transform",
+            "data_type": "Transform",
+            "description": "Transform to apply",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          534.3594,
+          -266.90625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "39": {
+        "id": 39,
+        "name": "Constant Vec2",
+        "op": "ConstVec2",
+        "inputs": [
+          {
+            "name": "x",
+            "data_type": "Scalar",
+            "description": "X component",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "y",
+            "data_type": "Scalar",
+            "description": "Y component",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Vec2",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          170.23438,
+          228.90625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "17": {
+        "id": 17,
+        "name": "Rectangle",
+        "op": "Rectangle",
+        "inputs": [
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Width",
+            "default_value": {
+              "Float": 200.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Height",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          61.171875,
+          -94.03125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "35": {
+        "id": 35,
+        "name": "Translate",
+        "op": "Translate",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "offset",
+            "data_type": "Vec2",
+            "description": "Translation offset",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          531.7344,
+          -12.4375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "44": {
+        "id": 44,
+        "name": "Receive: net",
+        "op": {
+          "PortalReceive": {
+            "label": "net"
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Any",
+            "description": "Received value",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          441.70312,
+          286.25
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "20": {
+        "id": 20,
+        "name": "SVG Path",
+        "op": {
+          "SvgPath": {
+            "data": ""
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          87.640625,
+          -120.28125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "38": {
+        "id": 38,
+        "name": "Constant Scalar",
+        "op": "ConstScalar",
+        "inputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "Scalar value",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          181.70312,
+          213.9375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "6": {
+        "id": 6,
+        "name": "Adjust Lightness",
+        "op": "AdjustLightness",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Input color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Lightness adjustment (-1..1)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "absolute",
+            "data_type": "Bool",
+            "description": "If true, set lightness; if false, shift",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -75.125,
+          -201.8125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "7": {
+        "id": 7,
+        "name": "Adjust Luminance",
+        "op": "AdjustLuminance",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Input color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "CIE Lab L* adjustment (0..100)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "absolute",
+            "data_type": "Bool",
+            "description": "If true, set L*; if false, shift",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -49.8125,
+          -124.53125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "5": {
+        "id": 5,
+        "name": "Adjust Hue",
+        "op": "AdjustHue",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Input color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Hue shift in degrees (or absolute hue)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "absolute",
+            "data_type": "Bool",
+            "description": "If true, set hue; if false, shift hue",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -119.28125,
+          -264.4375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "31": {
+        "id": 31,
+        "name": "Text to Path",
+        "op": "TextToPath",
+        "inputs": [
+          {
+            "name": "text",
+            "data_type": "Text",
+            "description": "Input text instance",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          414.51562,
+          5.96875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "23": {
+        "id": 23,
+        "name": "Path Offset",
+        "op": "PathOffset",
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "Input path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "distance",
+            "data_type": "Scalar",
+            "description": "Offset distance",
+            "default_value": {
+              "Float": 10.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          183.42188,
+          -262.4375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "27": {
+        "id": 27,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          210.45312,
+          -319.6875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "41": {
+        "id": 41,
+        "name": "Duplicate",
+        "op": "Duplicate",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of copies",
+            "default_value": {
+              "Int": 5
+            },
+            "expression": null
+          },
+          {
+            "name": "transform",
+            "data_type": "Transform",
+            "description": "Transform applied per copy (cumulative)",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          394.64062,
+          129.75
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "24": {
+        "id": 24,
+        "name": "Path Reverse",
+        "op": "PathReverse",
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "Input path",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          231.42188,
+          -231.8125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "34": {
+        "id": 34,
+        "name": "Scale",
+        "op": "Scale",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "factor",
+            "data_type": "Vec2",
+            "description": "Scale factor (x, y)",
+            "default_value": {
+              "Vec2": [
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center of scaling",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          529.0469,
+          -112.1875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "2": {
+        "id": 2,
+        "name": "Map",
+        "op": {
+          "Map": {
+            "source": "",
+            "script_inputs": [
+              [
+                "element",
+                "Scalar"
+              ],
+              [
+                "index",
+                "Int"
+              ],
+              [
+                "count",
+                "Int"
+              ]
+            ],
+            "script_outputs": [
+              [
+                "result",
+                "Scalar"
+              ]
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "batch",
+            "data_type": "Any",
+            "description": "Batch to iterate over",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "data_type": "Any",
+            "description": "Collected output batch",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -255.15625,
+          -279.9375
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "19": {
+        "id": 19,
+        "name": "Scatter Points",
+        "op": "ScatterPoints",
+        "inputs": [
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of points",
+            "default_value": {
+              "Int": 100
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Scatter region width",
+            "default_value": {
+              "Float": 500.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Scatter region height",
+            "default_value": {
+              "Float": 500.0
+            },
+            "expression": null
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          121.828125,
+          -62.125
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "4": {
+        "id": 4,
+        "name": "Adjust Alpha",
+        "op": "AdjustAlpha",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Input color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Alpha adjustment (-1..1)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "absolute",
+            "data_type": "Bool",
+            "description": "If true, set alpha; if false, shift alpha",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -173.9375,
+          -280.75
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "9": {
+        "id": 9,
+        "name": "Color Parse",
+        "op": {
+          "ColorParse": {
+            "text": "#FFFFFF"
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -21.3125,
+          -22.46875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "15": {
+        "id": 15,
+        "name": "Load Image",
+        "op": {
+          "LoadImage": {
+            "path": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "position",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Display width (0 = native)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Display height (0 = native)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "opacity",
+            "data_type": "Scalar",
+            "description": "Image opacity (0..1)",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "image",
+            "data_type": "Image",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "native_width",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "native_height",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -170.5625,
+          -154.5
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "14": {
+        "id": 14,
+        "name": "Line",
+        "op": "Line",
+        "inputs": [
+          {
+            "name": "from",
+            "data_type": "Vec2",
+            "description": "Start point",
+            "default_value": {
+              "Vec2": [
+                -100.0,
+                0.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "to",
+            "data_type": "Vec2",
+            "description": "End point",
+            "default_value": {
+              "Vec2": [
+                100.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -73.53125,
+          -289.46875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "12": {
+        "id": 12,
+        "name": "Mix Colors",
+        "op": "MixColors",
+        "inputs": [
+          {
+            "name": "color_a",
+            "data_type": "Color",
+            "description": "First color",
+            "default_value": {
+              "Color": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "color_b",
+            "data_type": "Color",
+            "description": "Second color",
+            "default_value": {
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "expression": null
+          },
+          {
+            "name": "factor",
+            "data_type": "Scalar",
+            "description": "Mix factor (0=A, 1=B)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          },
+          {
+            "name": "lab_mode",
+            "data_type": "Bool",
+            "description": "If true, interpolate in CIE Lab space",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -13.125,
+          90.46875
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "33": {
+        "id": 33,
+        "name": "Rotate",
+        "op": "Rotate",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "angle",
+            "data_type": "Scalar",
+            "description": "Rotation angle in degrees",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center of rotation",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          517.1406,
+          -194.28125
+        ],
+        "generation": 0,
+        "version": 0
+      }
+    },
+    "edges": [],
+    "next_id": 46,
+    "generation": 91,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "Generate",
+          "color": [
+            120,
+            200,
+            160,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -594.96094,
+          "y": -324.81848
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Map",
+          "color": [
+            120,
+            200,
+            160,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -599.6095,
+          "y": -241.38376
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "VFS Code",
+          "color": [
+            120,
+            200,
+            160,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -595.66077,
+          "y": -175.39742
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 4,
+          "display_name": "Adjust Alpha",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -459.12125,
+          "y": -327.0213
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Adjust Hue",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -461.00107,
+          "y": -234.40385
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 6,
+          "display_name": "Adjust Lightness",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -468.37613,
+          "y": -138.18684
+        },
+        "open": true
+      },
+      "6": {
+        "value": {
+          "core_id": 7,
+          "display_name": "Adjust Luminance",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -476.13937,
+          "y": -43.00203
+        },
+        "open": true
+      },
+      "7": {
+        "value": {
+          "core_id": 8,
+          "display_name": "Adjust Saturation",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -475.3207,
+          "y": 49.85283
+        },
+        "open": true
+      },
+      "8": {
+        "value": {
+          "core_id": 9,
+          "display_name": "Color Parse",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -459.57132,
+          "y": 144.18346
+        },
+        "open": true
+      },
+      "9": {
+        "value": {
+          "core_id": 10,
+          "display_name": "Grayscale",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -458.22098,
+          "y": 201.97606
+        },
+        "open": true
+      },
+      "10": {
+        "value": {
+          "core_id": 11,
+          "display_name": "Invert Color",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -462.85892,
+          "y": 259.04413
+        },
+        "open": true
+      },
+      "11": {
+        "value": {
+          "core_id": 12,
+          "display_name": "Mix Colors",
+          "color": [
+            220,
+            100,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -473.209,
+          "y": 317.58636
+        },
+        "open": true
+      },
+      "12": {
+        "value": {
+          "core_id": 13,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -306.53128,
+          "y": -325.36987
+        },
+        "open": true
+      },
+      "13": {
+        "value": {
+          "core_id": 14,
+          "display_name": "Line",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -301.09457,
+          "y": -249.4403
+        },
+        "open": true
+      },
+      "14": {
+        "value": {
+          "core_id": 15,
+          "display_name": "Load Image",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -305.47495,
+          "y": -167.78703
+        },
+        "open": true
+      },
+      "15": {
+        "value": {
+          "core_id": 16,
+          "display_name": "Point Grid",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -287.2285,
+          "y": -59.48326
+        },
+        "open": true
+      },
+      "16": {
+        "value": {
+          "core_id": 17,
+          "display_name": "Rectangle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -277.45908,
+          "y": 32.02394
+        },
+        "open": true
+      },
+      "17": {
+        "value": {
+          "core_id": 18,
+          "display_name": "Regular Polygon",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -292.56992,
+          "y": 122.60231
+        },
+        "open": true
+      },
+      "18": {
+        "value": {
+          "core_id": 19,
+          "display_name": "Scatter Points",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -286.77707,
+          "y": 213.56874
+        },
+        "open": true
+      },
+      "19": {
+        "value": {
+          "core_id": 20,
+          "display_name": "SVG Path",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -277.61374,
+          "y": 322.47314
+        },
+        "open": true
+      },
+      "20": {
+        "value": {
+          "core_id": 22,
+          "display_name": "Path Boolean",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -87.09042,
+          "y": -325.3051
+        },
+        "open": true
+      },
+      "21": {
+        "value": {
+          "core_id": 23,
+          "display_name": "Path Offset",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -80.62131,
+          "y": -232.79027
+        },
+        "open": true
+      },
+      "22": {
+        "value": {
+          "core_id": 24,
+          "display_name": "Path Reverse",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -79.999115,
+          "y": -157.8466
+        },
+        "open": true
+      },
+      "23": {
+        "value": {
+          "core_id": 25,
+          "display_name": "Path Subdivide",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -85.22861,
+          "y": -98.699875
+        },
+        "open": true
+      },
+      "24": {
+        "value": {
+          "core_id": 26,
+          "display_name": "Resample Path",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -88.88687,
+          "y": -23.461655
+        },
+        "open": true
+      },
+      "25": {
+        "value": {
+          "core_id": 27,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 68.60135,
+          "y": -323.88928
+        },
+        "open": true
+      },
+      "26": {
+        "value": {
+          "core_id": 28,
+          "display_name": "Set Stroke",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 67.789825,
+          "y": -248.59818
+        },
+        "open": true
+      },
+      "27": {
+        "value": {
+          "core_id": 29,
+          "display_name": "Stroke to Path",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 67.05734,
+          "y": -71.06352
+        },
+        "open": true
+      },
+      "28": {
+        "value": {
+          "core_id": 30,
+          "display_name": "Text",
+          "color": [
+            100,
+            180,
+            220,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 253.25958,
+          "y": -327.2139
+        },
+        "open": true
+      },
+      "29": {
+        "value": {
+          "core_id": 31,
+          "display_name": "Text to Path",
+          "color": [
+            100,
+            180,
+            220,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 257.01688,
+          "y": -79.89749
+        },
+        "open": true
+      },
+      "30": {
+        "value": {
+          "core_id": 32,
+          "display_name": "Apply Transform",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 431.88928,
+          "y": -329.19153
+        },
+        "open": true
+      },
+      "31": {
+        "value": {
+          "core_id": 33,
+          "display_name": "Rotate",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 430.1458,
+          "y": -257.4228
+        },
+        "open": true
+      },
+      "32": {
+        "value": {
+          "core_id": 34,
+          "display_name": "Scale",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 430.74744,
+          "y": -166.58401
+        },
+        "open": true
+      },
+      "33": {
+        "value": {
+          "core_id": 35,
+          "display_name": "Translate",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 431.2232,
+          "y": -76.06262
+        },
+        "open": true
+      },
+      "34": {
+        "value": {
+          "core_id": 36,
+          "display_name": "Constant Color",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -83.9884,
+          "y": 116.93872
+        },
+        "open": true
+      },
+      "35": {
+        "value": {
+          "core_id": 37,
+          "display_name": "Constant Int",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -71.505005,
+          "y": 176.01868
+        },
+        "open": true
+      },
+      "36": {
+        "value": {
+          "core_id": 38,
+          "display_name": "Constant Scalar",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -84.26807,
+          "y": 233.5603
+        },
+        "open": true
+      },
+      "37": {
+        "value": {
+          "core_id": 39,
+          "display_name": "Constant Vec2",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -82.36401,
+          "y": 290.1632
+        },
+        "open": true
+      },
+      "38": {
+        "value": {
+          "core_id": 40,
+          "display_name": "Copy to Points",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 61.51013,
+          "y": 117.17499
+        },
+        "open": true
+      },
+      "39": {
+        "value": {
+          "core_id": 41,
+          "display_name": "Duplicate",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 75.49609,
+          "y": 242.81396
+        },
+        "open": true
+      },
+      "40": {
+        "value": {
+          "core_id": 42,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 104.2251,
+          "y": 333.46326
+        },
+        "open": true
+      },
+      "41": {
+        "value": {
+          "core_id": 43,
+          "display_name": "Place at Points",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 277.11084,
+          "y": 117.89899
+        },
+        "open": true
+      },
+      "42": {
+        "value": {
+          "core_id": 44,
+          "display_name": "Portal Receive",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 288.7882,
+          "y": 209.85669
+        },
+        "open": true
+      },
+      "43": {
+        "value": {
+          "core_id": 45,
+          "display_name": "Portal Send",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 291.13214,
+          "y": 264.9347
+        },
+        "open": true
+      }
+    },
+    "wires": []
+  },
+  "view_state": {
+    "graph_offset": [
+      0.0,
+      0.0
+    ],
+    "graph_scale": 1.0,
+    "canvas_center": [
+      0.0,
+      0.0
+    ],
+    "canvas_zoom": 1.0
+  },
+  "window_geometry": {
+    "x": 79.0,
+    "y": 158.5,
+    "width": 1671.5,
+    "height": 1529.5,
+    "node_editor_height": 943.5625,
+    "properties_width": 412.125
+  },
+  "settings": {
+    "canvas_width": 640,
+    "canvas_height": 480,
+    "background_color": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1.0
+    ],
+    "fps": 30.0
+  }
+}

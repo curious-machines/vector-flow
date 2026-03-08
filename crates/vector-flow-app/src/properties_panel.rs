@@ -646,8 +646,9 @@ fn show_param_editor(
             let mut val = *v;
             ui.label(name);
             ui.horizontal(|ui| {
-                ui.add(egui::DragValue::new(&mut val[0]).speed(0.1).prefix("x: "));
-                ui.add(egui::DragValue::new(&mut val[1]).speed(0.1).prefix("y: "));
+                let w = (ui.available_width() - ui.spacing().item_spacing.x) / 2.0;
+                ui.add_sized([w, ui.spacing().interact_size.y], egui::DragValue::new(&mut val[0]).speed(0.1).prefix("x: "));
+                ui.add_sized([w, ui.spacing().interact_size.y], egui::DragValue::new(&mut val[1]).speed(0.1).prefix("y: "));
             });
             ui.end_row();
             if val != *v {

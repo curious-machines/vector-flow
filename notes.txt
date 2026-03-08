@@ -1,4 +1,5 @@
-- render text - text node: text, box, maybe font size, font would be nice, but can defer
+- can we add support to programatically interact with the UI for testing and automation purposes
 - render SVG? Maybe have a tool that converts svg to vflow graph?
-- support stroke features like end caps, line joins, dash array
-- possibly support stroke to fill area so that it can be manipulated like a shape
+- we need a place in the project to store "classes" to create reusable nodes/graphs. There are project level and application level classes.
+- would like a way to copy selected nodes and get a text version of the selection including edges that could be sent to someone else who could then "paste" that into their own document
+- does it make sense to have a "style" node that combines stroke and fill in one place?

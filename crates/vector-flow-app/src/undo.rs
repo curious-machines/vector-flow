@@ -52,6 +52,8 @@ impl FrameInfo {
 /// Coalescing works by tracking a fingerprint (graph generation + node position hash).
 /// Only the first frame of a change sequence pushes a snapshot; subsequent frames
 /// in the same sequence (e.g. slider drag, node drag) are coalesced into one entry.
+/// Coalescing continues as long as the pointer is held down, ensuring that an entire
+/// drag gesture produces exactly one undo entry.
 pub struct UndoHistory {
     undo_stack: Vec<Snapshot>,
     redo_stack: Vec<Snapshot>,
@@ -64,9 +66,6 @@ pub struct UndoHistory {
     pre_frame: Option<Snapshot>,
     /// State info captured alongside pre_frame, for computing diff labels.
     pre_frame_info: Option<FrameInfo>,
-    /// Number of consecutive frames with no fingerprint change. Used to detect
-    /// when a stable gap separates two distinct actions so we don't coalesce them.
-    stable_frames: u32,
 }
 
 impl UndoHistory {
@@ -78,7 +77,6 @@ impl UndoHistory {
             was_changing: false,
             pre_frame: None,
             pre_frame_info: None,
-            stable_frames: 0,
         }
     }
 
@@ -91,16 +89,9 @@ impl UndoHistory {
     }
 
     /// Call at the start of each frame, before any mutations.
-    /// Captures a snapshot if we're not in the middle of a continuous edit,
-    /// or if there has been a stable gap (fingerprint unchanged for at least
-    /// one frame) indicating a previous action has completed.
+    /// Captures a snapshot if we're not in the middle of a continuous edit.
     pub fn begin_frame(&mut self, graph: &Graph, snarl: &Snarl<UiNode>, settings: &ProjectSettings, node_pos_hash: u64) {
-        if !self.was_changing || self.stable_frames > 0 {
-            // If was_changing but we had a stable gap, reset so this frame
-            // starts a fresh change sequence.
-            if self.was_changing && self.stable_frames > 0 {
-                self.was_changing = false;
-            }
+        if !self.was_changing {
             self.pre_frame_info = Some(FrameInfo {
                 graph_gen: graph.generation(),
                 node_pos_hash,
@@ -154,16 +145,10 @@ impl UndoHistory {
                 }
             }
             self.was_changing = true;
-            self.stable_frames = 0;
         } else if !pointer_down {
             // Only reset when the pointer is released — during slow drags the
             // value may not change every frame, but we still want to coalesce.
             self.was_changing = false;
-            self.stable_frames = 0;
-        } else {
-            // Pointer is down but no change this frame. Count stable frames
-            // so begin_frame can detect a gap between distinct actions.
-            self.stable_frames = self.stable_frames.saturating_add(1);
         }
 
         self.prev_fingerprint = fingerprint;
@@ -224,7 +209,6 @@ impl UndoHistory {
         self.was_changing = false;
         self.pre_frame = None;
         self.pre_frame_info = None;
-        self.stable_frames = 0;
     }
 
     /// Clear all history (e.g. on project load or new).
@@ -235,7 +219,6 @@ impl UndoHistory {
         self.pre_frame = None;
         self.pre_frame_info = None;
         self.prev_fingerprint = 0;
-        self.stable_frames = 0;
     }
 
     /// Returns the FPS from the pre-frame snapshot (captured before UI mutations).
@@ -268,30 +251,6 @@ mod tests {
     }
 
     #[test]
-    fn separate_actions_with_pointer_held_produce_two_undo_entries() {
-        // Simulates: connect edge (graph gen changes), then immediately start
-        // dragging a node (positions change) while pointer stays down.
-        let (graph, snarl, settings) = make_state();
-        let mut undo = UndoHistory::new();
-        undo.sync_fingerprint(fingerprint(0, 0));
-
-        // Frame 1: connection happens (graph gen 0 → 1), pointer down.
-        undo.begin_frame(&graph, &snarl, &settings, 0);
-        undo.end_frame(fingerprint(1, 0), &graph, &settings, 0, true);
-        assert_eq!(undo.undo_stack.len(), 1, "connection should push snapshot");
-
-        // Frame 2: no change yet, pointer still down (about to start drag).
-        undo.begin_frame(&graph, &snarl, &settings, 0);
-        undo.end_frame(fingerprint(1, 0), &graph, &settings, 0, true);
-        assert_eq!(undo.undo_stack.len(), 1, "no change = no new snapshot");
-
-        // Frame 3: node starts moving (pos hash changes), pointer down.
-        undo.begin_frame(&graph, &snarl, &settings, 0);
-        undo.end_frame(fingerprint(1, 1), &graph, &settings, 1, true);
-        assert_eq!(undo.undo_stack.len(), 2, "move should be separate undo entry");
-    }
-
-    #[test]
     fn continuous_drag_coalesces_into_one_entry() {
         // Dragging a node across multiple frames should produce one undo entry.
         let (graph, snarl, settings) = make_state();
@@ -312,5 +271,57 @@ mod tests {
         undo.begin_frame(&graph, &snarl, &settings, 2);
         undo.end_frame(fingerprint(0, 3), &graph, &settings, 3, true);
         assert_eq!(undo.undo_stack.len(), 1, "still coalescing");
+    }
+
+    #[test]
+    fn drag_with_unchanged_frames_still_coalesces() {
+        // During a slow drag, some frames may have no value change.
+        // The entire gesture should still coalesce into one undo entry.
+        let (graph, snarl, settings) = make_state();
+        let mut undo = UndoHistory::new();
+        undo.sync_fingerprint(fingerprint(0, 0));
+
+        // Frame 1: drag starts, value changes.
+        undo.begin_frame(&graph, &snarl, &settings, 0);
+        undo.end_frame(fingerprint(0, 1), &graph, &settings, 1, true);
+        assert_eq!(undo.undo_stack.len(), 1);
+
+        // Frame 2: pointer still down, no value change this frame.
+        undo.begin_frame(&graph, &snarl, &settings, 1);
+        undo.end_frame(fingerprint(0, 1), &graph, &settings, 1, true);
+        assert_eq!(undo.undo_stack.len(), 1, "no change = no new snapshot");
+
+        // Frame 3: value changes again, pointer still down.
+        undo.begin_frame(&graph, &snarl, &settings, 1);
+        undo.end_frame(fingerprint(0, 2), &graph, &settings, 2, true);
+        assert_eq!(undo.undo_stack.len(), 1, "should still coalesce with original drag");
+
+        // Frame 4: pointer released, no change.
+        undo.begin_frame(&graph, &snarl, &settings, 2);
+        undo.end_frame(fingerprint(0, 2), &graph, &settings, 2, false);
+        assert_eq!(undo.undo_stack.len(), 1, "release with no change = no new snapshot");
+    }
+
+    #[test]
+    fn separate_actions_after_pointer_release_produce_two_entries() {
+        // Two distinct gestures (pointer down/up, then down/up again) should
+        // produce two separate undo entries.
+        let (graph, snarl, settings) = make_state();
+        let mut undo = UndoHistory::new();
+        undo.sync_fingerprint(fingerprint(0, 0));
+
+        // Gesture 1: drag value.
+        undo.begin_frame(&graph, &snarl, &settings, 0);
+        undo.end_frame(fingerprint(1, 0), &graph, &settings, 0, true);
+        assert_eq!(undo.undo_stack.len(), 1);
+
+        // Release pointer.
+        undo.begin_frame(&graph, &snarl, &settings, 0);
+        undo.end_frame(fingerprint(1, 0), &graph, &settings, 0, false);
+
+        // Gesture 2: drag node.
+        undo.begin_frame(&graph, &snarl, &settings, 0);
+        undo.end_frame(fingerprint(1, 1), &graph, &settings, 1, true);
+        assert_eq!(undo.undo_stack.len(), 2, "second gesture = second undo entry");
     }
 }
