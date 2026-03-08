@@ -457,14 +457,15 @@ Example patch: Circle (50) -> [a] Path Boolean (Difference) [b] <- Rectangle (40
 
 ### Path Offset
 
-Expands or contracts a path by a given distance.
+Expands or contracts a path by a given distance. Curves are flattened to line segments, offset with miter joins, and reassembled. Winding detection determines inside vs outside for correct offset direction.
 
 **Inputs:**
 
-| Name     | Type   | Default | Description                                 |
-|----------|--------|---------|---------------------------------------------|
-| path     | Path   | --      | Input path                                  |
-| distance | Scalar | 10.0    | Offset distance (positive = outward, negative = inward) |
+| Name      | Type   | Default | Description                                              |
+|-----------|--------|---------|----------------------------------------------------------|
+| path      | Path   | --      | Input path                                               |
+| distance  | Scalar | 10.0    | Offset distance (positive = outward, negative = inward)  |
+| tolerance | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise)      |
 
 **Outputs:**
 
