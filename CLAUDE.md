@@ -21,6 +21,11 @@
 - All new features must include tests.
 - All bug fixes must include a test that verifies the fix to prevent regressions.
 
+## Design Documents
+
+- Design documents live in the `memory/` folder and must never be deleted.
+- When discussing a new design topic, save the discussion to a new file in `memory/` (e.g., `memory/design-NN-topic.md`).
+
 ## Building
 
 - Cargo and rustc are at `~/.cargo/bin/cargo`.
