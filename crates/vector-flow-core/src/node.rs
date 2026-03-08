@@ -169,7 +169,9 @@ impl NodeOp {
             // Version 1: added tolerance input port.
             NodeOp::PathBoolean { .. }
             | NodeOp::ResamplePath
-            | NodeOp::CopyToPoints => 1,
+            | NodeOp::CopyToPoints
+            | NodeOp::SetStroke { .. }
+            | NodeOp::StrokeToPath { .. } => 1,
 
             // All other built-in ops start at version 0. Bump individually when
             // a node's port layout or behavior changes.
@@ -513,11 +515,14 @@ impl NodeDef {
                 PortDef::new("dash_offset", DataType::Scalar)
                     .with_default(ParamValue::Float(0.0))
                     .with_description("Dash pattern offset"),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance for dash pattern (smaller = more precise)"),
             ],
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
         }
     }
 
@@ -543,11 +548,14 @@ impl NodeDef {
                 PortDef::new("dash_offset", DataType::Scalar)
                     .with_default(ParamValue::Float(0.0))
                     .with_description("Dash pattern offset"),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance (smaller = more precise)"),
             ],
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
         }
     }
 
@@ -1390,5 +1398,17 @@ mod tests {
         assert_eq!(cp.op.current_version(), 1);
         assert!(!cp.is_outdated());
         assert!(cp.inputs.iter().any(|p| p.name == "tolerance"));
+
+        let stp = NodeDef::stroke_to_path(NodeId(4));
+        assert_eq!(stp.version, 1);
+        assert_eq!(stp.op.current_version(), 1);
+        assert!(!stp.is_outdated());
+        assert!(stp.inputs.iter().any(|p| p.name == "tolerance"));
+
+        let ss = NodeDef::set_stroke(NodeId(5));
+        assert_eq!(ss.version, 1);
+        assert_eq!(ss.op.current_version(), 1);
+        assert!(!ss.is_outdated());
+        assert!(ss.inputs.iter().any(|p| p.name == "tolerance"));
     }
 }

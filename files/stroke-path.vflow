@@ -1,6 +1,64 @@
 {
   "graph": {
     "nodes": {
+      "5": {
+        "id": 5,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [],
+        "position": [
+          307.1875,
+          -23.90625
+        ],
+        "generation": 0,
+        "version": 0
+      },
+      "11": {
+        "id": 11,
+        "name": "Constant Scalar",
+        "op": "ConstScalar",
+        "inputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "Scalar value",
+            "default_value": {
+              "Float": 0.07
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Scalar",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -379.34375,
+          -169.67188
+        ],
+        "generation": 125,
+        "version": 0
+      },
       "7": {
         "id": 7,
         "name": "Set Stroke",
@@ -75,6 +133,15 @@
               "Float": 0.0
             },
             "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance for dash pattern (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
           }
         ],
         "outputs": [
@@ -91,6 +158,176 @@
           130.84375
         ],
         "generation": 397,
+        "version": 1
+      },
+      "3": {
+        "id": 3,
+        "name": "Stroke to Path",
+        "op": {
+          "StrokeToPath": {
+            "dash_pattern": "15"
+          }
+        },
+        "inputs": [
+          {
+            "name": "shape",
+            "data_type": "Any",
+            "description": "Input shape or path",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 20.0
+            },
+            "expression": null
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          141.3125,
+          -166.5625
+        ],
+        "generation": 795,
+        "version": 1
+      },
+      "9": {
+        "id": 9,
+        "name": "Constant Color",
+        "op": "ConstColor",
+        "inputs": [
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Color value",
+            "default_value": {
+              "Color": [
+                0.016106417,
+                0.010272312,
+                0.16558827,
+                1.0
+              ]
+            },
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "data_type": "Color",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          -303.37253,
+          -453.8057
+        ],
+        "generation": 475,
+        "version": 0
+      },
+      "8": {
+        "id": 8,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null
+          }
+        ],
+        "position": [
+          177.07303,
+          -187.00496
+        ],
+        "generation": 1,
         "version": 0
       },
       "1": {
@@ -143,85 +380,6 @@
           -120.4375
         ],
         "generation": 3,
-        "version": 0
-      },
-      "9": {
-        "id": 9,
-        "name": "Constant Color",
-        "op": "ConstColor",
-        "inputs": [
-          {
-            "name": "color",
-            "data_type": "Color",
-            "description": "Color value",
-            "default_value": {
-              "Color": [
-                0.016106417,
-                0.010272312,
-                0.16558827,
-                1.0
-              ]
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "value",
-            "data_type": "Color",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -303.37253,
-          -453.8057
-        ],
-        "generation": 475,
-        "version": 0
-      },
-      "8": {
-        "id": 8,
-        "name": "Merge",
-        "op": { "Merge": { "keep_separate": false } },
-        "inputs": [
-          {
-            "name": "a",
-            "data_type": "Any",
-            "description": "First input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "b",
-            "data_type": "Any",
-            "description": "Second input",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "c",
-            "data_type": "Any",
-            "description": "Input",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "merged",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          177.07303,
-          -187.00496
-        ],
-        "generation": 1,
         "version": 0
       },
       "2": {
@@ -298,6 +456,15 @@
               "Float": 0.0
             },
             "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance for dash pattern (smaller = more precise)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null
           }
         ],
         "outputs": [
@@ -314,112 +481,7 @@
           -261.5
         ],
         "generation": 89,
-        "version": 0
-      },
-      "3": {
-        "id": 3,
-        "name": "Stroke to Path",
-        "op": {
-          "StrokeToPath": {
-            "dash_pattern": "15"
-          }
-        },
-        "inputs": [
-          {
-            "name": "shape",
-            "data_type": "Any",
-            "description": "Input shape or path",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "width",
-            "data_type": "Scalar",
-            "description": "Stroke width",
-            "default_value": {
-              "Float": 20.0
-            },
-            "expression": null
-          },
-          {
-            "name": "cap",
-            "data_type": "Int",
-            "description": "End cap: 0=Butt, 1=Round, 2=Square",
-            "default_value": {
-              "Int": 0
-            },
-            "expression": null
-          },
-          {
-            "name": "join",
-            "data_type": "Int",
-            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
-            "default_value": {
-              "Int": 0
-            },
-            "expression": null
-          },
-          {
-            "name": "miter_limit",
-            "data_type": "Scalar",
-            "description": "Miter limit (only for Miter join)",
-            "default_value": {
-              "Float": 4.0
-            },
-            "expression": null
-          },
-          {
-            "name": "dash_offset",
-            "data_type": "Scalar",
-            "description": "Dash pattern offset",
-            "default_value": {
-              "Float": 0.0
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "path",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          141.3125,
-          -166.5625
-        ],
-        "generation": 795,
-        "version": 0
-      },
-      "5": {
-        "id": 5,
-        "name": "Output: output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any",
-            "order": 0
-          }
-        },
-        "inputs": [
-          {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [],
-        "position": [
-          307.1875,
-          -23.90625
-        ],
-        "generation": 0,
-        "version": 0
+        "version": 1
       }
     },
     "edges": [
@@ -492,10 +554,30 @@
           "node": 8,
           "port": 1
         }
+      },
+      {
+        "from": {
+          "node": 11,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 6
+        }
+      },
+      {
+        "from": {
+          "node": 11,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 7
+        }
       }
     ],
-    "next_id": 11,
-    "generation": 1910,
+    "next_id": 12,
+    "generation": 2041,
     "network_boxes": {},
     "next_box_id": 1
   },
@@ -514,8 +596,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -408.2194,
-          "y": -19.52042
+          "x": -413.7138,
+          "y": -31.327671
         },
         "open": true
       },
@@ -532,8 +614,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -45.75647,
-          "y": 25.930779
+          "x": -45.534393,
+          "y": 11.512688
         },
         "open": true
       },
@@ -550,8 +632,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -227.45587,
-          "y": -145.23048
+          "x": -227.2338,
+          "y": -159.64857
         },
         "open": true
       },
@@ -568,8 +650,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -47.73459,
-          "y": -153.90933
+          "x": -47.512512,
+          "y": -168.32742
         },
         "open": true
       },
@@ -586,8 +668,8 @@
           "pinned": true
         },
         "pos": {
-          "x": 280.71945,
-          "y": -103.32141
+          "x": 280.94153,
+          "y": -117.7395
         },
         "open": true
       },
@@ -604,8 +686,8 @@
           "pinned": false
         },
         "pos": {
-          "x": 144.4334,
-          "y": -119.193924
+          "x": 144.65547,
+          "y": -133.61201
         },
         "open": true
       },
@@ -622,8 +704,26 @@
           "pinned": false
         },
         "pos": {
-          "x": -209.6665,
-          "y": 67.42798
+          "x": -209.44443,
+          "y": 53.009888
+        },
+        "open": true
+      },
+      "7": {
+        "value": {
+          "core_id": 11,
+          "display_name": "Constant Scalar",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -416.7252,
+          "y": 69.56055
         },
         "open": true
       }
@@ -631,21 +731,11 @@
     "wires": [
       {
         "out_pin": {
-          "node": 3,
+          "node": 0,
           "output": 0
         },
         "in_pin": {
-          "node": 5,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
           "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 3,
           "input": 0
         }
       },
@@ -661,22 +751,12 @@
       },
       {
         "out_pin": {
-          "node": 0,
+          "node": 7,
           "output": 0
         },
         "in_pin": {
           "node": 1,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 0,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 2,
-          "input": 0
+          "input": 7
         }
       },
       {
@@ -691,11 +771,51 @@
       },
       {
         "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
           "node": 5,
           "output": 0
         },
         "in_pin": {
           "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 7,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 6
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
           "input": 0
         }
       }
@@ -716,8 +836,8 @@
   "window_geometry": {
     "x": 260.0,
     "y": 284.0,
-    "width": 1201.5,
-    "height": 1093.5,
+    "width": 1232.0,
+    "height": 1130.5,
     "node_editor_height": 475.46875,
     "properties_width": 250.0
   },

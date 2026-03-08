@@ -196,8 +196,10 @@ impl ComputeBackend for CpuBackend {
                 let cap = int_to_line_cap(get_int(inputs, 3));
                 let join = int_to_line_join(get_int(inputs, 4), get_scalar(inputs, 5) as f32);
                 let dash_offset = get_scalar(inputs, 6) as f32;
+                let tolerance = get_scalar(inputs, 7) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
                 let dash_array = parse_dash_pattern(dash_pattern);
-                styling::set_stroke(&shape, color_data, width, cap, join, dash_array, dash_offset)
+                styling::set_stroke(&shape, color_data, width, cap, join, dash_array, dash_offset, tolerance)
             }
             NodeOp::StrokeToPath { ref dash_pattern } => {
                 let shape = get_any(inputs, 0);
@@ -205,6 +207,8 @@ impl ComputeBackend for CpuBackend {
                 let cap = int_to_line_cap(get_int(inputs, 2));
                 let join = int_to_line_join(get_int(inputs, 3), get_scalar(inputs, 4) as f32);
                 let dash_offset = get_scalar(inputs, 5) as f32;
+                let tolerance = get_scalar(inputs, 6) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
                 let dash_array = parse_dash_pattern(dash_pattern);
                 let stroke = StrokeStyle {
                     color: Color::BLACK,
@@ -213,8 +217,9 @@ impl ComputeBackend for CpuBackend {
                     line_join: join,
                     dash_array,
                     dash_offset,
+                    tolerance,
                 };
-                styling::stroke_to_path(&shape, &stroke)
+                styling::stroke_to_path(&shape, &stroke, tolerance)
             }
 
             // ── Color operations ───────────────────────────────────────

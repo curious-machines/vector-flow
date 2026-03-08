@@ -580,11 +580,16 @@ Applies a stroke (outline) to a shape.
 
 **Inputs:**
 
-| Name  | Type   | Default           | Description          |
-|-------|--------|-------------------|----------------------|
-| shape | Shape  | --                | Input shape          |
-| color | Color  | (0.0, 0.0, 0.0, 1.0) | Stroke color (black) |
-| width | Scalar | 2.0               | Stroke width in pixels |
+| Name         | Type   | Default               | Description                                |
+|--------------|--------|-----------------------|--------------------------------------------|
+| shape        | Shape  | --                    | Input shape                                |
+| color        | Color  | (0.0, 0.0, 0.0, 1.0) | Stroke color (black)                       |
+| width        | Scalar | 2.0                   | Stroke width in pixels                     |
+| cap          | Int    | 0                     | End cap style: 0=Butt, 1=Round, 2=Square   |
+| join         | Int    | 0                     | Line join style: 0=Miter, 1=Round, 2=Bevel |
+| miter_limit  | Scalar | 4.0                   | Miter limit (only applies to Miter join)   |
+| dash_offset  | Scalar | 0.0                   | Dash pattern offset                        |
+| tolerance    | Scalar | 0.5                   | Curve flattening tolerance for dash pattern (smaller = more precise) |
 
 **Outputs:**
 
@@ -592,7 +597,13 @@ Applies a stroke (outline) to a shape.
 |-------|-------|----------------------|
 | shape | Shape | Shape with stroke    |
 
-**Notes:** Both open and closed paths can have strokes. Stroke uses round line caps and miter joins. Chain Set Fill and Set Stroke to get both a fill and an outline.
+**Properties:**
+
+| Name         | Description                                                     |
+|--------------|-----------------------------------------------------------------|
+| Dash Pattern | Comma or space-separated dash/gap lengths (e.g., "10 5" or "10,5,2,5") |
+
+**Notes:** Both open and closed paths can have strokes. Chain Set Fill and Set Stroke to get both a fill and an outline. The tolerance parameter controls curve flattening precision when rendering dash patterns — use the same value on Set Stroke and Stroke to Path to ensure visual consistency.
 
 ```
 Example patch: Circle -> Set Fill (red) -> Set Stroke (black, 3px) -> Graph Output
@@ -614,6 +625,7 @@ Converts a stroke outline into a filled path. The resulting path traces the outl
 | join         | Int    | 0       | Line join style: 0=Miter, 1=Round, 2=Bevel|
 | miter_limit  | Scalar | 4.0     | Miter limit (only applies to Miter join)   |
 | dash_offset  | Scalar | 0.0     | Dash pattern offset                        |
+| tolerance    | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise) |
 
 **Outputs:**
 
@@ -627,7 +639,7 @@ Converts a stroke outline into a filled path. The resulting path traces the outl
 |--------------|-----------------------------------------------------------------|
 | Dash Pattern | Comma or space-separated dash/gap lengths (e.g., "10 5" or "10,5,2,5") |
 
-**Notes:** This node tessellates the stroke into a triangle mesh, then extracts the boundary edges to produce a closed path. It supports all stroke parameters including dashes. An empty dash pattern produces a solid stroke outline. This is useful for creating outlined text effects, converting strokes into cuttable paths, or applying further path operations to a stroke shape.
+**Notes:** This node tessellates the stroke into a triangle mesh, then extracts the boundary edges to produce a closed path. It supports all stroke parameters including dashes. An empty dash pattern produces a solid stroke outline. The tolerance parameter controls curve flattening precision — smaller values produce smoother outlines with more segments. This is useful for creating outlined text effects, converting strokes into cuttable paths, or applying further path operations to a stroke shape.
 
 ```
 Example patch: Circle -> Stroke to Path (width: 5, cap: Round) -> Set Fill (gold) -> Graph Output

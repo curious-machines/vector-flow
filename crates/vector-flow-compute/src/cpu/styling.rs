@@ -118,6 +118,7 @@ fn set_fill_single(data: &NodeData, color: Color) -> NodeData {
 
 /// Set stroke style on geometry. Handles single and batch types.
 /// When `color_data` is `NodeData::Colors`, applies per-element stroke color with cycling.
+#[allow(clippy::too_many_arguments)]
 pub fn set_stroke(
     data: &NodeData,
     color_data: &NodeData,
@@ -126,6 +127,7 @@ pub fn set_stroke(
     join: LineJoin,
     dash_array: Vec<f32>,
     dash_offset: f32,
+    tolerance: f32,
 ) -> NodeData {
     let make_stroke = |color: Color| StrokeStyle {
         color,
@@ -134,6 +136,7 @@ pub fn set_stroke(
         line_join: join,
         dash_array: dash_array.clone(),
         dash_offset,
+        tolerance,
     };
 
     match color_data {
@@ -226,9 +229,9 @@ fn set_stroke_single(data: &NodeData, stroke: StrokeStyle) -> NodeData {
 }
 
 /// Convert a stroke outline to a filled path (boundary extraction from tessellation).
-pub fn stroke_to_path(data: &NodeData, stroke: &StrokeStyle) -> NodeData {
+pub fn stroke_to_path(data: &NodeData, stroke: &StrokeStyle, tolerance: f32) -> NodeData {
     let extract = |path: &PathData| -> PathData {
-        stroke_outline(path, stroke)
+        stroke_outline(path, stroke, tolerance)
     };
 
     match data {
@@ -256,7 +259,7 @@ pub fn stroke_to_path(data: &NodeData, stroke: &StrokeStyle) -> NodeData {
 /// Apply a dash pattern to a path, returning dashed sub-paths.
 /// Each contour in the input is dashed independently so that dashes don't
 /// bridge across disjoint sub-paths.
-fn apply_dash_pattern(path: &PathData, dash_array: &[f32], dash_offset: f32) -> Vec<PathData> {
+fn apply_dash_pattern(path: &PathData, dash_array: &[f32], dash_offset: f32, tolerance: f32) -> Vec<PathData> {
     if dash_array.is_empty() {
         return vec![path.clone()];
     }
@@ -267,7 +270,6 @@ fn apply_dash_pattern(path: &PathData, dash_array: &[f32], dash_offset: f32) -> 
     }
 
     let lyon_path = path_ops::build_lyon_path(path);
-    let tolerance = 0.5;
 
     // Collect line segments grouped by sub-path.
     let mut sub_paths: Vec<Vec<(Point, Point)>> = Vec::new();
@@ -399,13 +401,13 @@ fn apply_dash_pattern(path: &PathData, dash_array: &[f32], dash_offset: f32) -> 
     result
 }
 
-fn stroke_outline(path: &PathData, stroke: &StrokeStyle) -> PathData {
+fn stroke_outline(path: &PathData, stroke: &StrokeStyle, tolerance: f32) -> PathData {
     if path.verbs.is_empty() || stroke.width <= 0.0 {
         return PathData::new();
     }
 
     // Apply dashing first.
-    let sub_paths = apply_dash_pattern(path, &stroke.dash_array, stroke.dash_offset);
+    let sub_paths = apply_dash_pattern(path, &stroke.dash_array, stroke.dash_offset, tolerance);
 
     let mut all_verbs: Vec<PathVerb> = Vec::new();
 
@@ -413,7 +415,7 @@ fn stroke_outline(path: &PathData, stroke: &StrokeStyle) -> PathData {
         if sub_path.verbs.is_empty() {
             continue;
         }
-        let outline = polyline_stroke_outline(sub_path, stroke);
+        let outline = polyline_stroke_outline(sub_path, stroke, tolerance);
         all_verbs.extend(outline.verbs);
     }
 
@@ -424,9 +426,8 @@ fn stroke_outline(path: &PathData, stroke: &StrokeStyle) -> PathData {
 }
 
 /// Flatten a PathData into a list of polyline contours (each is a Vec of points + closed flag).
-fn flatten_to_polylines(path: &PathData) -> Vec<(Vec<Point>, bool)> {
+fn flatten_to_polylines(path: &PathData, tolerance: f32) -> Vec<(Vec<Point>, bool)> {
     let lyon_path = path_ops::build_lyon_path(path);
-    let tolerance = 0.5;
 
     let mut contours: Vec<(Vec<Point>, bool)> = Vec::new();
     let mut current_pts: Vec<Point> = Vec::new();
@@ -463,8 +464,8 @@ fn flatten_to_polylines(path: &PathData) -> Vec<(Vec<Point>, bool)> {
 
 /// Build the stroke outline of a path directly using polyline offset.
 /// Much more robust than tessellation + boundary extraction.
-fn polyline_stroke_outline(path: &PathData, stroke: &StrokeStyle) -> PathData {
-    let contours = flatten_to_polylines(path);
+fn polyline_stroke_outline(path: &PathData, stroke: &StrokeStyle, tolerance: f32) -> PathData {
+    let contours = flatten_to_polylines(path, tolerance);
     let mut all_verbs: Vec<PathVerb> = Vec::new();
 
     for (pts, closed) in &contours {
@@ -820,7 +821,7 @@ mod tests {
         };
         let data = NodeData::Shape(Arc::new(shape));
         let color_data = NodeData::Color(Color::WHITE);
-        let result = set_stroke(&data, &color_data, 3.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
+        let result = set_stroke(&data, &color_data, 3.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0, 0.5);
         if let NodeData::Shape(s) = result {
             assert_eq!(s.fill, Some(Color::BLACK)); // preserved
             let st = s.stroke.clone().unwrap();
@@ -870,7 +871,7 @@ mod tests {
         ];
         let data = NodeData::Shapes(Arc::new(shapes));
         let color_data = NodeData::Color(Color::WHITE);
-        let result = set_stroke(&data, &color_data, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
+        let result = set_stroke(&data, &color_data, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0, 0.5);
         if let NodeData::Shapes(s) = result {
             assert_eq!(s.len(), 1);
             assert_eq!(s[0].fill, Some(Color::BLACK)); // preserved
@@ -906,6 +907,7 @@ mod tests {
             LineJoin::Bevel,
             vec![],
             0.0,
+            0.5,
         );
         if let NodeData::Shape(s) = result {
             let st = s.stroke.clone().unwrap();
@@ -930,6 +932,7 @@ mod tests {
             LineJoin::Miter(4.0),
             vec![10.0, 5.0],
             0.0,
+            0.5,
         );
         if let NodeData::Shape(s) = result {
             let st = s.stroke.clone().unwrap();
@@ -951,8 +954,9 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![],
             dash_offset: 0.0,
+            tolerance: 0.5,
         };
-        let result = stroke_to_path(&data, &stroke);
+        let result = stroke_to_path(&data, &stroke, 0.5);
         if let NodeData::Path(p) = result {
             assert!(!p.verbs.is_empty(), "stroke outline should have verbs");
             // Should have at least one MoveTo and Close
@@ -980,8 +984,9 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![20.0, 10.0],
             dash_offset: 0.0,
+            tolerance: 0.5,
         };
-        let result = stroke_to_path(&data, &stroke);
+        let result = stroke_to_path(&data, &stroke, 0.5);
         if let NodeData::Path(p) = result {
             assert!(!p.verbs.is_empty(), "dashed stroke outline should have verbs");
             // With 100px line and 20/10 pattern, expect multiple MoveTo (multiple dashes)
@@ -1001,7 +1006,7 @@ mod tests {
             ],
             closed: false,
         };
-        let dashes = apply_dash_pattern(&path, &[20.0, 10.0], 0.0);
+        let dashes = apply_dash_pattern(&path, &[20.0, 10.0], 0.0, 0.5);
         // 100px line, pattern=30px cycle → dashes at 0-20, 30-50, 60-80, 90-100
         assert!(dashes.len() >= 3, "expected at least 3 dash segments, got {}", dashes.len());
     }
@@ -1009,7 +1014,7 @@ mod tests {
     #[test]
     fn apply_dash_pattern_empty_returns_original() {
         let path = make_square_path();
-        let dashes = apply_dash_pattern(&path, &[], 0.0);
+        let dashes = apply_dash_pattern(&path, &[], 0.0, 0.5);
         assert_eq!(dashes.len(), 1);
         assert_eq!(dashes[0], path);
     }
@@ -1025,9 +1030,10 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![],
             dash_offset: 0.0,
+            tolerance: 0.5,
         };
-        let result1 = stroke_to_path(&data, &stroke);
-        let result2 = stroke_to_path(&data, &stroke);
+        let result1 = stroke_to_path(&data, &stroke, 0.5);
+        let result2 = stroke_to_path(&data, &stroke, 0.5);
         if let (NodeData::Path(p1), NodeData::Path(p2)) = (&result1, &result2) {
             assert_eq!(p1.verbs.len(), p2.verbs.len(), "verb count differs across calls");
             for (i, (v1, v2)) in p1.verbs.iter().zip(p2.verbs.iter()).enumerate() {
@@ -1055,11 +1061,66 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![12.0],
             dash_offset: 0.0,
+            tolerance: 0.5,
         };
-        let result1 = stroke_to_path(&data, &stroke);
-        let result2 = stroke_to_path(&data, &stroke);
+        let result1 = stroke_to_path(&data, &stroke, 0.5);
+        let result2 = stroke_to_path(&data, &stroke, 0.5);
         if let (NodeData::Path(p1), NodeData::Path(p2)) = (&result1, &result2) {
             assert_eq!(p1.verbs, p2.verbs, "dashed stroke outline differs across calls");
+        } else {
+            panic!("expected Path outputs");
+        }
+    }
+
+    #[test]
+    fn stroke_to_path_tolerance_affects_output() {
+        // A circle has curves — smaller tolerance should produce more segments.
+        let path = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: 50.0, y: 0.0 }),
+                PathVerb::CubicTo {
+                    ctrl1: Point { x: 50.0, y: 27.6 },
+                    ctrl2: Point { x: 27.6, y: 50.0 },
+                    to: Point { x: 0.0, y: 50.0 },
+                },
+                PathVerb::CubicTo {
+                    ctrl1: Point { x: -27.6, y: 50.0 },
+                    ctrl2: Point { x: -50.0, y: 27.6 },
+                    to: Point { x: -50.0, y: 0.0 },
+                },
+                PathVerb::CubicTo {
+                    ctrl1: Point { x: -50.0, y: -27.6 },
+                    ctrl2: Point { x: -27.6, y: -50.0 },
+                    to: Point { x: 0.0, y: -50.0 },
+                },
+                PathVerb::CubicTo {
+                    ctrl1: Point { x: 27.6, y: -50.0 },
+                    ctrl2: Point { x: 50.0, y: -27.6 },
+                    to: Point { x: 50.0, y: 0.0 },
+                },
+                PathVerb::Close,
+            ],
+            closed: true,
+        };
+        let data = NodeData::Path(Arc::new(path));
+        let stroke = StrokeStyle {
+            color: Color::BLACK,
+            width: 5.0,
+            line_cap: LineCap::Butt,
+            line_join: LineJoin::Miter(4.0),
+            dash_array: vec![],
+            dash_offset: 0.0,
+            tolerance: 0.5,
+        };
+        let coarse = stroke_to_path(&data, &stroke, 5.0);
+        let fine = stroke_to_path(&data, &stroke, 0.01);
+        if let (NodeData::Path(p_coarse), NodeData::Path(p_fine)) = (&coarse, &fine) {
+            assert!(
+                p_fine.verbs.len() > p_coarse.verbs.len(),
+                "finer tolerance should produce more verbs: fine={} coarse={}",
+                p_fine.verbs.len(),
+                p_coarse.verbs.len(),
+            );
         } else {
             panic!("expected Path outputs");
         }
@@ -1144,7 +1205,7 @@ mod tests {
     fn set_stroke_with_colors_batch() {
         let data = NodeData::Shapes(Arc::new(make_shapes(3)));
         let colors = NodeData::Colors(Arc::new(vec![RED, GREEN, BLUE]));
-        let result = set_stroke(&data, &colors, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
+        let result = set_stroke(&data, &colors, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0, 0.5);
         if let NodeData::Shapes(s) = result {
             assert_eq!(s.len(), 3);
             assert_eq!(s[0].stroke.as_ref().unwrap().color, RED);
