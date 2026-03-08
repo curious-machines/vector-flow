@@ -371,9 +371,9 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                     }
                 });
         });
-        if let Some(node) = graph.node_mut(core_id) {
-            if let NodeOp::PathBoolean { operation } = &mut node.op {
-                if *operation != bool_op {
+        if boolean_op != Some(bool_op) {
+            if let Some(node) = graph.node_mut(core_id) {
+                if let NodeOp::PathBoolean { operation } = &mut node.op {
                     *operation = bool_op;
                     node.touch();
                     changed = true;
