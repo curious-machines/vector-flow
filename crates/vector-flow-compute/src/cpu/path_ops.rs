@@ -264,6 +264,16 @@ const MIN_TOLERANCE: f32 = 0.001;
 
 /// Convert our PathData to a lyon Path.
 pub(crate) fn build_lyon_path(path: &PathData) -> LyonPath {
+    // Sanitize coordinates: lyon panics on non-finite values (NaN, infinity).
+    // Replace with 0.0 so the app doesn't crash on bad upstream data.
+    #[inline]
+    fn safe_point(x: f32, y: f32) -> lyon::math::Point {
+        lyon_point(
+            if x.is_finite() { x } else { 0.0 },
+            if y.is_finite() { y } else { 0.0 },
+        )
+    }
+
     let mut builder = LyonPath::builder();
     let mut in_subpath = false;
     for verb in &path.verbs {
@@ -272,33 +282,33 @@ pub(crate) fn build_lyon_path(path: &PathData) -> LyonPath {
                 if in_subpath {
                     builder.end(false);
                 }
-                builder.begin(lyon_point(p.x, p.y));
+                builder.begin(safe_point(p.x, p.y));
                 in_subpath = true;
             }
             PathVerb::LineTo(p) => {
                 if !in_subpath {
-                    builder.begin(lyon_point(p.x, p.y));
+                    builder.begin(safe_point(p.x, p.y));
                     in_subpath = true;
                 } else {
-                    builder.line_to(lyon_point(p.x, p.y));
+                    builder.line_to(safe_point(p.x, p.y));
                 }
             }
             PathVerb::QuadTo { ctrl, to } => {
                 if !in_subpath {
-                    builder.begin(lyon_point(ctrl.x, ctrl.y));
+                    builder.begin(safe_point(ctrl.x, ctrl.y));
                     in_subpath = true;
                 }
-                builder.quadratic_bezier_to(lyon_point(ctrl.x, ctrl.y), lyon_point(to.x, to.y));
+                builder.quadratic_bezier_to(safe_point(ctrl.x, ctrl.y), safe_point(to.x, to.y));
             }
             PathVerb::CubicTo { ctrl1, ctrl2, to } => {
                 if !in_subpath {
-                    builder.begin(lyon_point(ctrl1.x, ctrl1.y));
+                    builder.begin(safe_point(ctrl1.x, ctrl1.y));
                     in_subpath = true;
                 }
                 builder.cubic_bezier_to(
-                    lyon_point(ctrl1.x, ctrl1.y),
-                    lyon_point(ctrl2.x, ctrl2.y),
-                    lyon_point(to.x, to.y),
+                    safe_point(ctrl1.x, ctrl1.y),
+                    safe_point(ctrl2.x, ctrl2.y),
+                    safe_point(to.x, to.y),
                 );
             }
             PathVerb::Close => {
@@ -943,7 +953,7 @@ impl CurvatureField {
             let ay = p2.y - p1.y;
             let bx = p3.x - p1.x;
             let by = p3.y - p1.y;
-            let cross = (ax * by - ay * bx).abs();
+            let cross = ax * by - ay * bx;
             let d1 = (ax * ax + ay * ay).sqrt();
             let d2 = (bx * bx + by * by).sqrt();
             let cx = p3.x - p2.x;
@@ -1008,9 +1018,9 @@ fn warp_point(
         };
 
         let k = cf.at(u);
-        // Gentle curvature correction using sqrt to reduce width modulation
-        // while still providing anti-overlap benefit on tight bends.
-        let scale = (1.0 / (1.0 + k * v.abs()).sqrt()).max(0.2);
+        // Curvature correction: compress inner side, expand outer side of bends.
+        // v is signed (distance from spine center), so k*v distinguishes sides.
+        let scale = (1.0 / (1.0 + k * v)).clamp(0.2, 5.0);
         Point {
             x: pos.x + v * snx * scale,
             y: pos.y + v * sny * scale,
@@ -2178,5 +2188,49 @@ mod tests {
                 assert!(pt.x.is_finite());
             }
         }
+    }
+
+    #[test]
+    fn build_lyon_path_sanitizes_non_finite_coords() {
+        // NaN and infinity coordinates should not panic in build_lyon_path
+        let path = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point {
+                    x: f32::NAN,
+                    y: 0.0,
+                }),
+                PathVerb::LineTo(Point {
+                    x: f32::INFINITY,
+                    y: f32::NEG_INFINITY,
+                }),
+                PathVerb::CubicTo {
+                    ctrl1: Point {
+                        x: f32::NAN,
+                        y: f32::NAN,
+                    },
+                    ctrl2: Point { x: 1.0, y: 2.0 },
+                    to: Point { x: 3.0, y: 4.0 },
+                },
+                PathVerb::Close,
+            ],
+            closed: true,
+        };
+        // Should not panic
+        let _lyon = build_lyon_path(&path);
+    }
+
+    #[test]
+    fn spline_from_points_with_non_finite_coords() {
+        // Points with non-finite coords (e.g. from division by zero in scripts)
+        // should not cause a panic
+        let points = PointBatch {
+            xs: vec![0.0, f32::INFINITY, 10.0],
+            ys: vec![0.0, f32::NAN, 10.0],
+        };
+        let result = spline_from_points(&points, false, 0.0);
+        // Should produce a path without panicking
+        assert!(!result.verbs.is_empty());
+        // And the resulting path should be safe to pass to lyon
+        let _lyon = build_lyon_path(&result);
     }
 }

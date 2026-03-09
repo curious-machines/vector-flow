@@ -428,10 +428,17 @@ impl ComputeBackend for CpuBackend {
                 let xs = get_scalars(inputs, 0);
                 let ys = get_scalars(inputs, 1);
                 let len = xs.len().min(ys.len());
-                let points = PointBatch {
-                    xs: xs[..len].iter().map(|&v| v as f32).collect(),
-                    ys: ys[..len].iter().map(|&v| v as f32).collect(),
-                };
+                let mut px = Vec::with_capacity(len);
+                let mut py = Vec::with_capacity(len);
+                for i in 0..len {
+                    let x = xs[i];
+                    let y = ys[i];
+                    if x.is_finite() && y.is_finite() {
+                        px.push(x as f32);
+                        py.push(y as f32);
+                    }
+                }
+                let points = PointBatch { xs: px, ys: py };
                 NodeData::Points(Arc::new(points))
             }
             NodeOp::Duplicate => {
@@ -1573,6 +1580,29 @@ mod tests {
             .unwrap();
         if let Some(NodeData::Points(pts)) = &outputs.data[0] {
             assert_eq!(pts.len(), 2, "should use min length");
+        } else {
+            panic!("expected Points output");
+        }
+    }
+
+    #[test]
+    fn pack_points_filters_non_finite() {
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalars(Arc::new(vec![1.0, f64::INFINITY, 3.0, f64::NAN])),
+                NodeData::Scalars(Arc::new(vec![10.0, 20.0, 30.0, 40.0])),
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(&NodeOp::PackPoints, &inputs, &time_ctx(), &mut outputs)
+            .unwrap();
+        if let Some(NodeData::Points(pts)) = &outputs.data[0] {
+            // Only points with finite coords should survive
+            assert_eq!(pts.len(), 2, "non-finite points should be filtered out");
+            assert_eq!(pts.xs[0], 1.0);
+            assert_eq!(pts.xs[1], 3.0);
         } else {
             panic!("expected Points output");
         }
