@@ -917,7 +917,18 @@ impl VectorFlowApp {
         if self.is_dirty() {
             self.pending_action = Some(PendingAction::New);
         } else {
-            self.reset_to_new();
+            Self::spawn_new_window();
+        }
+    }
+
+    /// Spawn a new instance of the application in a separate window.
+    fn spawn_new_window() {
+        if let Ok(exe) = std::env::current_exe() {
+            let _ = std::process::Command::new(exe)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn();
         }
     }
 
@@ -1300,7 +1311,7 @@ impl VectorFlowApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
             PendingAction::New => {
-                self.reset_to_new();
+                Self::spawn_new_window();
             }
             PendingAction::CloseFile => {
                 self.close_file(ctx);
