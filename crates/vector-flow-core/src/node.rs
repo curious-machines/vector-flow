@@ -193,10 +193,12 @@ impl NodeOp {
             // Version 2: added parts output port + Divide operation.
             NodeOp::PathBoolean { .. } => 2,
 
+            // Version 2: removed tolerance port (now zoom-aware at render time).
+            NodeOp::SetStroke { .. } => 2,
+
             // Version 1: added tolerance input port.
             NodeOp::ResamplePath
             | NodeOp::CopyToPoints
-            | NodeOp::SetStroke { .. }
             | NodeOp::SetStyle { .. }
             | NodeOp::StrokeToPath { .. } => 1,
 
@@ -331,6 +333,7 @@ impl NodeDef {
         let port = PortDef::new(name, DataType::Any)
             .with_description(desc);
         self.inputs.push(port);
+        self.input_visibility.push(true);
         self.touch();
         Some(idx)
     }
@@ -342,6 +345,7 @@ impl NodeDef {
             return false;
         }
         self.inputs.pop();
+        self.input_visibility.pop();
         self.touch();
         true
     }
@@ -667,15 +671,11 @@ impl NodeDef {
                     .with_default(ParamValue::Float(0.0))
                     .with_description("Dash pattern offset")
                     .hidden(),
-                PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance for dash pattern (smaller = more precise)")
-                    .hidden(),
             ],
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 1,
+            version: 2,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1855,12 +1855,11 @@ mod tests {
         assert!(node.input_visibility[0]); // geometry
         assert!(node.input_visibility[1]); // color
         assert!(node.input_visibility[2]); // width
-        // cap, join, miter_limit, dash_offset, tolerance are hidden
+        // cap, join, miter_limit, dash_offset are hidden
         assert!(!node.input_visibility[3]); // cap
         assert!(!node.input_visibility[4]); // join
         assert!(!node.input_visibility[5]); // miter_limit
         assert!(!node.input_visibility[6]); // dash_offset
-        assert!(!node.input_visibility[7]); // tolerance
         // output is visible
         assert!(node.output_visibility[0]);
     }
@@ -1987,9 +1986,38 @@ mod tests {
         assert!(stp.inputs.iter().any(|p| p.name == "tolerance"));
 
         let ss = NodeDef::set_stroke(NodeId(5));
-        assert_eq!(ss.version, 1);
-        assert_eq!(ss.op.current_version(), 1);
+        assert_eq!(ss.version, 2);
+        assert_eq!(ss.op.current_version(), 2);
         assert!(!ss.is_outdated());
-        assert!(ss.inputs.iter().any(|p| p.name == "tolerance"));
+        assert!(!ss.inputs.iter().any(|p| p.name == "tolerance"));
+    }
+
+    #[test]
+    fn variadic_add_updates_visibility() {
+        let mut node = NodeDef::merge(NodeId(1));
+        node.init_visibility();
+        assert_eq!(node.inputs.len(), 2);
+        assert_eq!(node.input_visibility.len(), 2);
+        assert_eq!(node.visible_input_count(), 2);
+
+        // Add a variadic input — visibility must grow in sync.
+        node.add_variadic_input();
+        assert_eq!(node.inputs.len(), 3);
+        assert_eq!(node.input_visibility.len(), 3);
+        assert!(node.input_visibility[2]); // new port is visible
+        assert_eq!(node.visible_input_count(), 3);
+    }
+
+    #[test]
+    fn variadic_remove_updates_visibility() {
+        let mut node = NodeDef::merge(NodeId(1));
+        node.init_visibility();
+        node.add_variadic_input(); // 3 inputs
+        assert_eq!(node.input_visibility.len(), 3);
+
+        node.remove_variadic_input(); // back to 2
+        assert_eq!(node.inputs.len(), 2);
+        assert_eq!(node.input_visibility.len(), 2);
+        assert_eq!(node.visible_input_count(), 2);
     }
 }
