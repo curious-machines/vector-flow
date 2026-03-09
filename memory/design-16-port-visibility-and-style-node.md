@@ -117,5 +117,5 @@ A transient message bar for non-critical notifications (demotion info, export pr
 6. Apply visibility defaults to existing styling nodes (SetFill, SetStroke, StrokeToPath)
 7. (Future) Application-level default overrides
 8. (Future) Project-level default overrides
-9. (Future) Promotion/demotion between styling nodes
-10. (Future) Status bar for transient messages
+9. ~~(Future)~~ Promotion/demotion between styling nodes — **implemented**
+10. ~~(Future)~~ Status bar for transient messages — **implemented**

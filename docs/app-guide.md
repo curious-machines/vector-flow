@@ -34,6 +34,10 @@ This document describes the Vector Flow desktop application from a user's perspe
   - [Managing Members](#managing-members)
   - [Selecting and Editing](#selecting-and-editing)
   - [Deleting a Network Box](#deleting-a-network-box)
+- [Style Node Promotion/Demotion](#style-node-promotiondemotion)
+  - [Promotion](#promotion)
+  - [Demotion](#demotion)
+- [Status Bar](#status-bar)
 - [Exporting](#exporting)
   - [Export Canvas Image](#export-canvas-image)
   - [Export Canvas Video](#export-canvas-video)
@@ -163,6 +167,7 @@ Right-click on a node to see:
 | Create Network Box | Create a new [network box](#network-boxes) containing this node (or all selected nodes if multiple are selected). |
 | Add to Network Box | Add this node to an existing network box. Shows a submenu listing all boxes. |
 | Remove from Network Box | Remove this node from whatever network box it belongs to. Only shown if the node is currently in a box. |
+| Promote/Demote | Convert between styling nodes (Set Fill, Set Stroke, Set Style). See [Style Node Promotion/Demotion](#style-node-promotdemotion). Only shown for styling nodes. |
 | Delete | Remove this node and all its connections from the graph. |
 
 ### Pinning Nodes
@@ -322,6 +327,42 @@ A new box is created containing all selected nodes. The box auto-resizes to fit 
 - Or right-click the box's title bar → **Delete Network Box**.
 
 Deleting a box removes the grouping only — the member nodes are not deleted.
+
+---
+
+## Style Node Promotion/Demotion
+
+The styling nodes **Set Fill**, **Set Stroke**, and **Set Style** can be converted between each other. This is useful when you start with a simple fill or stroke and later want to combine both, or when you want to break a combined style node into separate nodes.
+
+### Promotion
+
+Right-click a styling node to see available promotions:
+
+| Source | Target | Behavior |
+|--------|--------|----------|
+| Set Fill | Set Style | Fill values carry over, stroke gets defaults |
+| Set Stroke | Set Style | Stroke values carry over, fill gets defaults |
+| Set Fill + Set Stroke (chained) | Set Style | Both value sets merge, intermediate connection removed, upstream/downstream rewired |
+
+When a Set Fill and Set Stroke are directly connected via their geometry ports, a **Promote Fill + Stroke to Set Style** option appears in the context menu of either node.
+
+### Demotion
+
+| Source | Target | Behavior |
+|--------|--------|----------|
+| Set Style | Set Fill | Only fill values preserved; stroke settings discarded |
+| Set Style | Set Stroke | Only stroke values preserved; fill settings discarded |
+| Set Style | Set Fill + Set Stroke | Both preserved, auto-wired in sequence |
+
+If demotion discards non-default values, a message appears in the [status bar](#status-bar) (e.g., "Demoted to Set Stroke — fill settings discarded"). Undo is always available to reverse the operation.
+
+All conversions preserve existing connections (geometry input and output) and port values where the port semantics match between source and target.
+
+---
+
+## Status Bar
+
+A thin bar at the bottom of the window that displays transient messages for non-critical notifications (e.g., style node promotion/demotion results). The message clears automatically when you next click or press a key.
 
 ---
 

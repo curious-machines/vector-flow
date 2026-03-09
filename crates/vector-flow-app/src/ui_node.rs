@@ -67,6 +67,10 @@ pub struct CatalogEntry {
 }
 
 /// Color per category.
+pub fn category_color(cat: NodeCategory) -> Color32 {
+    cat_color(cat)
+}
+
 fn cat_color(cat: NodeCategory) -> Color32 {
     match cat {
         NodeCategory::Generators => Color32::from_rgb(80, 160, 80),

@@ -19,6 +19,8 @@ pub struct ViewerActions {
     pub add_to_box: Option<(SnarlNodeId, NetworkBoxId)>,
     pub remove_from_box: Option<SnarlNodeId>,
     pub delete_box: Option<NetworkBoxId>,
+    /// Style node promotion/demotion requested from context menu.
+    pub style_conversion: Option<(SnarlNodeId, crate::style_promote::StyleConversion)>,
 }
 
 /// Temporary per-frame viewer that borrows app state.
@@ -442,6 +444,22 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
             if in_box.is_some() && ui.button("Remove from Network Box").clicked() {
                 self.actions.remove_from_box = Some(node);
                 ui.close_menu();
+            }
+        }
+
+        // Style promotion/demotion options.
+        {
+            let conversions = crate::style_promote::available_conversions(
+                node, self.graph, snarl, self.id_map,
+            );
+            if !conversions.is_empty() {
+                ui.separator();
+                for (label, conversion) in conversions {
+                    if ui.button(&label).clicked() {
+                        self.actions.style_conversion = Some((node, conversion));
+                        ui.close_menu();
+                    }
+                }
             }
         }
 

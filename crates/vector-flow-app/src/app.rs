@@ -155,6 +155,9 @@ pub struct VectorFlowApp {
     /// Undo/redo history.
     undo: UndoHistory,
 
+    /// Transient status bar for non-critical notifications.
+    status_bar: crate::status_bar::StatusBar,
+
     /// True while the FPS DragValue has keyboard focus (suppresses per-keystroke undo entries).
     fps_editing: bool,
     /// FPS value captured when editing began, used for undo snapshots during editing.
@@ -230,6 +233,7 @@ impl VectorFlowApp {
             pre_collapse_editor_height: None,
             pending_editor_height_restore: false,
             undo: UndoHistory::new(),
+            status_bar: crate::status_bar::StatusBar::new(),
             fps_editing: false,
             pre_edit_fps: None,
             pending_cli_load: file.map(|f| (f, 2)),
@@ -1765,6 +1769,18 @@ impl eframe::App for VectorFlowApp {
             }
         }
 
+        // 2b. Bottom panel: status bar (always visible, shows transient messages).
+        let status_msg = self.status_bar.update(ctx).map(|s| s.to_string());
+        egui::TopBottomPanel::bottom("status_bar")
+            .exact_height(22.0)
+            .show(ctx, |ui| {
+                ui.horizontal_centered(|ui| {
+                    if let Some(msg) = &status_msg {
+                        ui.label(msg);
+                    }
+                });
+            });
+
         // 3. Right panel: properties inspector.
         // Rendered before graph editor so it claims the full right column.
         // Uses previous frame's selection (stored in self.selected_snarl_ids).
@@ -2046,6 +2062,19 @@ impl eframe::App for VectorFlowApp {
             self.graph.remove_network_box(box_id);
             if self.selected_box == Some(box_id) {
                 self.selected_box = None;
+            }
+        }
+
+        // Handle style promotion/demotion.
+        if let Some((snarl_id, conversion)) = viewer_actions.style_conversion {
+            if let Some(result) = crate::style_promote::convert_style_node(
+                snarl_id,
+                conversion,
+                &mut self.graph,
+                &mut self.snarl,
+                &mut self.id_map,
+            ) {
+                self.status_bar.show_message(result.message);
             }
         }
 
