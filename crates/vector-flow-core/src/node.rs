@@ -97,12 +97,18 @@ pub enum NodeOp {
     Translate,
     Rotate,
     Scale,
+    WarpToCurve,
     // Path ops
+    ClosePath,
     PathBoolean { operation: i32 },
+    PathIntersectionPoints,
     PathOffset,
     PathSubdivide,
     PathReverse,
+    PolygonFromPoints,
     ResamplePath,
+    SplineFromPoints,
+    SplitPathAtT,
     // Styling
     SetFill,
     SetStroke { dash_pattern: String },
@@ -1091,6 +1097,150 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 1,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn path_intersection_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Path Intersection Points".into(),
+            op: NodeOp::PathIntersectionPoints,
+            inputs: vec![
+                PortDef::new("a", DataType::Path).with_description("First path"),
+                PortDef::new("b", DataType::Path).with_description("Second path"),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance")
+                    .hidden(),
+            ],
+            outputs: vec![
+                PortDef::new("points", DataType::Points),
+                PortDef::new("t_a", DataType::Scalars),
+                PortDef::new("t_b", DataType::Scalars),
+                PortDef::new("count", DataType::Int),
+            ],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn split_path_at_t(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Split Path at T".into(),
+            op: NodeOp::SplitPathAtT,
+            inputs: vec![
+                PortDef::new("path", DataType::Path).with_description("Path to split"),
+                PortDef::new("t_values", DataType::Scalars)
+                    .with_description("Arc-length normalized split positions (0..1)"),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance")
+                    .hidden(),
+                PortDef::new("close", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("Close each resulting sub-path")
+                    .hidden(),
+            ],
+            outputs: vec![
+                PortDef::new("parts", DataType::Paths),
+                PortDef::new("count", DataType::Int),
+            ],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn close_path(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Close Path".into(),
+            op: NodeOp::ClosePath,
+            inputs: vec![
+                PortDef::new("path", DataType::Any).with_description("Path or paths to close"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn polygon_from_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Polygon from Points".into(),
+            op: NodeOp::PolygonFromPoints,
+            inputs: vec![
+                PortDef::new("points", DataType::Points).with_description("Polygon vertices"),
+                PortDef::new("close", DataType::Bool)
+                    .with_default(ParamValue::Bool(true))
+                    .with_description("Close the polygon"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn spline_from_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Spline from Points".into(),
+            op: NodeOp::SplineFromPoints,
+            inputs: vec![
+                PortDef::new("points", DataType::Points).with_description("Points to interpolate"),
+                PortDef::new("close", DataType::Bool)
+                    .with_default(ParamValue::Bool(false))
+                    .with_description("Close the spline into a loop"),
+                PortDef::new("tension", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Tension (0 = Catmull-Rom, higher = tighter)")
+                    .hidden(),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn warp_to_curve(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Warp to Curve".into(),
+            op: NodeOp::WarpToCurve,
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any).with_description("Geometry to warp"),
+                PortDef::new("curve", DataType::Path).with_description("Target curve"),
+                PortDef::new("mode", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("0 = simple positional, 1 = curvature-aware")
+                    .hidden(),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curve flattening tolerance")
+                    .hidden(),
+            ],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }

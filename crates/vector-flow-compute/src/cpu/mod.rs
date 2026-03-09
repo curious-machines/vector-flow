@@ -152,6 +152,14 @@ impl ComputeBackend for CpuBackend {
                 let xform = get_transform(inputs, 1);
                 transforms::apply_transform(&geometry, &xform)
             }
+            NodeOp::WarpToCurve => {
+                let geometry = get_any(inputs, 0);
+                let curve = get_path(inputs, 1);
+                let mode = get_int(inputs, 2);
+                let tolerance = get_scalar(inputs, 3) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                path_ops::warp_to_curve(&geometry, &curve, mode, tolerance)
+            }
 
             // ── Path ops ────────────────────────────────────────────
             NodeOp::PathReverse => {
@@ -190,6 +198,76 @@ impl ComputeBackend for CpuBackend {
                     outputs.data[1] = Some(NodeData::Paths(Arc::new(parts)));
                 }
                 return Ok(());
+            }
+            NodeOp::PathIntersectionPoints => {
+                let a = get_path(inputs, 0);
+                let b = get_path(inputs, 1);
+                let tolerance = get_scalar(inputs, 2) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let (points, t_a, t_b) = path_ops::path_intersection_points(&a, &b, tolerance);
+                let count = points.len() as i64;
+                if !outputs.data.is_empty() {
+                    outputs.data[0] = Some(NodeData::Points(Arc::new(points)));
+                }
+                if outputs.data.len() > 1 {
+                    outputs.data[1] = Some(NodeData::Scalars(Arc::new(t_a)));
+                }
+                if outputs.data.len() > 2 {
+                    outputs.data[2] = Some(NodeData::Scalars(Arc::new(t_b)));
+                }
+                if outputs.data.len() > 3 {
+                    outputs.data[3] = Some(NodeData::Int(count));
+                }
+                return Ok(());
+            }
+            NodeOp::SplitPathAtT => {
+                let path = get_path(inputs, 0);
+                let t_values = get_scalars(inputs, 1);
+                let tolerance = get_scalar(inputs, 2) as f32;
+                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let close = get_bool(inputs, 3);
+                let parts = path_ops::split_path_at_t(&path, &t_values, tolerance, close);
+                let count = parts.len() as i64;
+                if !outputs.data.is_empty() {
+                    outputs.data[0] = Some(NodeData::Paths(Arc::new(parts)));
+                }
+                if outputs.data.len() > 1 {
+                    outputs.data[1] = Some(NodeData::Int(count));
+                }
+                return Ok(());
+            }
+            NodeOp::ClosePath => {
+                let data = get_any(inputs, 0);
+                match &data {
+                    NodeData::Path(p) => NodeData::Path(Arc::new(path_ops::close_path(p))),
+                    NodeData::Paths(paths) => {
+                        let closed: Vec<PathData> = paths.iter().map(path_ops::close_path).collect();
+                        NodeData::Paths(Arc::new(closed))
+                    }
+                    NodeData::Shape(s) => {
+                        let closed_path = Arc::new(path_ops::close_path(&s.path));
+                        NodeData::Shape(Arc::new(Shape { path: closed_path, ..(**s).clone() }))
+                    }
+                    NodeData::Shapes(shapes) => {
+                        let closed: Vec<Shape> = shapes.iter().map(|s| {
+                            let closed_path = Arc::new(path_ops::close_path(&s.path));
+                            Shape { path: closed_path, ..s.clone() }
+                        }).collect();
+                        NodeData::Shapes(Arc::new(closed))
+                    }
+                    other => other.clone(),
+                }
+            }
+            NodeOp::PolygonFromPoints => {
+                let points = get_points(inputs, 0);
+                let close = get_bool(inputs, 1);
+                NodeData::Path(Arc::new(path_ops::polygon_from_points(&points, close)))
+            }
+            NodeOp::SplineFromPoints => {
+                let points = get_points(inputs, 0);
+                let close = get_bool(inputs, 1);
+                let tension = get_scalar(inputs, 2);
+                NodeData::Path(Arc::new(path_ops::spline_from_points(&points, close, tension)))
             }
 
             // ── Styling ─────────────────────────────────────────────
@@ -603,6 +681,23 @@ fn get_vec2(inputs: &ResolvedInputs, idx: usize) -> Vec2 {
 
 /// If the input at `idx` is a Points batch, return the batch. Used to detect
 /// when a generator should auto-iterate instead of producing a single output.
+fn get_points(inputs: &ResolvedInputs, idx: usize) -> Arc<PointBatch> {
+    match inputs.data.get(idx) {
+        Some(NodeData::Points(pts)) => Arc::clone(pts),
+        _ => Arc::new(PointBatch::new()),
+    }
+}
+
+fn get_scalars(inputs: &ResolvedInputs, idx: usize) -> Vec<f64> {
+    match inputs.data.get(idx) {
+        Some(NodeData::Scalars(v)) => (**v).clone(),
+        Some(NodeData::Scalar(v)) => vec![*v],
+        Some(NodeData::Ints(v)) => v.iter().map(|&i| i as f64).collect(),
+        Some(NodeData::Int(v)) => vec![*v as f64],
+        _ => vec![],
+    }
+}
+
 fn get_points_batch(inputs: &ResolvedInputs, idx: usize) -> Option<Arc<PointBatch>> {
     match inputs.data.get(idx) {
         Some(NodeData::Points(pts)) if !pts.is_empty() => Some(Arc::clone(pts)),

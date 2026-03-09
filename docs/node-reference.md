@@ -19,12 +19,18 @@ This document describes every node type available in Vector Flow, organized by c
   - [Rotate](#rotate)
   - [Scale](#scale)
   - [Translate](#translate)
+  - [Warp to Curve](#warp-to-curve)
 - [Path Operations](#path-operations)
+  - [Close Path](#close-path)
   - [Path Boolean](#path-boolean)
+  - [Path Intersection Points](#path-intersection-points)
   - [Path Offset](#path-offset)
   - [Path Reverse](#path-reverse)
   - [Path Subdivide](#path-subdivide)
+  - [Polygon from Points](#polygon-from-points)
   - [Resample Path](#resample-path)
+  - [Spline from Points](#spline-from-points)
+  - [Split Path at T](#split-path-at-t)
 - [Styling](#styling)
   - [Set Fill](#set-fill)
   - [Set Stroke](#set-stroke)
@@ -413,9 +419,56 @@ Example patch: Circle -> Translate (offset: 100, 50) -> Graph Output
 
 ---
 
+### Warp to Curve
+
+Deforms geometry to follow a target curve, mapping the source bounding box onto the curve's arc length.
+
+**Inputs:**
+
+| Name      | Type   | Default | Hidden | Description                                              |
+|-----------|--------|---------|--------|----------------------------------------------------------|
+| geometry  | Any    | --      | No     | Input geometry to warp                                   |
+| curve     | Path   | --      | No     | Target curve to warp along                               |
+| mode      | Int    | 0       | Yes    | 0 = simple positional, 1 = curvature-aware               |
+| tolerance | Scalar | 0.5     | Yes    | Curve flattening tolerance (smaller = more precise)      |
+
+**Outputs:**
+
+| Name     | Type | Description       |
+|----------|------|-------------------|
+| geometry | Any  | Warped geometry   |
+
+**Notes:** The source geometry's bounding box is mapped onto the curve: the horizontal axis maps to arc length along the curve, and the vertical axis maps to perpendicular offset from the curve. Mode 0 performs a simple positional mapping. Mode 1 is curvature-aware, adjusting for bend distortion to produce more uniform results on tight curves. Handles Path, Paths, Shape, and Shapes — for batches, a collective bounding box is computed so all elements are warped consistently.
+
+```
+Example patch: Rectangle (200x50) -> Warp to Curve (curve: Circle) -> Set Stroke -> Graph Output
+```
+
+---
+
 ## Path Operations
 
 Path operation nodes modify or combine geometric paths.
+
+### Close Path
+
+Closes open paths by appending a Close verb and setting the closed flag.
+
+**Inputs:**
+
+| Name | Type | Default | Description                    |
+|------|------|---------|--------------------------------|
+| path | Any  | --      | Input geometry to close        |
+
+**Outputs:**
+
+| Name | Type | Description    |
+|------|------|----------------|
+| path | Any  | Closed geometry |
+
+**Notes:** Sets `closed=true` and appends a Close verb to open paths. Works on Path, Paths, Shape, and Shapes — already-closed paths pass through unchanged.
+
+---
 
 ### Path Boolean
 
@@ -454,6 +507,35 @@ Performs boolean geometry operations on two closed paths using the [i_overlay](h
 
 ```
 Example patch: Circle (50) -> [a] Path Boolean (Difference) [b] <- Rectangle (40x40)
+```
+
+---
+
+### Path Intersection Points
+
+Finds all intersection points between two paths.
+
+**Inputs:**
+
+| Name      | Type   | Default | Hidden | Description                                         |
+|-----------|--------|---------|--------|-----------------------------------------------------|
+| a         | Path   | --      | No     | First path                                          |
+| b         | Path   | --      | No     | Second path                                         |
+| tolerance | Scalar | 0.5     | Yes    | Curve flattening tolerance (smaller = more precise) |
+
+**Outputs:**
+
+| Name   | Type    | Description                                                |
+|--------|---------|------------------------------------------------------------|
+| points | Points  | Intersection positions                                     |
+| t_a    | Scalars | Arc-length normalized parameters (0..1) on path `a`       |
+| t_b    | Scalars | Arc-length normalized parameters (0..1) on path `b`       |
+| count  | Int     | Number of intersection points found                        |
+
+**Notes:** Both paths are flattened to polylines before intersection detection. The `t_a` and `t_b` outputs provide arc-length normalized parameters (0 = start, 1 = end) indicating where each intersection falls on its respective path. These parameters can be fed into Split Path at T to cut paths at their intersection points.
+
+```
+Example patch: Circle (80) -> [a] Path Intersection Points [b] <- Line (-100,-100 to 100,100)
 ```
 
 ---
@@ -523,6 +605,31 @@ Adds midpoints to path segments, increasing vertex density.
 
 ---
 
+### Polygon from Points
+
+Constructs a path from an ordered list of points using straight line segments.
+
+**Inputs:**
+
+| Name   | Type   | Default | Description                            |
+|--------|--------|---------|----------------------------------------|
+| points | Points | --      | Ordered points to connect              |
+| close  | Bool   | true    | Whether to close the polygon           |
+
+**Outputs:**
+
+| Name | Type | Description             |
+|------|------|-------------------------|
+| path | Path | Constructed polygon path |
+
+**Notes:** Creates a path by placing a MoveTo at the first point, then a LineTo to each subsequent point. When `close` is true, a Close verb is appended to form a closed polygon. This is the inverse of Resample Path — it turns a point cloud back into geometry.
+
+```
+Example patch: Scatter Points (count: 5) -> Polygon from Points -> Set Stroke -> Graph Output
+```
+
+---
+
 ### Resample Path
 
 Samples evenly-spaced points along a path.
@@ -545,6 +652,60 @@ Samples evenly-spaced points along a path.
 
 ```
 Example patch: Circle (100) -> Resample Path (count: 12) -> Regular Polygon (sides: 3, radius: 10) -> Set Fill -> Graph Output
+```
+
+---
+
+### Spline from Points
+
+Fits a smooth cubic bezier spline through an ordered list of points using Catmull-Rom interpolation.
+
+**Inputs:**
+
+| Name    | Type   | Default | Hidden | Description                                        |
+|---------|--------|---------|--------|----------------------------------------------------|
+| points  | Points | --      | No     | Ordered points to fit the spline through           |
+| close   | Bool   | false   | No     | Whether to close the spline into a loop            |
+| tension | Scalar | 0.0     | Yes    | Spline tension (0 = natural curve, higher = tighter) |
+
+**Outputs:**
+
+| Name | Type | Description         |
+|------|------|---------------------|
+| path | Path | Smooth spline path  |
+
+**Notes:** Generates cubic bezier curves that pass exactly through each input point. Tension 0.0 produces a natural-looking curve; increasing tension pulls the curve closer to the straight-line polygon connecting the points. When `close` is true, the spline wraps around so the last point connects smoothly back to the first. Requires at least 2 points.
+
+```
+Example patch: Point Grid (3x3) -> Spline from Points (close: true) -> Set Stroke -> Graph Output
+```
+
+---
+
+### Split Path at T
+
+Splits a path at arc-length normalized parameter values into multiple sub-paths.
+
+**Inputs:**
+
+| Name      | Type    | Default | Hidden | Description                                         |
+|-----------|---------|---------|--------|-----------------------------------------------------|
+| path      | Path    | --      | No     | Input path to split                                 |
+| t_values  | Scalars | --      | No     | Arc-length normalized split positions (0..1)        |
+| tolerance | Scalar  | 0.5     | Yes    | Curve flattening tolerance (smaller = more precise) |
+| close     | Bool    | false   | Yes    | Whether to close each resulting sub-path            |
+
+**Outputs:**
+
+| Name  | Type  | Description                    |
+|-------|-------|--------------------------------|
+| parts | Paths | Resulting sub-paths after splitting |
+| count | Int   | Number of resulting parts      |
+
+**Notes:** For an open path, N cuts produce N+1 parts. For a closed path, N cuts produce N parts (the path is "unwrapped" at cut points). The `t_values` input uses arc-length normalized parameters where 0.0 is the start and 1.0 is the end of the path. When `close` is true, each resulting sub-path gets a Close verb appended. Pairs naturally with Path Intersection Points, which outputs compatible t-values.
+
+```
+Example patch: Circle (100) -> Split Path at T (t_values: [0.25, 0.75]) -> Set Stroke -> Graph Output
 ```
 
 ---

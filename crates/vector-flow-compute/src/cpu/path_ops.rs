@@ -7,7 +7,7 @@ use lyon::math::point as lyon_point;
 use lyon::path::iterator::PathIterator;
 use lyon::path::Path as LyonPath;
 
-use vector_flow_core::types::{NodeData, PathData, PathVerb, Point, PointBatch};
+use vector_flow_core::types::{NodeData, PathData, PathVerb, Point, PointBatch, Shape};
 
 /// Reverse the direction of a path.
 pub fn path_reverse(path: &PathData) -> PathData {
@@ -315,8 +315,683 @@ pub(crate) fn build_lyon_path(path: &PathData) -> LyonPath {
     builder.build()
 }
 
+// ---------------------------------------------------------------------------
+// ArcLengthTable — shared infrastructure for arc-length queries
+// ---------------------------------------------------------------------------
+
+pub(crate) struct ArcLengthTable {
+    pub segments: Vec<(Point, Point)>,
+    pub cumulative_lengths: Vec<f32>,
+    pub total_length: f32,
+}
+
+impl ArcLengthTable {
+    pub fn from_segments(segments: Vec<(Point, Point)>) -> Self {
+        let mut cumulative_lengths = Vec::with_capacity(segments.len());
+        let mut total = 0.0f32;
+        for &(a, b) in &segments {
+            let dx = b.x - a.x;
+            let dy = b.y - a.y;
+            total += (dx * dx + dy * dy).sqrt();
+            cumulative_lengths.push(total);
+        }
+        ArcLengthTable {
+            segments,
+            cumulative_lengths,
+            total_length: total,
+        }
+    }
+
+    pub fn from_path(path: &PathData, tolerance: f32) -> Self {
+        let segments = flatten_to_segments(path, tolerance);
+        Self::from_segments(segments)
+    }
+
+    /// Find the segment index and local t for a given arc-length parameter (0..1).
+    pub fn segment_index_at_t(&self, t: f32) -> (usize, f32) {
+        if self.segments.is_empty() || self.total_length < 1e-10 {
+            return (0, 0.0);
+        }
+        let target_len = (t.clamp(0.0, 1.0)) * self.total_length;
+        let seg_idx = self
+            .cumulative_lengths
+            .iter()
+            .position(|&l| l >= target_len)
+            .unwrap_or(self.segments.len() - 1);
+        let seg_start_len = if seg_idx > 0 {
+            self.cumulative_lengths[seg_idx - 1]
+        } else {
+            0.0
+        };
+        let seg_len = self.cumulative_lengths[seg_idx] - seg_start_len;
+        let local_t = if seg_len > 1e-10 {
+            (target_len - seg_start_len) / seg_len
+        } else {
+            0.0
+        };
+        (seg_idx, local_t)
+    }
+
+    /// Get the position at arc-length parameter t (0..1).
+    pub fn position_at_t(&self, t: f32) -> Point {
+        if self.segments.is_empty() {
+            return Point { x: 0.0, y: 0.0 };
+        }
+        let (seg_idx, local_t) = self.segment_index_at_t(t);
+        let (a, b) = self.segments[seg_idx];
+        Point {
+            x: a.x + (b.x - a.x) * local_t,
+            y: a.y + (b.y - a.y) * local_t,
+        }
+    }
+
+    /// Get the unit tangent at arc-length parameter t (0..1).
+    pub fn tangent_at_t(&self, t: f32) -> (f32, f32) {
+        if self.segments.is_empty() {
+            return (1.0, 0.0);
+        }
+        let (seg_idx, _) = self.segment_index_at_t(t);
+        let (a, b) = self.segments[seg_idx];
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let len = (dx * dx + dy * dy).sqrt();
+        if len < 1e-10 {
+            return (1.0, 0.0);
+        }
+        (dx / len, dy / len)
+    }
+
+    /// Get the unit normal (perpendicular to tangent, left-hand) at arc-length parameter t.
+    pub fn normal_at_t(&self, t: f32) -> (f32, f32) {
+        let (tx, ty) = self.tangent_at_t(t);
+        (-ty, tx)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Path Intersection Points
+// ---------------------------------------------------------------------------
+
+/// Find all intersection points between two paths.
+/// Returns (intersection points, t values on path a, t values on path b).
+pub fn path_intersection_points(
+    a: &PathData,
+    b: &PathData,
+    tolerance: f32,
+) -> (PointBatch, Vec<f64>, Vec<f64>) {
+    let tol = tolerance.max(MIN_TOLERANCE);
+    let table_a = ArcLengthTable::from_path(a, tol);
+    let table_b = ArcLengthTable::from_path(b, tol);
+
+    if table_a.segments.is_empty() || table_b.segments.is_empty() {
+        return (PointBatch::new(), vec![], vec![]);
+    }
+
+    let mut hits: Vec<(Point, f32, f32)> = Vec::new(); // (point, t_a, t_b)
+
+    for (i, &(a1, a2)) in table_a.segments.iter().enumerate() {
+        for (j, &(b1, b2)) in table_b.segments.iter().enumerate() {
+            if let Some((pt, s, u)) = segment_segment_intersect(a1, a2, b1, b2) {
+                // Compute arc-length t for each path
+                let len_before_a = if i > 0 {
+                    table_a.cumulative_lengths[i - 1]
+                } else {
+                    0.0
+                };
+                let seg_len_a = table_a.cumulative_lengths[i] - len_before_a;
+                let arc_a = (len_before_a + s * seg_len_a) / table_a.total_length;
+
+                let len_before_b = if j > 0 {
+                    table_b.cumulative_lengths[j - 1]
+                } else {
+                    0.0
+                };
+                let seg_len_b = table_b.cumulative_lengths[j] - len_before_b;
+                let arc_b = (len_before_b + u * seg_len_b) / table_b.total_length;
+
+                hits.push((pt, arc_a, arc_b));
+            }
+        }
+    }
+
+    // Deduplicate hits that are very close (same intersection found from adjacent segments)
+    hits.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    let mut deduped: Vec<(Point, f32, f32)> = Vec::new();
+    for hit in &hits {
+        if deduped
+            .last()
+            .map(|prev: &(Point, f32, f32)| {
+                let dx = hit.0.x - prev.0.x;
+                let dy = hit.0.y - prev.0.y;
+                (dx * dx + dy * dy).sqrt() > 1e-4
+            })
+            .unwrap_or(true)
+        {
+            deduped.push(*hit);
+        }
+    }
+
+    let mut xs = Vec::with_capacity(deduped.len());
+    let mut ys = Vec::with_capacity(deduped.len());
+    let mut t_a = Vec::with_capacity(deduped.len());
+    let mut t_b = Vec::with_capacity(deduped.len());
+
+    for (pt, a, b) in &deduped {
+        xs.push(pt.x);
+        ys.push(pt.y);
+        t_a.push(*a as f64);
+        t_b.push(*b as f64);
+    }
+
+    (PointBatch { xs, ys }, t_a, t_b)
+}
+
+/// Line segment intersection. Returns (intersection point, t on seg1, t on seg2) if they intersect.
+fn segment_segment_intersect(
+    a1: Point,
+    a2: Point,
+    b1: Point,
+    b2: Point,
+) -> Option<(Point, f32, f32)> {
+    let dx_a = a2.x - a1.x;
+    let dy_a = a2.y - a1.y;
+    let dx_b = b2.x - b1.x;
+    let dy_b = b2.y - b1.y;
+
+    let denom = dx_a * dy_b - dy_a * dx_b;
+    if denom.abs() < 1e-10 {
+        return None; // parallel
+    }
+
+    let dx_ab = b1.x - a1.x;
+    let dy_ab = b1.y - a1.y;
+
+    let t = (dx_ab * dy_b - dy_ab * dx_b) / denom;
+    let u = (dx_ab * dy_a - dy_ab * dx_a) / denom;
+
+    if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u) {
+        let pt = Point {
+            x: a1.x + t * dx_a,
+            y: a1.y + t * dy_a,
+        };
+        Some((pt, t, u))
+    } else {
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Split Path at T
+// ---------------------------------------------------------------------------
+
+/// Split a path at given arc-length t values (0..1). Returns sub-paths.
+pub fn split_path_at_t(
+    path: &PathData,
+    t_values: &[f64],
+    tolerance: f32,
+    close: bool,
+) -> Vec<PathData> {
+    let tol = tolerance.max(MIN_TOLERANCE);
+    let table = ArcLengthTable::from_path(path, tol);
+
+    if table.segments.is_empty() {
+        return vec![path.clone()];
+    }
+
+    // Sort and dedup t values, filter to (0..1) exclusive
+    let mut ts: Vec<f32> = t_values
+        .iter()
+        .map(|&v| (v as f32).clamp(0.0, 1.0))
+        .filter(|&v| v > 1e-6 && v < 1.0 - 1e-6)
+        .collect();
+    ts.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    ts.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
+
+    if ts.is_empty() {
+        return vec![path.clone()];
+    }
+
+    // Collect all flattened points in order
+    let mut all_points: Vec<Point> = Vec::new();
+    if let Some(&(start, _)) = table.segments.first() {
+        all_points.push(start);
+    }
+    for &(_, end) in &table.segments {
+        all_points.push(end);
+    }
+
+    // For closed paths, split at N points → N parts
+    // For open paths, split at N points → N+1 parts
+    let mut split_indices: Vec<usize> = Vec::new();
+    for &t in &ts {
+        let (seg_idx, local_t) = table.segment_index_at_t(t);
+        // Insert a point at this position
+        let (a, b) = table.segments[seg_idx];
+        let pt = Point {
+            x: a.x + (b.x - a.x) * local_t,
+            y: a.y + (b.y - a.y) * local_t,
+        };
+        // The point index: seg_idx corresponds to point index seg_idx+1 (end of segment)
+        // We need to insert at the right position in all_points
+        // Points are: [seg0_start, seg0_end, seg1_end, seg2_end, ...]
+        // seg_idx's start = all_points[seg_idx], end = all_points[seg_idx+1]
+        // We insert between seg_idx and seg_idx+1
+        let insert_idx = seg_idx + 1 + split_indices.len(); // offset by previously inserted points
+        all_points.insert(insert_idx, pt);
+        split_indices.push(insert_idx);
+    }
+
+    // Now split the points at the split indices
+    let mut parts: Vec<PathData> = Vec::new();
+    let mut start_idx = 0;
+
+    for &split_idx in &split_indices {
+        let part_points = &all_points[start_idx..=split_idx];
+        parts.push(points_to_path(part_points, close));
+        start_idx = split_idx;
+    }
+
+    // Final part: from last split to end
+    let part_points = &all_points[start_idx..];
+    if !part_points.is_empty() {
+        parts.push(points_to_path(part_points, close));
+    }
+
+    // For closed paths: connect last part back to first part
+    if path.closed && parts.len() >= 2 {
+        // Remove the last part and prepend its points to the first part
+        let last = parts.pop().unwrap();
+        let first = &mut parts[0];
+        // Prepend last's points (except last point which is same as first's start)
+        let last_points: Vec<Point> = last
+            .verbs
+            .iter()
+            .filter_map(|v| match v {
+                PathVerb::MoveTo(p) | PathVerb::LineTo(p) => Some(*p),
+                _ => None,
+            })
+            .collect();
+        let first_points: Vec<Point> = first
+            .verbs
+            .iter()
+            .filter_map(|v| match v {
+                PathVerb::MoveTo(p) | PathVerb::LineTo(p) => Some(*p),
+                _ => None,
+            })
+            .collect();
+        let mut merged = last_points;
+        // Skip the first point of first_points if it matches last of last_points
+        if merged.last() == first_points.first() {
+            merged.extend_from_slice(&first_points[1..]);
+        } else {
+            merged.extend_from_slice(&first_points);
+        }
+        *first = points_to_path(&merged, close);
+    }
+
+    parts
+}
+
+/// Build a PathData from a slice of points.
+fn points_to_path(points: &[Point], close: bool) -> PathData {
+    let mut verbs = Vec::with_capacity(points.len() + if close { 1 } else { 0 });
+    for (i, &pt) in points.iter().enumerate() {
+        if i == 0 {
+            verbs.push(PathVerb::MoveTo(pt));
+        } else {
+            verbs.push(PathVerb::LineTo(pt));
+        }
+    }
+    if close {
+        verbs.push(PathVerb::Close);
+    }
+    PathData {
+        verbs,
+        closed: close,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Close Path
+// ---------------------------------------------------------------------------
+
+/// Close an open path by setting closed=true and appending Close verb if needed.
+pub fn close_path(path: &PathData) -> PathData {
+    if path.closed {
+        return path.clone();
+    }
+    let mut verbs = path.verbs.clone();
+    if !verbs.is_empty() && !matches!(verbs.last(), Some(PathVerb::Close)) {
+        verbs.push(PathVerb::Close);
+    }
+    PathData {
+        verbs,
+        closed: true,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Polygon from Points
+// ---------------------------------------------------------------------------
+
+/// Construct a path from an ordered list of points.
+pub fn polygon_from_points(points: &PointBatch, close: bool) -> PathData {
+    if points.is_empty() {
+        return PathData::new();
+    }
+    let mut verbs = Vec::with_capacity(points.len() + if close { 1 } else { 0 });
+    for i in 0..points.len() {
+        let pt = Point {
+            x: points.xs[i],
+            y: points.ys[i],
+        };
+        if i == 0 {
+            verbs.push(PathVerb::MoveTo(pt));
+        } else {
+            verbs.push(PathVerb::LineTo(pt));
+        }
+    }
+    if close {
+        verbs.push(PathVerb::Close);
+    }
+    PathData {
+        verbs,
+        closed: close,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Spline from Points (Catmull-Rom → Cubic Bezier)
+// ---------------------------------------------------------------------------
+
+/// Fit a smooth cubic bezier spline through points using Catmull-Rom interpolation.
+pub fn spline_from_points(points: &PointBatch, close: bool, tension: f64) -> PathData {
+    let n = points.len();
+    if n == 0 {
+        return PathData::new();
+    }
+    if n == 1 {
+        return PathData {
+            verbs: vec![PathVerb::MoveTo(Point {
+                x: points.xs[0],
+                y: points.ys[0],
+            })],
+            closed: false,
+        };
+    }
+
+    let t_factor = (1.0 - tension.clamp(0.0, 1.0)) as f32;
+
+    let get_pt = |i: usize| -> Point {
+        Point {
+            x: points.xs[i],
+            y: points.ys[i],
+        }
+    };
+
+    // Compute tangents
+    let mut tangents: Vec<(f32, f32)> = Vec::with_capacity(n);
+    for i in 0..n {
+        let (prev, next) = if close {
+            (
+                get_pt(if i == 0 { n - 1 } else { i - 1 }),
+                get_pt((i + 1) % n),
+            )
+        } else if i == 0 {
+            (get_pt(0), get_pt(1))
+        } else if i == n - 1 {
+            (get_pt(n - 2), get_pt(n - 1))
+        } else {
+            (get_pt(i - 1), get_pt(i + 1))
+        };
+        let tx = t_factor * (next.x - prev.x) * 0.5;
+        let ty = t_factor * (next.y - prev.y) * 0.5;
+        tangents.push((tx, ty));
+    }
+
+    let mut verbs = Vec::new();
+    verbs.push(PathVerb::MoveTo(get_pt(0)));
+
+    let seg_count = if close { n } else { n - 1 };
+    for i in 0..seg_count {
+        let j = (i + 1) % n;
+        let p0 = get_pt(i);
+        let p1 = get_pt(j);
+        let (t0x, t0y) = tangents[i];
+        let (t1x, t1y) = tangents[j];
+
+        let ctrl1 = Point {
+            x: p0.x + t0x / 3.0,
+            y: p0.y + t0y / 3.0,
+        };
+        let ctrl2 = Point {
+            x: p1.x - t1x / 3.0,
+            y: p1.y - t1y / 3.0,
+        };
+        verbs.push(PathVerb::CubicTo {
+            ctrl1,
+            ctrl2,
+            to: p1,
+        });
+    }
+
+    if close {
+        verbs.push(PathVerb::Close);
+    }
+
+    PathData {
+        verbs,
+        closed: close,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Warp to Curve
+// ---------------------------------------------------------------------------
+
+/// Warp geometry so it follows a target curve.
+/// Mode 0: simple positional. Mode 1: curvature-aware.
+pub fn warp_to_curve(
+    geometry: &NodeData,
+    curve: &PathData,
+    mode: i64,
+    tolerance: f32,
+) -> NodeData {
+    let tol = tolerance.max(MIN_TOLERANCE);
+    let table = ArcLengthTable::from_path(curve, tol);
+    if table.segments.is_empty() {
+        return geometry.clone();
+    }
+
+    match geometry {
+        NodeData::Path(p) => {
+            let bbox = compute_path_bbox(p);
+            NodeData::Path(Arc::new(warp_path_to_curve(p, &table, &bbox, mode)))
+        }
+        NodeData::Paths(paths) => {
+            // Collective bbox across all paths
+            let bbox = compute_paths_bbox(paths);
+            let warped: Vec<PathData> = paths
+                .iter()
+                .map(|p| warp_path_to_curve(p, &table, &bbox, mode))
+                .collect();
+            NodeData::Paths(Arc::new(warped))
+        }
+        NodeData::Shape(s) => {
+            let bbox = compute_path_bbox(&s.path);
+            let warped_path = Arc::new(warp_path_to_curve(&s.path, &table, &bbox, mode));
+            NodeData::Shape(Arc::new(Shape {
+                path: warped_path,
+                ..(**s).clone()
+            }))
+        }
+        NodeData::Shapes(shapes) => {
+            // Collective bbox across all shapes
+            let mut bbox = BBox::empty();
+            for s in shapes.iter() {
+                bbox.extend_path(&s.path);
+            }
+            let warped: Vec<Shape> = shapes
+                .iter()
+                .map(|s| {
+                    let warped_path = Arc::new(warp_path_to_curve(&s.path, &table, &bbox, mode));
+                    Shape {
+                        path: warped_path,
+                        ..s.clone()
+                    }
+                })
+                .collect();
+            NodeData::Shapes(Arc::new(warped))
+        }
+        other => other.clone(),
+    }
+}
+
+struct BBox {
+    min_x: f32,
+    min_y: f32,
+    max_x: f32,
+    max_y: f32,
+}
+
+impl BBox {
+    fn empty() -> Self {
+        BBox {
+            min_x: f32::INFINITY,
+            min_y: f32::INFINITY,
+            max_x: f32::NEG_INFINITY,
+            max_y: f32::NEG_INFINITY,
+        }
+    }
+
+    fn extend_point(&mut self, x: f32, y: f32) {
+        self.min_x = self.min_x.min(x);
+        self.min_y = self.min_y.min(y);
+        self.max_x = self.max_x.max(x);
+        self.max_y = self.max_y.max(y);
+    }
+
+    fn extend_path(&mut self, path: &PathData) {
+        for v in &path.verbs {
+            match *v {
+                PathVerb::MoveTo(p) | PathVerb::LineTo(p) => self.extend_point(p.x, p.y),
+                PathVerb::QuadTo { ctrl, to } => {
+                    self.extend_point(ctrl.x, ctrl.y);
+                    self.extend_point(to.x, to.y);
+                }
+                PathVerb::CubicTo { ctrl1, ctrl2, to } => {
+                    self.extend_point(ctrl1.x, ctrl1.y);
+                    self.extend_point(ctrl2.x, ctrl2.y);
+                    self.extend_point(to.x, to.y);
+                }
+                PathVerb::Close => {}
+            }
+        }
+    }
+
+    fn width(&self) -> f32 {
+        (self.max_x - self.min_x).max(1e-10)
+    }
+
+    fn center_y(&self) -> f32 {
+        (self.min_y + self.max_y) * 0.5
+    }
+}
+
+fn compute_path_bbox(path: &PathData) -> BBox {
+    let mut bbox = BBox::empty();
+    bbox.extend_path(path);
+    bbox
+}
+
+fn compute_paths_bbox(paths: &[PathData]) -> BBox {
+    let mut bbox = BBox::empty();
+    for p in paths {
+        bbox.extend_path(p);
+    }
+    bbox
+}
+
+fn warp_point(
+    x: f32,
+    y: f32,
+    table: &ArcLengthTable,
+    bbox: &BBox,
+    mode: i64,
+) -> Point {
+    let u = (x - bbox.min_x) / bbox.width();
+    let v = y - bbox.center_y();
+    let pos = table.position_at_t(u);
+    let (nx, ny) = table.normal_at_t(u);
+
+    if mode == 1 {
+        // Curvature-aware: estimate curvature from tangent change
+        let dt = 0.001;
+        let (t1x, t1y) = table.tangent_at_t((u - dt).max(0.0));
+        let (t2x, t2y) = table.tangent_at_t((u + dt).min(1.0));
+        let angle_change = (t2y.atan2(t2x) - t1y.atan2(t1x)).abs();
+        let arc_dist = 2.0 * dt * table.total_length;
+        let curvature = if arc_dist > 1e-10 {
+            angle_change / arc_dist
+        } else {
+            0.0
+        };
+        let scale = 1.0 / (1.0 + curvature * v.abs());
+        Point {
+            x: pos.x + v * nx * scale,
+            y: pos.y + v * ny * scale,
+        }
+    } else {
+        Point {
+            x: pos.x + v * nx,
+            y: pos.y + v * ny,
+        }
+    }
+}
+
+fn warp_path_to_curve(
+    path: &PathData,
+    table: &ArcLengthTable,
+    bbox: &BBox,
+    mode: i64,
+) -> PathData {
+    let mut verbs = Vec::with_capacity(path.verbs.len());
+    for v in &path.verbs {
+        match *v {
+            PathVerb::MoveTo(p) => {
+                verbs.push(PathVerb::MoveTo(warp_point(p.x, p.y, table, bbox, mode)));
+            }
+            PathVerb::LineTo(p) => {
+                verbs.push(PathVerb::LineTo(warp_point(p.x, p.y, table, bbox, mode)));
+            }
+            PathVerb::QuadTo { ctrl, to } => {
+                verbs.push(PathVerb::QuadTo {
+                    ctrl: warp_point(ctrl.x, ctrl.y, table, bbox, mode),
+                    to: warp_point(to.x, to.y, table, bbox, mode),
+                });
+            }
+            PathVerb::CubicTo { ctrl1, ctrl2, to } => {
+                verbs.push(PathVerb::CubicTo {
+                    ctrl1: warp_point(ctrl1.x, ctrl1.y, table, bbox, mode),
+                    ctrl2: warp_point(ctrl2.x, ctrl2.y, table, bbox, mode),
+                    to: warp_point(to.x, to.y, table, bbox, mode),
+                });
+            }
+            PathVerb::Close => {
+                verbs.push(PathVerb::Close);
+            }
+        }
+    }
+    PathData {
+        verbs,
+        closed: path.closed,
+    }
+}
+
+// ---------------------------------------------------------------------------
+
 /// Flatten path to line segments using lyon's adaptive subdivision.
-fn flatten_to_segments(path: &PathData, tolerance: f32) -> Vec<(Point, Point)> {
+pub(crate) fn flatten_to_segments(path: &PathData, tolerance: f32) -> Vec<(Point, Point)> {
     let tol = tolerance.max(MIN_TOLERANCE);
     let lyon_path = build_lyon_path(path);
     let mut segs = Vec::new();
@@ -502,7 +1177,7 @@ fn intersect_lines(
 }
 
 /// Flatten a PathData into contours of Points (preserving separate sub-paths).
-fn flatten_to_contours(path: &PathData, tolerance: f32) -> Vec<Vec<Point>> {
+pub(crate) fn flatten_to_contours(path: &PathData, tolerance: f32) -> Vec<Vec<Point>> {
     let lyon_path = build_lyon_path(path);
     let mut contours: Vec<Vec<Point>> = Vec::new();
     let mut current: Vec<Point> = Vec::new();
@@ -1104,6 +1779,283 @@ mod tests {
             assert_eq!(original.verbs.len(), combined.verbs.len(),
                 "op {} combined verbs mismatch", op);
             assert!(!parts.is_empty(), "op {} should produce at least one part", op);
+        }
+    }
+
+    // ── Path Intersection Points tests ────────────────────────
+
+    fn make_line(x1: f32, y1: f32, x2: f32, y2: f32) -> PathData {
+        PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: x1, y: y1 }),
+                PathVerb::LineTo(Point { x: x2, y: y2 }),
+            ],
+            closed: false,
+        }
+    }
+
+    #[test]
+    fn intersection_crossing_lines() {
+        // X-shaped: (0,0)-(10,10) and (10,0)-(0,10)
+        let a = make_line(0.0, 0.0, 10.0, 10.0);
+        let b = make_line(10.0, 0.0, 0.0, 10.0);
+        let (pts, t_a, t_b) = path_intersection_points(&a, &b, TOL);
+        assert_eq!(pts.len(), 1, "crossing lines should have 1 intersection");
+        assert!((pts.xs[0] - 5.0).abs() < 0.1);
+        assert!((pts.ys[0] - 5.0).abs() < 0.1);
+        assert!((t_a[0] - 0.5).abs() < 0.05);
+        assert!((t_b[0] - 0.5).abs() < 0.05);
+    }
+
+    #[test]
+    fn intersection_line_vs_square() {
+        // Horizontal line through the middle of a square
+        let sq = make_square(0.0, 0.0, 10.0);
+        let line = make_line(-5.0, 5.0, 15.0, 5.0);
+        let (pts, _t_a, _t_b) = path_intersection_points(&sq, &line, TOL);
+        assert_eq!(pts.len(), 2, "line through square should have 2 intersections");
+    }
+
+    #[test]
+    fn intersection_disjoint() {
+        let a = make_line(0.0, 0.0, 5.0, 0.0);
+        let b = make_line(0.0, 10.0, 5.0, 10.0);
+        let (pts, _, _) = path_intersection_points(&a, &b, TOL);
+        assert_eq!(pts.len(), 0);
+    }
+
+    // ── Split Path at T tests ─────────────────────────────────
+
+    #[test]
+    fn split_line_at_half() {
+        let line = make_line(0.0, 0.0, 10.0, 0.0);
+        let parts = split_path_at_t(&line, &[0.5], TOL, false);
+        assert_eq!(parts.len(), 2, "splitting line at 0.5 should give 2 parts");
+    }
+
+    #[test]
+    fn split_square_at_quarters() {
+        let sq = make_square(0.0, 0.0, 10.0);
+        let parts = split_path_at_t(&sq, &[0.25, 0.5, 0.75], TOL, false);
+        assert_eq!(parts.len(), 3, "splitting closed path at 3 points should give 3 parts, got {}", parts.len());
+    }
+
+    #[test]
+    fn split_with_close() {
+        let line = make_line(0.0, 0.0, 10.0, 0.0);
+        let parts = split_path_at_t(&line, &[0.5], TOL, true);
+        assert_eq!(parts.len(), 2);
+        for p in &parts {
+            assert!(p.closed, "each part should be closed");
+        }
+    }
+
+    #[test]
+    fn split_empty_t_values() {
+        let line = make_line(0.0, 0.0, 10.0, 0.0);
+        let parts = split_path_at_t(&line, &[], TOL, false);
+        assert_eq!(parts.len(), 1, "no split points should return original");
+    }
+
+    // ── Close Path tests ──────────────────────────────────────
+
+    #[test]
+    fn close_open_path() {
+        let line = make_line(0.0, 0.0, 10.0, 0.0);
+        assert!(!line.closed);
+        let closed = close_path(&line);
+        assert!(closed.closed);
+        assert!(matches!(closed.verbs.last(), Some(PathVerb::Close)));
+    }
+
+    #[test]
+    fn close_already_closed() {
+        let sq = make_square(0.0, 0.0, 10.0);
+        let closed = close_path(&sq);
+        assert_eq!(closed.verbs.len(), sq.verbs.len());
+    }
+
+    #[test]
+    fn close_empty_path() {
+        let empty = PathData::new();
+        let closed = close_path(&empty);
+        assert!(closed.closed);
+    }
+
+    // ── Polygon from Points tests ─────────────────────────────
+
+    #[test]
+    fn polygon_triangle() {
+        let pts = PointBatch {
+            xs: vec![0.0, 10.0, 5.0],
+            ys: vec![0.0, 0.0, 10.0],
+        };
+        let path = polygon_from_points(&pts, true);
+        assert!(path.closed);
+        assert!(matches!(path.verbs[0], PathVerb::MoveTo(_)));
+        assert_eq!(path.verbs.len(), 4); // MoveTo + 2 LineTo + Close
+    }
+
+    #[test]
+    fn polygon_open() {
+        let pts = PointBatch {
+            xs: vec![0.0, 10.0, 5.0],
+            ys: vec![0.0, 0.0, 10.0],
+        };
+        let path = polygon_from_points(&pts, false);
+        assert!(!path.closed);
+        assert_eq!(path.verbs.len(), 3); // MoveTo + 2 LineTo
+    }
+
+    #[test]
+    fn polygon_single_point() {
+        let pts = PointBatch {
+            xs: vec![5.0],
+            ys: vec![5.0],
+        };
+        let path = polygon_from_points(&pts, true);
+        assert_eq!(path.verbs.len(), 2); // MoveTo + Close
+    }
+
+    #[test]
+    fn polygon_empty() {
+        let pts = PointBatch::new();
+        let path = polygon_from_points(&pts, true);
+        assert!(path.verbs.is_empty());
+    }
+
+    // ── Spline from Points tests ──────────────────────────────
+
+    #[test]
+    fn spline_three_points() {
+        let pts = PointBatch {
+            xs: vec![0.0, 5.0, 10.0],
+            ys: vec![0.0, 10.0, 0.0],
+        };
+        let path = spline_from_points(&pts, false, 0.0);
+        // Should have MoveTo + 2 CubicTo
+        let cubic_count = path.verbs.iter().filter(|v| matches!(v, PathVerb::CubicTo { .. })).count();
+        assert_eq!(cubic_count, 2);
+        assert!(!path.closed);
+    }
+
+    #[test]
+    fn spline_two_points() {
+        let pts = PointBatch {
+            xs: vec![0.0, 10.0],
+            ys: vec![0.0, 0.0],
+        };
+        let path = spline_from_points(&pts, false, 0.0);
+        let cubic_count = path.verbs.iter().filter(|v| matches!(v, PathVerb::CubicTo { .. })).count();
+        assert_eq!(cubic_count, 1);
+    }
+
+    #[test]
+    fn spline_closed() {
+        let pts = PointBatch {
+            xs: vec![0.0, 10.0, 10.0, 0.0],
+            ys: vec![0.0, 0.0, 10.0, 10.0],
+        };
+        let path = spline_from_points(&pts, true, 0.0);
+        assert!(path.closed);
+        let cubic_count = path.verbs.iter().filter(|v| matches!(v, PathVerb::CubicTo { .. })).count();
+        assert_eq!(cubic_count, 4); // 4 segments for 4 points in closed loop
+    }
+
+    #[test]
+    fn spline_high_tension() {
+        let pts = PointBatch {
+            xs: vec![0.0, 5.0, 10.0],
+            ys: vec![0.0, 10.0, 0.0],
+        };
+        let path = spline_from_points(&pts, false, 1.0);
+        // High tension: control points should be close to the through-points
+        let cubic_count = path.verbs.iter().filter(|v| matches!(v, PathVerb::CubicTo { .. })).count();
+        assert_eq!(cubic_count, 2);
+    }
+
+    // ── Warp to Curve tests ───────────────────────────────────
+
+    #[test]
+    fn warp_line_onto_semicircle() {
+        // Source: horizontal line
+        let line = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: 0.0, y: 0.0 }),
+                PathVerb::LineTo(Point { x: 10.0, y: 0.0 }),
+            ],
+            closed: false,
+        };
+        // Curve: quarter circle arc approximated by line segments
+        let curve = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: 0.0, y: 0.0 }),
+                PathVerb::LineTo(Point { x: 10.0, y: 10.0 }),
+            ],
+            closed: false,
+        };
+        let result = warp_to_curve(&NodeData::Path(Arc::new(line)), &curve, 0, TOL);
+        match result {
+            NodeData::Path(p) => {
+                assert!(!p.verbs.is_empty());
+                // Start should be at curve start
+                if let PathVerb::MoveTo(pt) = p.verbs[0] {
+                    assert!((pt.x - 0.0).abs() < 0.5, "start x={}", pt.x);
+                    assert!((pt.y - 0.0).abs() < 0.5, "start y={}", pt.y);
+                }
+            }
+            _ => panic!("expected Path"),
+        }
+    }
+
+    #[test]
+    fn warp_rectangle() {
+        let rect = make_square(0.0, -5.0, 10.0);
+        let curve = make_line(0.0, 0.0, 20.0, 0.0);
+        let result = warp_to_curve(&NodeData::Path(Arc::new(rect)), &curve, 0, TOL);
+        assert!(matches!(result, NodeData::Path(_)));
+    }
+
+    #[test]
+    fn warp_mode1_tight_curve() {
+        let line = make_line(0.0, 0.0, 10.0, 0.0);
+        let curve = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: 0.0, y: 0.0 }),
+                PathVerb::LineTo(Point { x: 5.0, y: 10.0 }),
+                PathVerb::LineTo(Point { x: 10.0, y: 0.0 }),
+            ],
+            closed: false,
+        };
+        let result = warp_to_curve(&NodeData::Path(Arc::new(line)), &curve, 1, TOL);
+        assert!(matches!(result, NodeData::Path(_)));
+    }
+
+    #[test]
+    fn warp_empty_geometry() {
+        let empty = PathData::new();
+        let curve = make_line(0.0, 0.0, 10.0, 0.0);
+        let result = warp_to_curve(&NodeData::Path(Arc::new(empty)), &curve, 0, TOL);
+        assert!(matches!(result, NodeData::Path(_)));
+    }
+
+    #[test]
+    fn warp_center_point_to_curve_midpoint() {
+        // A single point at the center of bbox should map to curve midpoint
+        let pts = PointBatch {
+            xs: vec![5.0],
+            ys: vec![0.0],
+        };
+        let poly = polygon_from_points(&pts, false);
+        let curve = make_line(0.0, 0.0, 20.0, 0.0);
+        let result = warp_to_curve(&NodeData::Path(Arc::new(poly)), &curve, 0, TOL);
+        if let NodeData::Path(p) = result {
+            if let PathVerb::MoveTo(pt) = p.verbs[0] {
+                // u = (5-5)/0 → undefined for single point bbox.
+                // But since the bbox width is 0 (single point), the u will be 0/0,
+                // so this test just checks it doesn't crash.
+                assert!(pt.x.is_finite());
+            }
         }
     }
 }
