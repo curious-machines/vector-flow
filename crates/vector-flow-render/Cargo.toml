@@ -13,3 +13,6 @@ lyon = "1"
 log = "0.4"
 thiserror = "2"
 ab_glyph = "0.2"
+
+[dev-dependencies]
+vector-flow-compute = { path = "../vector-flow-compute" }

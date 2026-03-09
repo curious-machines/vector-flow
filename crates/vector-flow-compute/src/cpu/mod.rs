@@ -356,7 +356,7 @@ impl ComputeBackend for CpuBackend {
                 let (shapes, angles, indices, total) =
                     utility::copy_to_points(&geometry, &points, &tangent_angles, align);
                 // Multi-output: write all outputs and return early.
-                if outputs.data.len() > 0 {
+                if !outputs.data.is_empty() {
                     outputs.data[0] = Some(shapes);
                 }
                 if outputs.data.len() > 1 {
@@ -726,7 +726,7 @@ fn parse_dash_pattern(s: &str) -> Vec<f32> {
     if s.trim().is_empty() {
         return vec![];
     }
-    s.split(|c: char| c == ',' || c == ' ')
+    s.split([',', ' '])
         .filter(|s| !s.is_empty())
         .filter_map(|s| s.trim().parse::<f32>().ok())
         .filter(|v| *v > 0.0)

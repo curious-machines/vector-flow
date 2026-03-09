@@ -4425,6 +4425,7 @@ dependencies = [
  "log",
  "lyon",
  "thiserror 2.0.18",
+ "vector-flow-compute",
  "vector-flow-core",
 ]
 

@@ -384,6 +384,7 @@ fn read2(tokens: &[Token], i: usize, rel: bool, cur: Point) -> (f32, f32, usize)
 // Arc to cubic Bezier conversion
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 fn arc_to_cubics(
     from: Point,
     rx: f32,
@@ -464,6 +465,7 @@ fn arc_to_cubics(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn arc_segment_to_cubic(
     cx: f32,
     cy: f32,

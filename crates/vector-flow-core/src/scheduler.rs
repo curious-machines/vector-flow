@@ -10,6 +10,8 @@ use crate::graph::Graph;
 use crate::node::{NodeOp, ParamValue, PortIndex};
 use crate::types::{NodeData, NodeId, EvalContext};
 
+type SubgraphResult = (HashMap<NodeId, Vec<NodeData>>, HashMap<NodeId, String>);
+
 // ---------------------------------------------------------------------------
 // EvalCache
 // ---------------------------------------------------------------------------
@@ -109,7 +111,7 @@ impl Scheduler {
                 .filter(|&&id| {
                     graph
                         .node(id)
-                        .map_or(false, |n| matches!(n.op, NodeOp::PortalReceive { .. }))
+                        .is_some_and(|n| matches!(n.op, NodeOp::PortalReceive { .. }))
                 })
                 .copied()
                 .collect();
@@ -145,13 +147,12 @@ impl Scheduler {
             // No portals — use parallel subgraph evaluation.
             // When filtering, skip subgraphs with no nodes remaining.
             let subgraphs = graph.independent_subgraphs();
-            type SubgraphResult = (HashMap<NodeId, Vec<NodeData>>, HashMap<NodeId, String>);
             let subgraph_results: Vec<Result<SubgraphResult, ComputeError>> =
                 subgraphs
                     .par_iter()
                     .filter(|subgraph_nodes| {
                         // If filtering, skip subgraphs that have no nodes in the filter.
-                        node_filter.map_or(true, |f| subgraph_nodes.iter().any(|id| f.contains(id)))
+                        node_filter.is_none_or(|f| subgraph_nodes.iter().any(|id| f.contains(id)))
                     })
                     .map(|subgraph_nodes| {
                         self.evaluate_subgraph(graph, subgraph_nodes, &topo_order, time_ctx)
@@ -187,7 +188,7 @@ impl Scheduler {
         subgraph_nodes: &[NodeId],
         topo_order: &[NodeId],
         time_ctx: &EvalContext,
-    ) -> Result<(HashMap<NodeId, Vec<NodeData>>, HashMap<NodeId, String>), ComputeError> {
+    ) -> Result<SubgraphResult, ComputeError> {
         let subgraph_set: std::collections::HashSet<NodeId> =
             subgraph_nodes.iter().copied().collect();
 

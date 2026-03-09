@@ -225,7 +225,7 @@ pub fn collect_scene_ordered(
         .outputs
         .keys()
         .copied()
-        .filter(|id| visible_nodes.map_or(true, |vis| vis.contains(id)))
+        .filter(|id| visible_nodes.is_none_or(|vis| vis.contains(id)))
         .collect();
 
     if let Some(order) = node_order {

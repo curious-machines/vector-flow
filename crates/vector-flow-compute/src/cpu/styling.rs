@@ -603,7 +603,7 @@ fn round_join_arc(
     radius: f32,
     left_is_outer: bool,
 ) -> Vec<Point> {
-    let (sn, en) = if left_is_outer { (n0, n1) } else { (n0, n1) };
+    let (sn, en) = if left_is_outer { (n1, n0) } else { (n0, n1) };
     let start_angle = sn.1.atan2(sn.0);
     let end_angle = en.1.atan2(en.0);
 

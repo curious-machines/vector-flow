@@ -2229,8 +2229,8 @@ impl eframe::App for VectorFlowApp {
         // Also re-evaluate when selection includes nodes not yet in the eval
         // result (e.g. selecting an island node that was previously skipped).
         let eval_filter = self.eval_node_filter(&selected_snarl);
-        let selection_needs_eval = eval_filter.as_ref().map_or(false, |filter| {
-            self.last_eval.as_ref().map_or(true, |eval| {
+        let selection_needs_eval = eval_filter.as_ref().is_some_and(|filter| {
+            self.last_eval.as_ref().is_none_or(|eval| {
                 filter.iter().any(|id| !eval.outputs.contains_key(id))
             })
         });
