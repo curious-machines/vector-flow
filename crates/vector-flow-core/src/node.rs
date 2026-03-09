@@ -1247,6 +1247,10 @@ impl NodeDef {
             inputs: vec![
                 PortDef::new("geometry", DataType::Any).with_description("Geometry to warp"),
                 PortDef::new("spine", DataType::Path).with_description("Spine curve to warp along"),
+                PortDef::new("smoothing", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Curvature smoothing (0 = local, 1 = global average)")
+                    .hidden(),
                 PortDef::new("tolerance", DataType::Scalar)
                     .with_default(ParamValue::Float(0.5))
                     .with_description("Curve flattening tolerance")

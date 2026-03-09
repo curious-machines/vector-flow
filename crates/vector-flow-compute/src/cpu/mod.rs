@@ -156,9 +156,10 @@ impl ComputeBackend for CpuBackend {
                 let geometry = get_any(inputs, 0);
                 let curve = get_path(inputs, 1);
                 let mode = *mode as i64;
-                let tolerance = get_scalar(inputs, 2) as f32;
+                let smoothing = get_scalar(inputs, 2).clamp(0.0, 1.0) as f32;
+                let tolerance = get_scalar(inputs, 3) as f32;
                 let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
-                path_ops::warp_to_curve(&geometry, &curve, mode, tolerance)
+                path_ops::warp_to_curve(&geometry, &curve, mode, smoothing, tolerance)
             }
 
             // ── Path ops ────────────────────────────────────────────

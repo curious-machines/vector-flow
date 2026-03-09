@@ -795,6 +795,7 @@ pub fn warp_to_curve(
     geometry: &NodeData,
     curve: &PathData,
     mode: i64,
+    smoothing: f32,
     tolerance: f32,
 ) -> NodeData {
     let tol = tolerance.max(MIN_TOLERANCE);
@@ -803,23 +804,30 @@ pub fn warp_to_curve(
         return geometry.clone();
     }
 
+    let cf = if mode == 1 {
+        Some(CurvatureField::build(&table, smoothing))
+    } else {
+        None
+    };
+    let cf_ref = cf.as_ref();
+
     match geometry {
         NodeData::Path(p) => {
             let bbox = compute_path_bbox(p);
-            NodeData::Path(Arc::new(warp_path_to_curve(p, &table, &bbox, mode)))
+            NodeData::Path(Arc::new(warp_path_to_curve(p, &table, &bbox, cf_ref)))
         }
         NodeData::Paths(paths) => {
             // Collective bbox across all paths
             let bbox = compute_paths_bbox(paths);
             let warped: Vec<PathData> = paths
                 .iter()
-                .map(|p| warp_path_to_curve(p, &table, &bbox, mode))
+                .map(|p| warp_path_to_curve(p, &table, &bbox, cf_ref))
                 .collect();
             NodeData::Paths(Arc::new(warped))
         }
         NodeData::Shape(s) => {
             let bbox = compute_path_bbox(&s.path);
-            let warped_path = Arc::new(warp_path_to_curve(&s.path, &table, &bbox, mode));
+            let warped_path = Arc::new(warp_path_to_curve(&s.path, &table, &bbox, cf_ref));
             NodeData::Shape(Arc::new(Shape {
                 path: warped_path,
                 ..(**s).clone()
@@ -834,7 +842,7 @@ pub fn warp_to_curve(
             let warped: Vec<Shape> = shapes
                 .iter()
                 .map(|s| {
-                    let warped_path = Arc::new(warp_path_to_curve(&s.path, &table, &bbox, mode));
+                    let warped_path = Arc::new(warp_path_to_curve(&s.path, &table, &bbox, cf_ref));
                     Shape {
                         path: warped_path,
                         ..s.clone()
@@ -912,34 +920,100 @@ fn compute_paths_bbox(paths: &[PathData]) -> BBox {
     bbox
 }
 
+/// Precomputed smoothed curvature sampled at uniform intervals along the spine.
+struct CurvatureField {
+    /// Smoothed curvature values at N uniformly spaced parametric positions.
+    samples: Vec<f32>,
+}
+
+impl CurvatureField {
+    const NUM_SAMPLES: usize = 128;
+
+    fn build(table: &ArcLengthTable, smoothing: f32) -> Self {
+        let n = Self::NUM_SAMPLES;
+        // Sample raw Menger curvature at uniform parametric intervals.
+        let dt = 0.02;
+        let mut raw = Vec::with_capacity(n);
+        for i in 0..n {
+            let u = i as f32 / (n - 1) as f32;
+            let p1 = table.position_at_t((u - dt).max(0.0));
+            let p2 = table.position_at_t(u);
+            let p3 = table.position_at_t((u + dt).min(1.0));
+            let ax = p2.x - p1.x;
+            let ay = p2.y - p1.y;
+            let bx = p3.x - p1.x;
+            let by = p3.y - p1.y;
+            let cross = (ax * by - ay * bx).abs();
+            let d1 = (ax * ax + ay * ay).sqrt();
+            let d2 = (bx * bx + by * by).sqrt();
+            let cx = p3.x - p2.x;
+            let cy = p3.y - p2.y;
+            let d3 = (cx * cx + cy * cy).sqrt();
+            let denom = d1 * d2 * d3;
+            raw.push(if denom > 1e-10 { 2.0 * cross / denom } else { 0.0 });
+        }
+        // Box-filter smooth (3 passes for approximate Gaussian).
+        // smoothing 0..1 maps to radius 2..48.
+        let radius = (2.0 + smoothing * 46.0) as usize;
+        let mut buf = raw.clone();
+        for _ in 0..3 {
+            let src = buf.clone();
+            for (i, val) in buf.iter_mut().enumerate() {
+                let lo = i.saturating_sub(radius);
+                let hi = (i + radius + 1).min(n);
+                let sum: f32 = src[lo..hi].iter().sum();
+                *val = sum / (hi - lo) as f32;
+            }
+        }
+        CurvatureField { samples: buf }
+    }
+
+    /// Interpolate smoothed curvature at parametric position u (0..1).
+    fn at(&self, u: f32) -> f32 {
+        let n = self.samples.len();
+        let t = u.clamp(0.0, 1.0) * (n - 1) as f32;
+        let i = (t as usize).min(n - 2);
+        let frac = t - i as f32;
+        self.samples[i] * (1.0 - frac) + self.samples[i + 1] * frac
+    }
+}
+
 fn warp_point(
     x: f32,
     y: f32,
     table: &ArcLengthTable,
     bbox: &BBox,
-    mode: i64,
+    curvature: Option<&CurvatureField>,
 ) -> Point {
     let u = (x - bbox.min_x) / bbox.width();
     let v = y - bbox.center_y();
     let pos = table.position_at_t(u);
     let (nx, ny) = table.normal_at_t(u);
 
-    if mode == 1 {
-        // Curvature-aware: estimate curvature from tangent change
-        let dt = 0.001;
-        let (t1x, t1y) = table.tangent_at_t((u - dt).max(0.0));
-        let (t2x, t2y) = table.tangent_at_t((u + dt).min(1.0));
-        let angle_change = (t2y.atan2(t2x) - t1y.atan2(t1x)).abs();
-        let arc_dist = 2.0 * dt * table.total_length;
-        let curvature = if arc_dist > 1e-10 {
-            angle_change / arc_dist
+    if let Some(cf) = curvature {
+        // Use smooth normal derived from position finite differences
+        // instead of the raw segment normal, which jumps at segment
+        // boundaries. position_at_t is continuous (piecewise linear),
+        // so finite-difference tangent is smooth.
+        let eps = 0.005;
+        let p_lo = table.position_at_t((u - eps).max(0.0));
+        let p_hi = table.position_at_t((u + eps).min(1.0));
+        let tdx = p_hi.x - p_lo.x;
+        let tdy = p_hi.y - p_lo.y;
+        let tlen = (tdx * tdx + tdy * tdy).sqrt();
+        let (snx, sny) = if tlen > 1e-10 {
+            (-tdy / tlen, tdx / tlen)
         } else {
-            0.0
+            (nx, ny)
         };
-        let scale = 1.0 / (1.0 + curvature * v.abs());
+
+        let k = cf.at(u);
+        // Gentle curvature correction using sqrt to reduce width modulation
+        // while still providing anti-overlap benefit on tight bends.
+        let scale = (1.0 / (1.0 + k * v.abs()).sqrt()).max(0.2);
         Point {
-            x: pos.x + v * nx * scale,
-            y: pos.y + v * ny * scale,
+            x: pos.x + v * snx * scale,
+            y: pos.y + v * sny * scale,
         }
     } else {
         Point {
@@ -953,28 +1027,28 @@ fn warp_path_to_curve(
     path: &PathData,
     table: &ArcLengthTable,
     bbox: &BBox,
-    mode: i64,
+    curvature: Option<&CurvatureField>,
 ) -> PathData {
     let mut verbs = Vec::with_capacity(path.verbs.len());
     for v in &path.verbs {
         match *v {
             PathVerb::MoveTo(p) => {
-                verbs.push(PathVerb::MoveTo(warp_point(p.x, p.y, table, bbox, mode)));
+                verbs.push(PathVerb::MoveTo(warp_point(p.x, p.y, table, bbox, curvature)));
             }
             PathVerb::LineTo(p) => {
-                verbs.push(PathVerb::LineTo(warp_point(p.x, p.y, table, bbox, mode)));
+                verbs.push(PathVerb::LineTo(warp_point(p.x, p.y, table, bbox, curvature)));
             }
             PathVerb::QuadTo { ctrl, to } => {
                 verbs.push(PathVerb::QuadTo {
-                    ctrl: warp_point(ctrl.x, ctrl.y, table, bbox, mode),
-                    to: warp_point(to.x, to.y, table, bbox, mode),
+                    ctrl: warp_point(ctrl.x, ctrl.y, table, bbox, curvature),
+                    to: warp_point(to.x, to.y, table, bbox, curvature),
                 });
             }
             PathVerb::CubicTo { ctrl1, ctrl2, to } => {
                 verbs.push(PathVerb::CubicTo {
-                    ctrl1: warp_point(ctrl1.x, ctrl1.y, table, bbox, mode),
-                    ctrl2: warp_point(ctrl2.x, ctrl2.y, table, bbox, mode),
-                    to: warp_point(to.x, to.y, table, bbox, mode),
+                    ctrl1: warp_point(ctrl1.x, ctrl1.y, table, bbox, curvature),
+                    ctrl2: warp_point(ctrl2.x, ctrl2.y, table, bbox, curvature),
+                    to: warp_point(to.x, to.y, table, bbox, curvature),
                 });
             }
             PathVerb::Close => {
@@ -1994,7 +2068,7 @@ mod tests {
             ],
             closed: false,
         };
-        let result = warp_to_curve(&NodeData::Path(Arc::new(line)), &curve, 0, TOL);
+        let result = warp_to_curve(&NodeData::Path(Arc::new(line)), &curve, 0, 0.5, TOL);
         match result {
             NodeData::Path(p) => {
                 assert!(!p.verbs.is_empty());
@@ -2012,7 +2086,7 @@ mod tests {
     fn warp_rectangle() {
         let rect = make_square(0.0, -5.0, 10.0);
         let curve = make_line(0.0, 0.0, 20.0, 0.0);
-        let result = warp_to_curve(&NodeData::Path(Arc::new(rect)), &curve, 0, TOL);
+        let result = warp_to_curve(&NodeData::Path(Arc::new(rect)), &curve, 0, 0.5, TOL);
         assert!(matches!(result, NodeData::Path(_)));
     }
 
@@ -2027,7 +2101,7 @@ mod tests {
             ],
             closed: false,
         };
-        let result = warp_to_curve(&NodeData::Path(Arc::new(line)), &curve, 1, TOL);
+        let result = warp_to_curve(&NodeData::Path(Arc::new(line)), &curve, 1, 0.5, TOL);
         assert!(matches!(result, NodeData::Path(_)));
     }
 
@@ -2035,8 +2109,55 @@ mod tests {
     fn warp_empty_geometry() {
         let empty = PathData::new();
         let curve = make_line(0.0, 0.0, 10.0, 0.0);
-        let result = warp_to_curve(&NodeData::Path(Arc::new(empty)), &curve, 0, TOL);
+        let result = warp_to_curve(&NodeData::Path(Arc::new(empty)), &curve, 0, 0.5, TOL);
         assert!(matches!(result, NodeData::Path(_)));
+    }
+
+    #[test]
+    fn warp_mode1_no_collapse_on_angle_wrap() {
+        // Spine with tangent crossing the ±π boundary (going left then sharply
+        // right). Before the fix, the atan2 difference would wrap to ~2π,
+        // producing a huge spurious curvature that collapsed geometry.
+        let spine = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: 0.0, y: 0.0 }),
+                PathVerb::LineTo(Point { x: -10.0, y: 1.0 }),  // tangent ≈ +π
+                PathVerb::LineTo(Point { x: -20.0, y: -1.0 }), // tangent ≈ -π
+                PathVerb::LineTo(Point { x: -30.0, y: 0.0 }),
+            ],
+            closed: false,
+        };
+        // A rectangle with height 20 centered on y=0.
+        let rect = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: 0.0, y: -10.0 }),
+                PathVerb::LineTo(Point { x: 30.0, y: -10.0 }),
+                PathVerb::LineTo(Point { x: 30.0, y: 10.0 }),
+                PathVerb::LineTo(Point { x: 0.0, y: 10.0 }),
+                PathVerb::Close,
+            ],
+            closed: true,
+        };
+        let result = warp_to_curve(&NodeData::Path(Arc::new(rect)), &spine, 1, 0.5, TOL);
+        if let NodeData::Path(p) = result {
+            // Collect all warped points.
+            let pts: Vec<Point> = p.verbs.iter().filter_map(|v| match v {
+                PathVerb::MoveTo(pt) | PathVerb::LineTo(pt) => Some(*pt),
+                _ => None,
+            }).collect();
+            // All points must be finite (no NaN/Inf from bad curvature).
+            for pt in &pts {
+                assert!(pt.x.is_finite() && pt.y.is_finite(), "non-finite point: {:?}", pt);
+            }
+            // The warped shape should not collapse: its bounding box height
+            // should be a reasonable fraction of the original 20-unit height.
+            let min_y = pts.iter().map(|p| p.y).fold(f32::INFINITY, f32::min);
+            let max_y = pts.iter().map(|p| p.y).fold(f32::NEG_INFINITY, f32::max);
+            let height = max_y - min_y;
+            assert!(height > 5.0, "geometry collapsed: height={height}");
+        } else {
+            panic!("expected Path");
+        }
     }
 
     #[test]
@@ -2048,7 +2169,7 @@ mod tests {
         };
         let poly = polygon_from_points(&pts, false);
         let curve = make_line(0.0, 0.0, 20.0, 0.0);
-        let result = warp_to_curve(&NodeData::Path(Arc::new(poly)), &curve, 0, TOL);
+        let result = warp_to_curve(&NodeData::Path(Arc::new(poly)), &curve, 0, 0.5, TOL);
         if let NodeData::Path(p) = result {
             if let PathVerb::MoveTo(pt) = p.verbs[0] {
                 // u = (5-5)/0 → undefined for single point bbox.

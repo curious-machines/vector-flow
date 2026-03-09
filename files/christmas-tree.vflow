@@ -393,7 +393,7 @@
         "name": "Warp to Curve",
         "op": {
           "WarpToCurve": {
-            "mode": 0
+            "mode": 1
           }
         },
         "inputs": [
@@ -438,7 +438,7 @@
           186.42188,
           -141.92188
         ],
-        "generation": 0,
+        "generation": 1,
         "version": 0,
         "input_visibility": [
           true,
@@ -697,7 +697,7 @@
       }
     ],
     "next_id": 13,
-    "generation": 181,
+    "generation": 182,
     "network_boxes": {},
     "next_box_id": 0
   },
