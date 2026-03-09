@@ -433,13 +433,14 @@ Performs boolean geometry operations on two closed paths using the [i_overlay](h
 
 | Name      | Values                              | Default | Description              |
 |-----------|-------------------------------------|---------|--------------------------|
-| Operation | Union, Intersect, Difference, Xor   | Union   | Boolean operation to perform |
+| Operation | Union, Intersect, Difference, Xor, Divide | Union   | Boolean operation to perform |
 
 **Outputs:**
 
-| Name   | Type | Description           |
-|--------|------|-----------------------|
-| result | Path | Result of boolean op  |
+| Name   | Type  | Description                                      |
+|--------|-------|--------------------------------------------------|
+| result | Path  | Combined result of boolean op (all contours)     |
+| parts  | Paths | Individual non-overlapping regions as separate paths |
 
 **Operations:**
 
@@ -447,6 +448,7 @@ Performs boolean geometry operations on two closed paths using the [i_overlay](h
 - **Intersect** — keeps only the area where both paths overlap.
 - **Difference** — subtracts path `b` from path `a`, keeping only the area in `a` that does not overlap with `b`.
 - **Xor** — keeps the area covered by exactly one of the two paths, excluding the overlap.
+- **Divide** — splits both paths into all distinct non-overlapping regions. For two overlapping shapes this produces up to three parts: the area unique to `a`, the intersection, and the area unique to `b`. Empty regions are omitted.
 
 **Notes:** Input paths are flattened to polygon approximations before the boolean operation. The `tolerance` parameter controls the maximum allowed distance between the true curve and the approximating line segments — smaller values produce more precise results with more vertices. The output is always a polygon path (no curves). Both paths should be closed for meaningful results. If the paths do not overlap, Union returns both contours, Intersect returns an empty path, and Difference returns path `a` unchanged.
 

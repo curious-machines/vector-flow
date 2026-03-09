@@ -363,7 +363,7 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
 
     // Path Boolean operation selector.
     if let Some(mut bool_op) = boolean_op {
-        let labels = ["Union", "Intersect", "Difference", "Xor"];
+        let labels = ["Union", "Intersect", "Difference", "Xor", "Divide"];
         let current_label = labels.get(bool_op as usize).unwrap_or(&"Union");
         ui.horizontal(|ui| {
             ui.label("Operation");

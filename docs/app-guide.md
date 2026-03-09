@@ -280,6 +280,7 @@ Shows an **Operation** dropdown to select the boolean operation mode:
 - **Intersect** — keep only the overlapping region.
 - **Difference** — subtract path B from path A.
 - **Xor** — keep non-overlapping regions from both paths.
+- **Divide** — split into all distinct non-overlapping regions (A only, intersection, B only).
 
 ### Portal Node Properties
 

@@ -614,9 +614,97 @@ fn contours_to_path(shapes: Vec<Vec<Vec<[f32; 2]>>>) -> PathData {
     }
 }
 
+/// Convert i_overlay result shapes into separate PathData entries (one per shape group).
+fn contours_to_paths(shapes: &[Vec<Vec<[f32; 2]>>]) -> Vec<PathData> {
+    shapes
+        .iter()
+        .filter_map(|shape| {
+            let mut verbs = Vec::new();
+            for contour in shape {
+                if contour.is_empty() {
+                    continue;
+                }
+                verbs.push(PathVerb::MoveTo(Point {
+                    x: contour[0][0],
+                    y: contour[0][1],
+                }));
+                for pt in &contour[1..] {
+                    verbs.push(PathVerb::LineTo(Point { x: pt[0], y: pt[1] }));
+                }
+                verbs.push(PathVerb::Close);
+            }
+            if verbs.is_empty() {
+                None
+            } else {
+                Some(PathData {
+                    verbs,
+                    closed: true,
+                })
+            }
+        })
+        .collect()
+}
+
+/// Perform a boolean operation on two paths, returning both the combined result
+/// and the individual parts as separate paths.
+/// operation: 0=Union, 1=Intersect, 2=Difference, 3=Xor, 4=Divide
+pub fn path_boolean_with_parts(
+    a: &PathData,
+    b: &PathData,
+    operation: i32,
+    tolerance: f32,
+) -> (PathData, Vec<PathData>) {
+    let subj = path_to_contours(a, tolerance);
+    let clip = path_to_contours(b, tolerance);
+
+    if subj.is_empty() && clip.is_empty() {
+        return (PathData::new(), Vec::new());
+    }
+
+    if operation == 4 {
+        // Divide: compute all distinct non-overlapping regions.
+        // Three calls: Difference (A-B), Intersect (A∩B), InverseDifference (B-A)
+        let diff = subj.overlay(&clip, OverlayRule::Difference, FillRule::EvenOdd);
+        let intersect = subj.overlay(&clip, OverlayRule::Intersect, FillRule::EvenOdd);
+        let inv_diff = subj.overlay(&clip, OverlayRule::InverseDifference, FillRule::EvenOdd);
+
+        let mut all_parts: Vec<PathData> = Vec::new();
+        all_parts.extend(contours_to_paths(&diff));
+        all_parts.extend(contours_to_paths(&intersect));
+        all_parts.extend(contours_to_paths(&inv_diff));
+
+        // Build combined result from all parts
+        let mut combined_verbs = Vec::new();
+        for part in &all_parts {
+            combined_verbs.extend_from_slice(&part.verbs);
+        }
+        let combined = PathData {
+            verbs: combined_verbs,
+            closed: true,
+        };
+
+        (combined, all_parts)
+    } else {
+        let rule = match operation {
+            0 => OverlayRule::Union,
+            1 => OverlayRule::Intersect,
+            2 => OverlayRule::Difference,
+            3 => OverlayRule::Xor,
+            _ => OverlayRule::Union,
+        };
+
+        let result = subj.overlay(&clip, rule, FillRule::EvenOdd);
+        let parts = contours_to_paths(&result);
+        let combined = contours_to_path(result);
+
+        (combined, parts)
+    }
+}
+
 /// Perform a boolean operation on two paths using i_overlay.
 /// operation: 0=Union, 1=Intersect, 2=Difference, 3=Xor
-pub fn path_boolean(a: &PathData, b: &PathData, operation: i32, tolerance: f32) -> PathData {
+#[cfg(test)]
+fn path_boolean(a: &PathData, b: &PathData, operation: i32, tolerance: f32) -> PathData {
     let subj = path_to_contours(a, tolerance);
     let clip = path_to_contours(b, tolerance);
 
@@ -966,5 +1054,56 @@ mod tests {
         assert!((pts[0].y - (-5.0)).abs() < 0.1 || (pts[0].y - 5.0).abs() < 0.1);
         // Both y values should be the same (parallel line).
         assert!((pts[0].y - pts[1].y).abs() < 0.1);
+    }
+
+    // ── Divide / path_boolean_with_parts tests ────────────────
+
+    #[test]
+    fn divide_overlapping_squares_produces_three_parts() {
+        // Two overlapping 10x10 squares offset by 5 in x.
+        // Divide should yield 3 regions: left-only, overlap, right-only.
+        let a = make_square(0.0, 0.0, 10.0);
+        let b = make_square(5.0, 0.0, 10.0);
+        let (combined, parts) = path_boolean_with_parts(&a, &b, 4, TOL);
+        assert!(!combined.verbs.is_empty());
+        assert_eq!(parts.len(), 3, "expected 3 divide parts, got {}", parts.len());
+        for part in &parts {
+            assert!(!part.verbs.is_empty());
+            assert!(part.closed);
+        }
+    }
+
+    #[test]
+    fn divide_disjoint_squares_produces_two_parts() {
+        // Two non-overlapping squares should yield 2 regions (no intersection).
+        let a = make_square(0.0, 0.0, 5.0);
+        let b = make_square(20.0, 20.0, 5.0);
+        let (combined, parts) = path_boolean_with_parts(&a, &b, 4, TOL);
+        assert!(!combined.verbs.is_empty());
+        assert_eq!(parts.len(), 2, "expected 2 divide parts for disjoint, got {}", parts.len());
+    }
+
+    #[test]
+    fn divide_contained_square_produces_two_parts() {
+        // Small square fully inside large square → 2 regions (outer ring + inner).
+        let outer = make_square(0.0, 0.0, 20.0);
+        let inner = make_square(5.0, 5.0, 10.0);
+        let (_combined, parts) = path_boolean_with_parts(&outer, &inner, 4, TOL);
+        assert_eq!(parts.len(), 2, "expected 2 divide parts for contained, got {}", parts.len());
+    }
+
+    #[test]
+    fn with_parts_matches_original_for_standard_ops() {
+        // Verify that path_boolean_with_parts produces the same combined result
+        // as path_boolean for operations 0-3.
+        let a = make_square(0.0, 0.0, 10.0);
+        let b = make_square(5.0, 0.0, 10.0);
+        for op in 0..4 {
+            let original = path_boolean(&a, &b, op, TOL);
+            let (combined, parts) = path_boolean_with_parts(&a, &b, op, TOL);
+            assert_eq!(original.verbs.len(), combined.verbs.len(),
+                "op {} combined verbs mismatch", op);
+            assert!(!parts.is_empty(), "op {} should produce at least one part", op);
+        }
     }
 }

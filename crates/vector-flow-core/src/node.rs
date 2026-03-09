@@ -182,9 +182,11 @@ impl NodeOp {
             | NodeOp::GraphInput { .. }
             | NodeOp::GraphOutput { .. } => 0,
 
+            // Version 2: added parts output port + Divide operation.
+            NodeOp::PathBoolean { .. } => 2,
+
             // Version 1: added tolerance input port.
-            NodeOp::PathBoolean { .. }
-            | NodeOp::ResamplePath
+            NodeOp::ResamplePath
             | NodeOp::CopyToPoints
             | NodeOp::SetStroke { .. }
             | NodeOp::SetStyle { .. }
@@ -999,10 +1001,13 @@ impl NodeDef {
                     .with_default(ParamValue::Float(0.5))
                     .with_description("Curve flattening tolerance (smaller = more precise)"),
             ],
-            outputs: vec![PortDef::new("result", DataType::Path)],
+            outputs: vec![
+                PortDef::new("result", DataType::Path),
+                PortDef::new("parts", DataType::Paths),
+            ],
             position: [0.0, 0.0],
             generation: 0,
-            version: 1,
+            version: 2,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1616,10 +1621,10 @@ mod tests {
     #[test]
     fn outdated_detection_after_version_bump() {
         // Simulate a node saved at version 0 loaded into code where
-        // current_version is now 1 (e.g. PathBoolean gained a tolerance port).
+        // current_version is now 2 (e.g. PathBoolean gained tolerance + parts port).
         let mut node = NodeDef::path_boolean(NodeId(1));
-        assert_eq!(node.op.current_version(), 1);
-        assert_eq!(node.version, 1);
+        assert_eq!(node.op.current_version(), 2);
+        assert_eq!(node.version, 2);
         assert!(!node.is_outdated());
 
         // A node saved before the bump would have version 0.
@@ -1753,10 +1758,11 @@ mod tests {
     #[test]
     fn tolerance_port_nodes_at_version_1() {
         let pb = NodeDef::path_boolean(NodeId(1));
-        assert_eq!(pb.version, 1);
-        assert_eq!(pb.op.current_version(), 1);
+        assert_eq!(pb.version, 2);
+        assert_eq!(pb.op.current_version(), 2);
         assert!(!pb.is_outdated());
         assert!(pb.inputs.iter().any(|p| p.name == "tolerance"));
+        assert!(pb.outputs.iter().any(|p| p.name == "parts"));
 
         let rp = NodeDef::resample_path(NodeId(2));
         assert_eq!(rp.version, 1);

@@ -182,7 +182,14 @@ impl ComputeBackend for CpuBackend {
                 let b = get_path(inputs, 1);
                 let tolerance = get_scalar(inputs, 2) as f32;
                 let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
-                NodeData::Path(Arc::new(path_ops::path_boolean(&a, &b, *operation, tolerance)))
+                let (combined, parts) = path_ops::path_boolean_with_parts(&a, &b, *operation, tolerance);
+                if !outputs.data.is_empty() {
+                    outputs.data[0] = Some(NodeData::Path(Arc::new(combined)));
+                }
+                if outputs.data.len() > 1 {
+                    outputs.data[1] = Some(NodeData::Paths(Arc::new(parts)));
+                }
+                return Ok(());
             }
 
             // ── Styling ─────────────────────────────────────────────
