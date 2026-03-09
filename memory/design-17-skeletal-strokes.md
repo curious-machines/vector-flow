@@ -278,6 +278,34 @@ Suggested phasing:
   warping each element using its local bounding box? This seems necessary for
   the strip pipeline to work without an explicit Map node.
 
+## VFS → Points Bridge
+
+To animate skeletal strokes, the backbone curve must change shape each frame.
+The backbone is built from control points via Spline from Points. The problem:
+Generate/VFS can output Scalar batches, but Spline from Points needs Points.
+
+### Options considered
+
+**A. Pack Points utility node (chosen, implemented):**
+New node takes `xs: Scalars` + `ys: Scalars` → `Points`. Zero DSL changes.
+Generate outputs two Scalars batches (one for x, one for y), Pack Points
+zips them into a PointBatch. Simplest, immediately useful.
+
+Pipeline: `Generate (time-varying xs, ys) → Pack Points → Spline from Points → Warp to Curve`
+
+**B. Vec2 support in Generate (deferred):**
+Wire up `DslType::Vec2` as a 2-slot type in `slots_for_dsl_type()`, add
+`DataType::Vec2 → DslType::Vec2` mapping, and collect Vec2 outputs into
+`NodeData::Points` via `collect_into_batch`. Then Generate with a Vec2
+output directly produces Points. Moderate effort — touches `data_type_to_dsl`,
+`slots_for_dsl_type`, `collect_into_batch`, and the slot read/write logic.
+
+**C. Full Points/Path types in VFS (deferred):**
+Make VFS able to manipulate variable-length point lists and paths. `DslType::Points`
+and `DslType::Path` already exist in the parser/AST but are not wired up in
+the runtime. Would need heap-allocated array types in the DslContext (currently
+fixed-size slot model). Powerful but heavy — significant DSL runtime changes.
+
 ## Resolved Questions
 
 - **Spline fitting** — included in scope as "Spline from Points" node using

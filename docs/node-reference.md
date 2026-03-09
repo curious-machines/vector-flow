@@ -58,6 +58,7 @@ This document describes every node type available in Vector Flow, organized by c
   - [Copy to Points](#copy-to-points)
   - [Duplicate](#duplicate)
   - [Merge](#merge)
+  - [Pack Points](#pack-points)
   - [Place at Points](#place-at-points)
   - [Portal Receive](#portal-receive)
   - [Portal Send](#portal-send)
@@ -1316,6 +1317,31 @@ When **Keep Separate** is enabled, path inputs are promoted to unstyled shapes b
 Example patch:
   Circle -> Set Fill (red)  -> Merge
   Rectangle -> Set Fill (blue) -> Merge -> Graph Output
+```
+
+---
+
+### Pack Points
+
+Zips two scalar arrays into a point batch.
+
+**Inputs:**
+
+| Name | Type    | Default | Description               |
+|------|---------|---------|---------------------------|
+| xs   | Scalars | --      | X coordinates             |
+| ys   | Scalars | --      | Y coordinates             |
+
+**Outputs:**
+
+| Name   | Type   | Description                          |
+|--------|--------|--------------------------------------|
+| points | Points | Combined (x, y) point batch          |
+
+**Notes:** Pairs elements from `xs` and `ys` by index to produce a Points batch. If the two arrays differ in length, the output length is the minimum of the two. This node is useful for bridging VFS Code or Generate scalar outputs into geometry construction nodes such as Polygon from Points or Spline from Points.
+
+```
+Example patch: Generate (xs) -> Pack Points (ys: Generate) -> Polygon from Points -> Set Stroke -> Graph Output
 ```
 
 ---

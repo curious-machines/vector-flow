@@ -136,6 +136,7 @@ pub enum NodeOp {
     // Utility
     Merge { #[serde(default)] keep_separate: bool },
     Duplicate,
+    PackPoints,
     CopyToPoints,
     PlaceAtPoints,
 
@@ -766,6 +767,24 @@ impl NodeDef {
                 PortDef::new("b", DataType::Any).with_description("Second input"),
             ],
             outputs: vec![PortDef::new("merged", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn pack_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Pack Points".into(),
+            op: NodeOp::PackPoints,
+            inputs: vec![
+                PortDef::new("xs", DataType::Scalars).with_description("X coordinates"),
+                PortDef::new("ys", DataType::Scalars).with_description("Y coordinates"),
+            ],
+            outputs: vec![PortDef::new("points", DataType::Points)],
             position: [0.0, 0.0],
             generation: 0,
             version: 0,

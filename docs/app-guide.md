@@ -139,7 +139,7 @@ Right-click on the graph background to open the **Add Node** context menu. Nodes
 - **Color** — Adjust Hue, Adjust Saturation, Adjust Lightness, Adjust Luminance, Adjust Alpha, Invert Color, Grayscale, Mix Colors, Color Parse
 - **Text** — Text, Text to Path
 - **Code** — Generate, Map, VFS Code
-- **Utility** — Constant Scalar, Constant Int, Constant Vec2, Constant Color, Portal Send, Portal Receive, Merge, Duplicate, Copy to Points, Place at Points
+- **Utility** — Constant Scalar, Constant Int, Constant Vec2, Constant Color, Portal Send, Portal Receive, Merge, Duplicate, Copy to Points, Pack Points, Place at Points
 - **Graph I/O** — Graph Output
 
 A new node is placed at your cursor position.

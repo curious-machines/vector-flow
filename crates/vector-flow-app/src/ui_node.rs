@@ -203,6 +203,7 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         entry!("Copy to Points", Utility, NodeDef::copy_to_points),
         entry!("Duplicate", Utility, NodeDef::duplicate),
         entry!("Merge", Utility, NodeDef::merge),
+        entry!("Pack Points", Utility, NodeDef::pack_points),
         entry!("Place at Points", Utility, NodeDef::place_at_points),
         CatalogEntry {
             label: "Portal Receive",
@@ -272,6 +273,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::PortalReceive { .. } => "Portal Receive",
         NodeOp::Merge { .. } => "Merge",
         NodeOp::Duplicate => "Duplicate",
+        NodeOp::PackPoints => "Pack Points",
         NodeOp::CopyToPoints => "Copy to Points",
         NodeOp::PlaceAtPoints => "Place at Points",
         NodeOp::LoadImage { .. } => "Load Image",

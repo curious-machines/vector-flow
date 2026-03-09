@@ -423,6 +423,16 @@ impl ComputeBackend for CpuBackend {
             NodeOp::Merge { keep_separate } => {
                 utility::merge_n(inputs, *keep_separate)
             }
+            NodeOp::PackPoints => {
+                let xs = get_scalars(inputs, 0);
+                let ys = get_scalars(inputs, 1);
+                let len = xs.len().min(ys.len());
+                let points = PointBatch {
+                    xs: xs[..len].iter().map(|&v| v as f32).collect(),
+                    ys: ys[..len].iter().map(|&v| v as f32).collect(),
+                };
+                NodeData::Points(Arc::new(points))
+            }
             NodeOp::Duplicate => {
                 let geometry = get_any(inputs, 0);
                 let count = get_int(inputs, 1);
@@ -1471,6 +1481,48 @@ mod tests {
             assert!((c.a - 1.0).abs() < 1e-6);
         } else {
             panic!("expected Color");
+        }
+    }
+
+    #[test]
+    fn evaluate_pack_points() {
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalars(Arc::new(vec![1.0, 2.0, 3.0])),
+                NodeData::Scalars(Arc::new(vec![4.0, 5.0, 6.0])),
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(&NodeOp::PackPoints, &inputs, &time_ctx(), &mut outputs)
+            .unwrap();
+        if let Some(NodeData::Points(pts)) = &outputs.data[0] {
+            assert_eq!(pts.len(), 3);
+            assert!((pts.xs[0] - 1.0).abs() < 1e-6);
+            assert!((pts.ys[2] - 6.0).abs() < 1e-6);
+        } else {
+            panic!("expected Points output");
+        }
+    }
+
+    #[test]
+    fn pack_points_mismatched_lengths() {
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalars(Arc::new(vec![1.0, 2.0, 3.0])),
+                NodeData::Scalars(Arc::new(vec![4.0, 5.0])), // shorter
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(&NodeOp::PackPoints, &inputs, &time_ctx(), &mut outputs)
+            .unwrap();
+        if let Some(NodeData::Points(pts)) = &outputs.data[0] {
+            assert_eq!(pts.len(), 2, "should use min length");
+        } else {
+            panic!("expected Points output");
         }
     }
 }
