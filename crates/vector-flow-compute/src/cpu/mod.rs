@@ -84,6 +84,20 @@ impl ComputeBackend for CpuBackend {
     ) -> Result<(), ComputeError> {
         let result = match op {
             // ── Generators ──────────────────────────────────────────
+            NodeOp::Arc => {
+                let outer_radius = get_scalar(inputs, 0);
+                let inner_radius = get_scalar(inputs, 1);
+                let start_angle = get_scalar(inputs, 2);
+                let sweep_angle = get_scalar(inputs, 3);
+                let close = get_bool(inputs, 4);
+                if let Some(pts) = get_points_batch(inputs, 5) {
+                    batch_generate(&pts, |c| {
+                        generators::arc(outer_radius, inner_radius, start_angle, sweep_angle, close, c)
+                    })
+                } else {
+                    generators::arc(outer_radius, inner_radius, start_angle, sweep_angle, close, get_vec2(inputs, 5))
+                }
+            }
             NodeOp::RegularPolygon => {
                 let sides = get_int(inputs, 0);
                 let radius = get_scalar(inputs, 1);
@@ -865,6 +879,35 @@ mod tests {
 
     fn time_ctx() -> EvalContext {
         EvalContext::default()
+    }
+
+    #[test]
+    fn evaluate_arc_node() {
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Scalar(100.0),         // outer_radius
+                NodeData::Scalar(50.0),          // inner_radius
+                NodeData::Scalar(0.0),           // start_angle
+                NodeData::Scalar(90.0),          // sweep_angle
+                NodeData::Bool(true),            // close
+                NodeData::Vec2(Vec2::ZERO),      // center
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        backend
+            .evaluate_node(&NodeOp::Arc, &inputs, &time_ctx(), &mut outputs)
+            .unwrap();
+
+        let result = outputs.data[0].as_ref().unwrap();
+        if let NodeData::Path(p) = result {
+            assert!(p.closed);
+            // Donut wedge: should have cubics for both arcs
+            let cubic_count = p.verbs.iter().filter(|v| matches!(v, PathVerb::CubicTo { .. })).count();
+            assert!(cubic_count >= 2); // at least one outer + one inner
+        } else {
+            panic!("expected Path");
+        }
     }
 
     #[test]

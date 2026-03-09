@@ -86,6 +86,7 @@ impl PortDef {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeOp {
     // Generators
+    Arc,
     RegularPolygon,
     PointGrid,
     Circle,
@@ -363,6 +364,40 @@ impl NodeDef {
                 PortDef::new("radius", DataType::Scalar)
                     .with_default(ParamValue::Float(100.0))
                     .with_description("Outer radius"),
+                PortDef::new("center", DataType::Vec2)
+                    .with_default(ParamValue::Vec2([0.0, 0.0]))
+                    .with_description("Center position"),
+            ],
+            outputs: vec![PortDef::new("path", DataType::Path)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn arc(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Arc".into(),
+            op: NodeOp::Arc,
+            inputs: vec![
+                PortDef::new("outer_radius", DataType::Scalar)
+                    .with_default(ParamValue::Float(100.0))
+                    .with_description("Outer radius"),
+                PortDef::new("inner_radius", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Inner radius (0 = wedge/arc, >0 = donut)"),
+                PortDef::new("start_angle", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Start angle in degrees"),
+                PortDef::new("sweep_angle", DataType::Scalar)
+                    .with_default(ParamValue::Float(90.0))
+                    .with_description("Sweep angle in degrees"),
+                PortDef::new("close", DataType::Bool)
+                    .with_default(ParamValue::Bool(true))
+                    .with_description("Whether to close the shape"),
                 PortDef::new("center", DataType::Vec2)
                     .with_default(ParamValue::Vec2([0.0, 0.0]))
                     .with_description("Center position"),

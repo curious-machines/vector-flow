@@ -123,6 +123,7 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
     use NodeCategory::*;
     vec![
         // Generators
+        entry!("Arc", Generators, NodeDef::arc),
         entry!("Circle", Generators, NodeDef::circle),
         entry!("Line", Generators, NodeDef::line),
         CatalogEntry {
@@ -230,6 +231,7 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
 /// Determine NodeOp label for display.
 pub fn node_op_label(op: &NodeOp) -> &'static str {
     match op {
+        NodeOp::Arc => "Arc",
         NodeOp::Circle => "Circle",
         NodeOp::Rectangle => "Rectangle",
         NodeOp::RegularPolygon => "Regular Polygon",

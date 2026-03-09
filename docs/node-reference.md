@@ -6,6 +6,7 @@ This document describes every node type available in Vector Flow, organized by c
 
 - [Data Types](#data-types)
 - [Generators](#generators)
+  - [Arc](#arc)
   - [Circle](#circle)
   - [Line](#line)
   - [Load Image](#load-image)
@@ -100,6 +101,42 @@ Before diving into nodes, here is a summary of the data types that flow between 
 ## Generators
 
 Generators create geometry from parameters. They are the starting points of most graphs.
+
+### Arc
+
+Creates an arc, wedge (pie slice), or donut wedge (annular sector) path using cubic Bézier curves.
+
+**Inputs:**
+
+| Name         | Type   | Default    | Description                                      |
+|--------------|--------|------------|--------------------------------------------------|
+| outer_radius | Scalar | 100.0      | Outer radius of the arc                          |
+| inner_radius | Scalar | 0.0        | Inner radius (0 = wedge/arc, >0 = donut)         |
+| start_angle  | Scalar | 0.0        | Start angle in degrees                           |
+| sweep_angle  | Scalar | 90.0       | Sweep angle in degrees                           |
+| close        | Bool   | true       | Whether to close the shape                        |
+| center       | Vec2   | (0.0, 0.0) | Center position                                 |
+
+**Outputs:**
+
+| Name | Type | Description  |
+|------|------|--------------|
+| path | Path | The arc path |
+
+**Notes:** The shape produced depends on the combination of `close` and `inner_radius`:
+
+- **Open arc** (`close=0`, `inner_radius=0`): a curved stroke with no fill area.
+- **Wedge** (`close=1`, `inner_radius=0`): a pie-slice shape — arc plus two radial lines to the center.
+- **Donut wedge** (`close=1`, `inner_radius>0`): an annular sector — outer arc, two radial sides, and an inner arc.
+- **Full circle/ring**: set `sweep_angle=360` for a complete circle or ring.
+
+If a Points batch is connected to the `center` input, the node creates one arc per point.
+
+```
+Example patch: Arc (sweep_angle: 60, close: 1) -> Set Fill (color: orange) -> Graph Output
+```
+
+---
 
 ### Circle
 
