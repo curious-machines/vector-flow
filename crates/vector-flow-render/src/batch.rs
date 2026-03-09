@@ -128,6 +128,19 @@ fn points_to_marker_shapes(points: &PointBatch) -> Vec<Shape> {
     }).collect()
 }
 
+/// Default stroke for raw path previews — ensures open/collinear paths are visible.
+fn raw_path_preview_stroke() -> StrokeStyle {
+    StrokeStyle {
+        color: Color::WHITE,
+        width: 1.5,
+        line_cap: LineCap::Round,
+        line_join: LineJoin::Round,
+        dash_array: Vec::new(),
+        dash_offset: 0.0,
+        tolerance: 0.5,
+    }
+}
+
 /// Collect a single NodeData item into the appropriate output lists.
 /// Recursively unwraps `Mixed` bundles.
 fn collect_node_data(
@@ -157,7 +170,7 @@ fn collect_node_data(
                 shape: Shape {
                     path: Arc::new((**p).clone()),
                     fill: Some(Color::WHITE),
-                    stroke: None,
+                    stroke: Some(raw_path_preview_stroke()),
                     transform: Affine2::IDENTITY,
                 },
                 dimmed,
@@ -169,7 +182,7 @@ fn collect_node_data(
                     shape: Shape {
                         path: Arc::new(p.clone()),
                         fill: Some(Color::WHITE),
-                        stroke: None,
+                        stroke: Some(raw_path_preview_stroke()),
                         transform: Affine2::IDENTITY,
                     },
                     dimmed,
