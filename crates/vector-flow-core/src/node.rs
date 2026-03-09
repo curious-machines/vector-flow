@@ -40,6 +40,14 @@ pub struct PortDef {
     pub description: String,
     pub default_value: Option<ParamValue>,
     pub expression: Option<String>,
+    /// Whether this port is visible on the node in the graph by default.
+    /// Instance visibility is stored on `NodeDef` and initialized from this flag.
+    #[serde(default = "default_visible")]
+    pub visible_by_default: bool,
+}
+
+fn default_visible() -> bool {
+    true
 }
 
 impl PortDef {
@@ -50,6 +58,7 @@ impl PortDef {
             description: String::new(),
             default_value: None,
             expression: None,
+            visible_by_default: true,
         }
     }
 
@@ -60,6 +69,12 @@ impl PortDef {
 
     pub fn with_description(mut self, desc: impl Into<String>) -> Self {
         self.description = desc.into();
+        self
+    }
+
+    /// Mark this port as hidden by default on the node in the graph.
+    pub fn hidden(mut self) -> Self {
+        self.visible_by_default = false;
         self
     }
 }
@@ -91,6 +106,7 @@ pub enum NodeOp {
     // Styling
     SetFill,
     SetStroke { dash_pattern: String },
+    SetStyle { dash_pattern: String },
     StrokeToPath { dash_pattern: String },
     // Color operations
     AdjustHue,
@@ -171,6 +187,7 @@ impl NodeOp {
             | NodeOp::ResamplePath
             | NodeOp::CopyToPoints
             | NodeOp::SetStroke { .. }
+            | NodeOp::SetStyle { .. }
             | NodeOp::StrokeToPath { .. } => 1,
 
             // All other built-in ops start at version 0. Bump individually when
@@ -198,6 +215,13 @@ pub struct NodeDef {
     /// compatibility with files saved before versioning was introduced.
     #[serde(default)]
     pub version: u32,
+    /// Per-instance visibility for input ports. Initialized from `visible_by_default`.
+    /// Length matches `inputs`. Missing entries (e.g. from older saves) default to true.
+    #[serde(default)]
+    pub input_visibility: Vec<bool>,
+    /// Per-instance visibility for output ports.
+    #[serde(default)]
+    pub output_visibility: Vec<bool>,
 }
 
 /// Generate a port name from an index: 0→"a", 1→"b", ..., 25→"z", 26→"a1", etc.
@@ -214,6 +238,64 @@ impl NodeDef {
     /// Bump the generation counter (call when params, expressions, or structure change).
     pub fn touch(&mut self) {
         self.generation += 1;
+    }
+
+    /// Ensure visibility vectors match port counts. Missing entries get `true` (visible).
+    /// Called after deserialization to handle older save files or newly added ports.
+    pub fn sync_visibility(&mut self) {
+        self.input_visibility.resize(self.inputs.len(), true);
+        self.output_visibility.resize(self.outputs.len(), true);
+    }
+
+    /// Initialize visibility from port definitions' `visible_by_default` flags.
+    pub fn init_visibility(&mut self) {
+        self.input_visibility = self.inputs.iter().map(|p| p.visible_by_default).collect();
+        self.output_visibility = self.outputs.iter().map(|p| p.visible_by_default).collect();
+    }
+
+    /// Returns the number of currently visible input ports.
+    pub fn visible_input_count(&self) -> usize {
+        self.input_visibility.iter().filter(|&&v| v).count()
+    }
+
+    /// Returns the number of currently visible output ports.
+    pub fn visible_output_count(&self) -> usize {
+        self.output_visibility.iter().filter(|&&v| v).count()
+    }
+
+    /// Map a visible input index to the actual port index.
+    /// Returns None if the visible index is out of range.
+    pub fn visible_input_to_port(&self, visible_idx: usize) -> Option<usize> {
+        self.input_visibility.iter()
+            .enumerate()
+            .filter(|(_, &v)| v)
+            .nth(visible_idx)
+            .map(|(i, _)| i)
+    }
+
+    /// Map a visible output index to the actual port index.
+    pub fn visible_output_to_port(&self, visible_idx: usize) -> Option<usize> {
+        self.output_visibility.iter()
+            .enumerate()
+            .filter(|(_, &v)| v)
+            .nth(visible_idx)
+            .map(|(i, _)| i)
+    }
+
+    /// Map an actual port index to its visible input index, or None if hidden.
+    pub fn port_to_visible_input(&self, port_idx: usize) -> Option<usize> {
+        if port_idx >= self.input_visibility.len() || !self.input_visibility[port_idx] {
+            return None;
+        }
+        Some(self.input_visibility[..port_idx].iter().filter(|&&v| v).count())
+    }
+
+    /// Map an actual port index to its visible output index, or None if hidden.
+    pub fn port_to_visible_output(&self, port_idx: usize) -> Option<usize> {
+        if port_idx >= self.output_visibility.len() || !self.output_visibility[port_idx] {
+            return None;
+        }
+        Some(self.output_visibility[..port_idx].iter().filter(|&&v| v).count())
     }
 
     /// Returns true if this node's version is older than the current version
@@ -280,6 +362,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -300,6 +384,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -323,6 +409,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -343,6 +431,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -366,6 +456,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -392,6 +484,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -410,6 +504,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -431,6 +527,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -452,6 +550,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -469,6 +569,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -487,6 +589,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -505,24 +609,31 @@ impl NodeDef {
                     .with_description("Stroke width"),
                 PortDef::new("cap", DataType::Int)
                     .with_default(ParamValue::Int(0))
-                    .with_description("End cap: 0=Butt, 1=Round, 2=Square"),
+                    .with_description("End cap: 0=Butt, 1=Round, 2=Square")
+                    .hidden(),
                 PortDef::new("join", DataType::Int)
                     .with_default(ParamValue::Int(0))
-                    .with_description("Line join: 0=Miter, 1=Round, 2=Bevel"),
+                    .with_description("Line join: 0=Miter, 1=Round, 2=Bevel")
+                    .hidden(),
                 PortDef::new("miter_limit", DataType::Scalar)
                     .with_default(ParamValue::Float(4.0))
-                    .with_description("Miter limit (only for Miter join)"),
+                    .with_description("Miter limit (only for Miter join)")
+                    .hidden(),
                 PortDef::new("dash_offset", DataType::Scalar)
                     .with_default(ParamValue::Float(0.0))
-                    .with_description("Dash pattern offset"),
+                    .with_description("Dash pattern offset")
+                    .hidden(),
                 PortDef::new("tolerance", DataType::Scalar)
                     .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance for dash pattern (smaller = more precise)"),
+                    .with_description("Curve flattening tolerance for dash pattern (smaller = more precise)")
+                    .hidden(),
             ],
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
             version: 1,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -538,24 +649,102 @@ impl NodeDef {
                     .with_description("Stroke width"),
                 PortDef::new("cap", DataType::Int)
                     .with_default(ParamValue::Int(0))
-                    .with_description("End cap: 0=Butt, 1=Round, 2=Square"),
+                    .with_description("End cap: 0=Butt, 1=Round, 2=Square")
+                    .hidden(),
                 PortDef::new("join", DataType::Int)
                     .with_default(ParamValue::Int(0))
-                    .with_description("Line join: 0=Miter, 1=Round, 2=Bevel"),
+                    .with_description("Line join: 0=Miter, 1=Round, 2=Bevel")
+                    .hidden(),
                 PortDef::new("miter_limit", DataType::Scalar)
                     .with_default(ParamValue::Float(4.0))
-                    .with_description("Miter limit (only for Miter join)"),
+                    .with_description("Miter limit (only for Miter join)")
+                    .hidden(),
                 PortDef::new("dash_offset", DataType::Scalar)
                     .with_default(ParamValue::Float(0.0))
-                    .with_description("Dash pattern offset"),
+                    .with_description("Dash pattern offset")
+                    .hidden(),
                 PortDef::new("tolerance", DataType::Scalar)
                     .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance (smaller = more precise)"),
+                    .with_description("Curve flattening tolerance (smaller = more precise)")
+                    .hidden(),
             ],
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
             version: 1,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn set_style(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Set Style".into(),
+            op: NodeOp::SetStyle { dash_pattern: String::new() },
+            inputs: vec![
+                // 0: path
+                PortDef::new("path", DataType::Any)
+                    .with_description("Input geometry"),
+                // 1: fill_color
+                PortDef::new("fill_color", DataType::Color)
+                    .with_default(ParamValue::Color([1.0, 1.0, 1.0, 1.0]))
+                    .with_description("Fill color"),
+                // 2: fill_opacity
+                PortDef::new("fill_opacity", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Fill opacity (0-1)")
+                    .hidden(),
+                // 3: has_fill
+                PortDef::new("has_fill", DataType::Bool)
+                    .with_default(ParamValue::Bool(true))
+                    .with_description("Enable fill")
+                    .hidden(),
+                // 4: stroke_color
+                PortDef::new("stroke_color", DataType::Color)
+                    .with_default(ParamValue::Color([0.0, 0.0, 0.0, 1.0]))
+                    .with_description("Stroke color"),
+                // 5: stroke_width
+                PortDef::new("stroke_width", DataType::Scalar)
+                    .with_default(ParamValue::Float(2.0))
+                    .with_description("Stroke width"),
+                // 6: stroke_opacity
+                PortDef::new("stroke_opacity", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Stroke opacity (0-1)")
+                    .hidden(),
+                // 7: has_stroke
+                PortDef::new("has_stroke", DataType::Bool)
+                    .with_default(ParamValue::Bool(true))
+                    .with_description("Enable stroke")
+                    .hidden(),
+                // 8: cap
+                PortDef::new("cap", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("End cap: 0=Butt, 1=Round, 2=Square")
+                    .hidden(),
+                // 9: join
+                PortDef::new("join", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Line join: 0=Miter, 1=Round, 2=Bevel")
+                    .hidden(),
+                // 10: miter_limit
+                PortDef::new("miter_limit", DataType::Scalar)
+                    .with_default(ParamValue::Float(4.0))
+                    .with_description("Miter limit (only for Miter join)")
+                    .hidden(),
+                // 11: dash_offset
+                PortDef::new("dash_offset", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Dash pattern offset")
+                    .hidden(),
+            ],
+            outputs: vec![PortDef::new("output", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 1,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -572,6 +761,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -592,6 +783,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -627,6 +820,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 1,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -650,6 +845,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -667,6 +864,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -704,6 +903,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -742,6 +943,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -758,6 +961,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -775,6 +980,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 }
@@ -796,6 +1003,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 1,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -817,6 +1026,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 1,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -835,6 +1046,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -850,6 +1063,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -871,6 +1086,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 1,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -888,6 +1105,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -905,6 +1124,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -925,6 +1146,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -942,6 +1165,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -965,6 +1190,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -988,6 +1215,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1011,6 +1240,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1034,6 +1265,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1051,6 +1284,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1068,6 +1303,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1094,6 +1331,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1117,6 +1356,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1130,6 +1371,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1143,6 +1386,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1173,6 +1418,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1231,6 +1478,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1247,6 +1496,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1266,6 +1517,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 
@@ -1282,6 +1535,8 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
         }
     }
 }
@@ -1380,6 +1635,119 @@ mod tests {
         let json = serde_json::to_string(&node).unwrap();
         let deserialized: NodeDef = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.version, 5);
+    }
+
+    #[test]
+    fn port_visibility_defaults() {
+        // SetStroke has hidden advanced ports.
+        let mut node = NodeDef::set_stroke(NodeId(1));
+        node.init_visibility();
+        // geometry, color, width are visible (indices 0, 1, 2)
+        assert!(node.input_visibility[0]); // geometry
+        assert!(node.input_visibility[1]); // color
+        assert!(node.input_visibility[2]); // width
+        // cap, join, miter_limit, dash_offset, tolerance are hidden
+        assert!(!node.input_visibility[3]); // cap
+        assert!(!node.input_visibility[4]); // join
+        assert!(!node.input_visibility[5]); // miter_limit
+        assert!(!node.input_visibility[6]); // dash_offset
+        assert!(!node.input_visibility[7]); // tolerance
+        // output is visible
+        assert!(node.output_visibility[0]);
+    }
+
+    #[test]
+    fn port_visibility_mapping() {
+        let mut node = NodeDef::set_stroke(NodeId(1));
+        node.init_visibility();
+        // 3 visible inputs: geometry(0), color(1), width(2)
+        assert_eq!(node.visible_input_count(), 3);
+        assert_eq!(node.visible_input_to_port(0), Some(0)); // geometry
+        assert_eq!(node.visible_input_to_port(1), Some(1)); // color
+        assert_eq!(node.visible_input_to_port(2), Some(2)); // width
+        assert_eq!(node.visible_input_to_port(3), None); // out of range
+
+        // Reverse mapping
+        assert_eq!(node.port_to_visible_input(0), Some(0)); // geometry → visible 0
+        assert_eq!(node.port_to_visible_input(2), Some(2)); // width → visible 2
+        assert_eq!(node.port_to_visible_input(3), None);    // cap → hidden
+        assert_eq!(node.port_to_visible_input(7), None);    // tolerance → hidden
+
+        // Show cap (index 3)
+        node.input_visibility[3] = true;
+        assert_eq!(node.visible_input_count(), 4);
+        assert_eq!(node.visible_input_to_port(3), Some(3)); // cap
+        assert_eq!(node.port_to_visible_input(3), Some(3)); // cap → visible 3
+    }
+
+    #[test]
+    fn port_visibility_sync_on_deserialize() {
+        // Simulate a node saved without visibility (older format).
+        let json = r#"{
+            "id": 1,
+            "name": "Circle",
+            "op": "Circle",
+            "inputs": [
+                {"name": "radius", "data_type": "Scalar", "description": "", "default_value": null, "expression": null}
+            ],
+            "outputs": [
+                {"name": "path", "data_type": "Path", "description": "", "default_value": null, "expression": null}
+            ],
+            "position": [0.0, 0.0],
+            "generation": 0
+        }"#;
+        let mut node: NodeDef = serde_json::from_str(json).unwrap();
+        assert!(node.input_visibility.is_empty()); // no visibility data in old format
+        node.sync_visibility();
+        assert_eq!(node.input_visibility.len(), 1);
+        assert!(node.input_visibility[0]); // defaults to true
+        assert_eq!(node.output_visibility.len(), 1);
+        assert!(node.output_visibility[0]);
+    }
+
+    #[test]
+    fn set_style_factory() {
+        let mut node = NodeDef::set_style(NodeId(1));
+        node.init_visibility();
+        // 12 input ports
+        assert_eq!(node.inputs.len(), 12);
+        assert_eq!(node.inputs[0].name, "path");
+        assert_eq!(node.inputs[1].name, "fill_color");
+        assert_eq!(node.inputs[2].name, "fill_opacity");
+        assert_eq!(node.inputs[3].name, "has_fill");
+        assert_eq!(node.inputs[4].name, "stroke_color");
+        assert_eq!(node.inputs[5].name, "stroke_width");
+        assert_eq!(node.inputs[6].name, "stroke_opacity");
+        assert_eq!(node.inputs[7].name, "has_stroke");
+        assert_eq!(node.inputs[8].name, "cap");
+        assert_eq!(node.inputs[9].name, "join");
+        assert_eq!(node.inputs[10].name, "miter_limit");
+        assert_eq!(node.inputs[11].name, "dash_offset");
+        // 1 output port
+        assert_eq!(node.outputs.len(), 1);
+        assert_eq!(node.outputs[0].name, "output");
+
+        // Visible by default: path, fill_color, stroke_color, stroke_width
+        assert_eq!(node.visible_input_count(), 4);
+        assert!(node.input_visibility[0]);  // path
+        assert!(node.input_visibility[1]);  // fill_color
+        assert!(!node.input_visibility[2]); // fill_opacity (hidden)
+        assert!(!node.input_visibility[3]); // has_fill (hidden)
+        assert!(node.input_visibility[4]);  // stroke_color
+        assert!(node.input_visibility[5]);  // stroke_width
+        assert!(!node.input_visibility[6]); // stroke_opacity (hidden)
+        // version
+        assert_eq!(node.version, 1);
+        assert!(!node.is_outdated());
+    }
+
+    #[test]
+    fn hidden_port_builder() {
+        let port = PortDef::new("test", DataType::Scalar).hidden();
+        assert!(!port.visible_by_default);
+
+        let visible_port = PortDef::new("test2", DataType::Scalar);
+        assert!(visible_port.visible_by_default);
     }
 
     #[test]

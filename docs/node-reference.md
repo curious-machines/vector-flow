@@ -28,6 +28,7 @@ This document describes every node type available in Vector Flow, organized by c
 - [Styling](#styling)
   - [Set Fill](#set-fill)
   - [Set Stroke](#set-stroke)
+  - [Set Style](#set-style)
   - [Stroke to Path](#stroke-to-path)
 - [Color](#color)
   - [Adjust Alpha](#adjust-alpha)
@@ -608,6 +609,47 @@ Applies a stroke (outline) to a shape.
 
 ```
 Example patch: Circle -> Set Fill (red) -> Set Stroke (black, 3px) -> Graph Output
+```
+
+---
+
+### Set Style
+
+Combined fill + stroke styling node. Applies both fill and stroke to a shape in a single node, reducing graph clutter for the common case. Does not replace the separate Set Fill and Set Stroke nodes.
+
+**Inputs:**
+
+| Name           | Type   | Default               | Visible | Description                                |
+|----------------|--------|-----------------------|---------|--------------------------------------------|
+| path           | Any    | --                    | yes     | Input geometry                             |
+| fill_color     | Color  | (1.0, 1.0, 1.0, 1.0) | yes     | Fill color                                 |
+| fill_opacity   | Scalar | 1.0                   | no      | Fill opacity (0-1)                         |
+| has_fill       | Bool   | true                  | no      | Enable fill                                |
+| stroke_color   | Color  | (0.0, 0.0, 0.0, 1.0) | yes     | Stroke color                               |
+| stroke_width   | Scalar | 2.0                   | yes     | Stroke width                               |
+| stroke_opacity | Scalar | 1.0                   | no      | Stroke opacity (0-1)                       |
+| has_stroke     | Bool   | true                  | no      | Enable stroke                              |
+| cap            | Int    | 0                     | no      | End cap: 0=Butt, 1=Round, 2=Square        |
+| join           | Int    | 0                     | no      | Line join: 0=Miter, 1=Round, 2=Bevel      |
+| miter_limit    | Scalar | 4.0                   | no      | Miter limit (only for Miter join)          |
+| dash_offset    | Scalar | 0.0                   | no      | Dash pattern offset                        |
+
+**Outputs:**
+
+| Name   | Type | Description             |
+|--------|------|-------------------------|
+| output | Any  | Geometry with styling   |
+
+**Properties:**
+
+| Name         | Description                                                     |
+|--------------|-----------------------------------------------------------------|
+| Dash Pattern | Comma or space-separated dash/gap lengths (e.g., "10,5")       |
+
+**Notes:** Hidden ports can be shown via the property sheet's visibility toggle. Set `has_fill` or `has_stroke` to false to skip that styling pass. For permanent single-style use, prefer the dedicated Set Fill or Set Stroke nodes.
+
+```
+Example patch: Circle -> Set Style (fill: red, stroke: black 3px) -> Graph Output
 ```
 
 ---

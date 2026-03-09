@@ -78,14 +78,14 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
     fn inputs(&mut self, node: &UiNode) -> usize {
         self.graph
             .node(node.core_id)
-            .map(|n| n.inputs.len())
+            .map(|n| n.visible_input_count())
             .unwrap_or(0)
     }
 
     fn outputs(&mut self, node: &UiNode) -> usize {
         self.graph
             .node(node.core_id)
-            .map(|n| n.outputs.len())
+            .map(|n| n.visible_output_count())
             .unwrap_or(0)
     }
 
@@ -101,13 +101,16 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
             return PinInfo::circle().with_fill(Color32::DARK_GRAY);
         };
         let core_id = ui_node.core_id;
-        let idx = pin.id.input;
+        let visible_idx = pin.id.input;
 
         if let Some(node_def) = self.graph.node(core_id) {
-            if let Some(port) = node_def.inputs.get(idx) {
-                ui.add(Label::new(&port.name).selectable(false));
-                let color = data_type_color(port.data_type);
-                return PinInfo::circle().with_fill(color);
+            // Map visible index to actual port index.
+            if let Some(actual_idx) = node_def.visible_input_to_port(visible_idx) {
+                if let Some(port) = node_def.inputs.get(actual_idx) {
+                    ui.add(Label::new(&port.name).selectable(false));
+                    let color = data_type_color(port.data_type);
+                    return PinInfo::circle().with_fill(color);
+                }
             }
         }
         ui.add(Label::new("?").selectable(false));
@@ -126,13 +129,15 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
             return PinInfo::circle().with_fill(Color32::DARK_GRAY);
         };
         let core_id = ui_node.core_id;
-        let idx = pin.id.output;
+        let visible_idx = pin.id.output;
 
         if let Some(node_def) = self.graph.node(core_id) {
-            if let Some(port) = node_def.outputs.get(idx) {
-                ui.add(Label::new(&port.name).selectable(false));
-                let color = data_type_color(port.data_type);
-                return PinInfo::circle().with_fill(color);
+            if let Some(actual_idx) = node_def.visible_output_to_port(visible_idx) {
+                if let Some(port) = node_def.outputs.get(actual_idx) {
+                    ui.add(Label::new(&port.name).selectable(false));
+                    let color = data_type_color(port.data_type);
+                    return PinInfo::circle().with_fill(color);
+                }
             }
         }
         ui.add(Label::new("?").selectable(false));
@@ -145,23 +150,33 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
         let from_core = from_ui.core_id;
         let to_core = to_ui.core_id;
 
+        // Map visible pin indices to actual port indices.
+        let actual_out = self.graph.node(from_core)
+            .and_then(|n| n.visible_output_to_port(from.id.output));
+        let actual_in = self.graph.node(to_core)
+            .and_then(|n| n.visible_input_to_port(to.id.input));
+        let (Some(actual_out), Some(actual_in)) = (actual_out, actual_in) else { return };
+
         let core_from = PortId {
             node: from_core,
-            port: PortIndex(from.id.output),
+            port: PortIndex(actual_out),
         };
         let core_to = PortId {
             node: to_core,
-            port: PortIndex(to.id.input),
+            port: PortIndex(actual_in),
         };
 
         // If input already has a connection, disconnect it first (in both core and snarl).
         if let Some(existing) = self.graph.input_connection(core_to).cloned() {
+            // Map actual port index to visible index for snarl.
+            let visible_out = self.graph.node(existing.from.node)
+                .and_then(|n| n.port_to_visible_output(existing.from.port.0));
             self.graph.disconnect(existing.from, existing.to);
             // Also disconnect in snarl: find the snarl node for existing.from.node
-            if let Some(snarl_from_node) = self.id_map.core_to_snarl(existing.from.node) {
+            if let (Some(snarl_from_node), Some(vis_out)) = (self.id_map.core_to_snarl(existing.from.node), visible_out) {
                 let snarl_out = OutPinId {
                     node: snarl_from_node,
-                    output: existing.from.port.0,
+                    output: vis_out,
                 };
                 snarl.disconnect(snarl_out, to.id);
             }
@@ -198,13 +213,20 @@ impl<'a> SnarlViewer<UiNode> for GraphViewer<'a> {
         let Some(to_ui) = snarl.get_node(to.id.node) else { return };
         let to_core = to_ui.core_id;
 
+        // Map visible pin indices to actual port indices.
+        let actual_out = self.graph.node(from_ui.core_id)
+            .and_then(|n| n.visible_output_to_port(from.id.output));
+        let actual_in = self.graph.node(to_core)
+            .and_then(|n| n.visible_input_to_port(to.id.input));
+        let (Some(actual_out), Some(actual_in)) = (actual_out, actual_in) else { return };
+
         let core_from = PortId {
             node: from_ui.core_id,
-            port: PortIndex(from.id.output),
+            port: PortIndex(actual_out),
         };
         let core_to = PortId {
             node: to_core,
-            port: PortIndex(to.id.input),
+            port: PortIndex(actual_in),
         };
 
         self.graph.disconnect(core_from, core_to);
@@ -526,13 +548,19 @@ impl<'a> GraphViewer<'a> {
             let new_to = PortId { node: new_to_core, port: edge.to.port };
 
             if self.graph.connect(new_from, new_to).is_ok() {
-                // Mirror in snarl.
-                if let (Some(&new_from_sid), Some(&new_to_sid)) = (
+                // Mirror in snarl using visible indices.
+                let vis_out = self.graph.node(new_from_core)
+                    .and_then(|n| n.port_to_visible_output(edge.from.port.0));
+                let vis_in = self.graph.node(new_to_core)
+                    .and_then(|n| n.port_to_visible_input(edge.to.port.0));
+                if let (Some(&new_from_sid), Some(&new_to_sid), Some(vo), Some(vi)) = (
                     self.id_map.core_to_snarl(new_from_core).as_ref(),
                     self.id_map.core_to_snarl(new_to_core).as_ref(),
+                    vis_out,
+                    vis_in,
                 ) {
-                    let out = OutPinId { node: new_from_sid, output: edge.from.port.0 };
-                    let inp = InPinId { node: new_to_sid, input: edge.to.port.0 };
+                    let out = OutPinId { node: new_from_sid, output: vo };
+                    let inp = InPinId { node: new_to_sid, input: vi };
                     snarl.connect(out, inp);
                 }
             }

@@ -148,9 +148,11 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
-    // Get dash pattern if this is a SetStroke or StrokeToPath node.
+    // Get dash pattern if this is a SetStroke, SetStyle, or StrokeToPath node.
     let dash_pattern = match &node.op {
-        NodeOp::SetStroke { dash_pattern } | NodeOp::StrokeToPath { dash_pattern } => {
+        NodeOp::SetStroke { dash_pattern }
+        | NodeOp::SetStyle { dash_pattern }
+        | NodeOp::StrokeToPath { dash_pattern } => {
             Some(dash_pattern.clone())
         }
         _ => None,
@@ -190,7 +192,11 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         .inputs
         .iter()
         .enumerate()
-        .map(|(i, p)| (i, p.name.clone(), p.data_type, p.default_value.clone()))
+        .map(|(i, p)| {
+            let visible = node.input_visibility.get(i).copied().unwrap_or(true);
+            let connected = graph.input_connection(PortId { node: core_id, port: PortIndex(i) }).is_some();
+            (i, p.name.clone(), p.data_type, p.default_value.clone(), visible, connected)
+        })
         .collect();
 
     // Collect color output port info for display.
@@ -344,6 +350,7 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             if let Some(node) = graph.node_mut(core_id) {
                 match &mut node.op {
                     NodeOp::SetStroke { dash_pattern } => *dash_pattern = dpat,
+                    NodeOp::SetStyle { dash_pattern } => *dash_pattern = dpat,
                     NodeOp::StrokeToPath { dash_pattern } => *dash_pattern = dpat,
                     _ => {}
                 }
@@ -517,13 +524,36 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
     }
 
     egui::Grid::new("node_params_grid")
-        .num_columns(2)
+        .num_columns(3)
         .spacing([8.0, 4.0])
         .show(ui, |ui| {
-            for (idx, name, data_type, default_value) in port_info {
+            for (idx, name, data_type, default_value, visible, connected) in &port_info {
+                // Visibility toggle (eye icon). Disabled for connected ports.
+                let eye = if *visible { "\u{1F441}" } else { "\u{25CB}" }; // 👁 vs ○
+                let vis_btn = egui::Button::new(
+                    egui::RichText::new(eye).size(12.0)
+                ).frame(false);
+                let resp = ui.add_enabled(!connected, vis_btn)
+                    .on_hover_text(if *connected {
+                        "Disconnect first to hide"
+                    } else if *visible {
+                        "Visible on node — click to hide"
+                    } else {
+                        "Hidden on node — click to show"
+                    });
+                if resp.clicked() {
+                    if let Some(node) = graph.node_mut(core_id) {
+                        if let Some(v) = node.input_visibility.get_mut(*idx) {
+                            *v = !*v;
+                        }
+                        node.touch();
+                        changed = true;
+                    }
+                }
+
                 // For connected color ports, show a read-only swatch of the actual computed value.
-                let port_id = PortId { node: core_id, port: PortIndex(idx) };
-                if data_type == DataType::Color {
+                let port_id = PortId { node: core_id, port: PortIndex(*idx) };
+                if *data_type == DataType::Color {
                     if let Some(edge) = graph.input_connection(port_id) {
                         if let Some(color) = eval_result
                             .and_then(|er| er.outputs.get(&edge.from.node))
@@ -532,7 +562,7 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                             match color {
                                 NodeData::Color(c) => {
                                     let rgba = [c.r, c.g, c.b, c.a];
-                                    show_connected_color(ui, &name, &rgba);
+                                    show_connected_color(ui, name, &rgba);
                                 }
                                 NodeData::Colors(colors) => {
                                     if let Some(c) = colors.first() {
@@ -547,10 +577,16 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                         continue;
                     }
                 }
-                let Some(param) = default_value else { continue };
-                if let Some(new_val) = show_param_editor(ui, &name, data_type, &param) {
+                let Some(ref param) = default_value else {
+                    // Port with no default — just show name.
+                    ui.label(name);
+                    ui.label("");
+                    ui.end_row();
+                    continue;
+                };
+                if let Some(new_val) = show_param_editor(ui, name, *data_type, param) {
                     if let Some(node) = graph.node_mut(core_id) {
-                        node.inputs[idx].default_value = Some(new_val);
+                        node.inputs[*idx].default_value = Some(new_val);
                         node.touch();
                         changed = true;
                     }
@@ -561,6 +597,7 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             if !color_outputs.is_empty() {
                 if let Some(outputs) = eval_result.and_then(|er| er.outputs.get(&core_id)) {
                     for (idx, name) in &color_outputs {
+                        ui.label(""); // empty visibility column
                         if let Some(NodeData::Color(c)) = outputs.get(*idx) {
                             let rgba = [c.r, c.g, c.b, c.a];
                             let output_label = format!("{name} (out)");

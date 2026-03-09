@@ -151,6 +151,7 @@ pub fn node_catalog() -> Vec<CatalogEntry> {
         // Styling
         entry!("Set Fill", Styling, NodeDef::set_fill),
         entry!("Set Stroke", Styling, NodeDef::set_stroke),
+        entry!("Set Style", Styling, NodeDef::set_style),
         entry!("Stroke to Path", Styling, NodeDef::stroke_to_path),
         // Color
         entry!("Adjust Alpha", Color, NodeDef::adjust_alpha),
@@ -235,6 +236,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::ResamplePath => "Resample Path",
         NodeOp::SetFill => "Set Fill",
         NodeOp::SetStroke { .. } => "Set Stroke",
+        NodeOp::SetStyle { .. } => "Set Style",
         NodeOp::StrokeToPath { .. } => "Stroke to Path",
         NodeOp::AdjustHue => "Adjust Hue",
         NodeOp::AdjustSaturation => "Adjust Saturation",

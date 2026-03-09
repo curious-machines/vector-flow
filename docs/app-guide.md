@@ -131,7 +131,7 @@ Right-click on the graph background to open the **Add Node** context menu. Nodes
 - **Generators** — Circle, Rectangle, Regular Polygon, Line, Point Grid, Scatter Points, Load Image, SVG Path
 - **Transforms** — Translate, Rotate, Scale, Apply Transform
 - **Path Ops** — Path Boolean, Path Offset, Path Reverse, Path Subdivide, Resample Path
-- **Styling** — Set Fill, Set Stroke, Stroke to Path
+- **Styling** — Set Fill, Set Stroke, Set Style, Stroke to Path
 - **Color** — Adjust Hue, Adjust Saturation, Adjust Lightness, Adjust Luminance, Adjust Alpha, Invert Color, Grayscale, Mix Colors, Color Parse
 - **Text** — Text, Text to Path
 - **Code** — Generate, Map, VFS Code

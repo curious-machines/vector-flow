@@ -203,6 +203,38 @@ impl ComputeBackend for CpuBackend {
                 let dash_array = parse_dash_pattern(dash_pattern);
                 styling::set_stroke(&shape, color_data, width, cap, join, dash_array, dash_offset, tolerance)
             }
+            NodeOp::SetStyle { ref dash_pattern } => {
+                let shape = get_any(inputs, 0);
+                // Fill params
+                let fill_color_data = &inputs.data[1];
+                let fill_opacity = get_scalar(inputs, 2) as f32;
+                let has_fill = get_bool(inputs, 3);
+                // Stroke params
+                let stroke_color_data = &inputs.data[4];
+                let stroke_width = get_scalar(inputs, 5);
+                let stroke_opacity = get_scalar(inputs, 6) as f32;
+                let has_stroke = get_bool(inputs, 7);
+                let cap = int_to_line_cap(get_int(inputs, 8));
+                let join = int_to_line_join(get_int(inputs, 9), get_scalar(inputs, 10) as f32);
+                let dash_offset = get_scalar(inputs, 11) as f32;
+                let dash_array = parse_dash_pattern(dash_pattern);
+
+                // Apply fill first (if enabled), then stroke.
+                let mut result = shape;
+                if has_fill {
+                    // Apply fill opacity to color.
+                    let fill_data = apply_opacity_to_color(fill_color_data, fill_opacity);
+                    result = styling::set_fill(&result, &fill_data);
+                }
+                if has_stroke {
+                    let stroke_data = apply_opacity_to_color(stroke_color_data, stroke_opacity);
+                    result = styling::set_stroke(
+                        &result, &stroke_data, stroke_width, cap, join,
+                        dash_array, dash_offset, path_ops::DEFAULT_FLATTEN_TOLERANCE,
+                    );
+                }
+                result
+            }
             NodeOp::StrokeToPath { ref dash_pattern } => {
                 let shape = get_any(inputs, 0);
                 let width = get_scalar(inputs, 1) as f32;
@@ -647,6 +679,31 @@ fn get_any(inputs: &ResolvedInputs, idx: usize) -> NodeData {
         .get(idx)
         .cloned()
         .unwrap_or(NodeData::Scalar(0.0))
+}
+
+/// Apply opacity multiplier to a color NodeData (single or batch).
+fn apply_opacity_to_color(color_data: &NodeData, opacity: f32) -> NodeData {
+    if (opacity - 1.0).abs() < 1e-6 {
+        return color_data.clone();
+    }
+    match color_data {
+        NodeData::Color(c) => NodeData::Color(Color {
+            r: c.r,
+            g: c.g,
+            b: c.b,
+            a: c.a * opacity,
+        }),
+        NodeData::Colors(colors) => {
+            let modified: Vec<Color> = colors.iter().map(|c| Color {
+                r: c.r,
+                g: c.g,
+                b: c.b,
+                a: c.a * opacity,
+            }).collect();
+            NodeData::Colors(Arc::new(modified))
+        }
+        other => other.clone(),
+    }
 }
 
 fn int_to_line_cap(v: i64) -> LineCap {
@@ -1219,6 +1276,99 @@ mod tests {
             assert!((v[2] - 20.0).abs() < 1e-10);
         } else {
             panic!("expected Scalars output");
+        }
+    }
+
+    #[test]
+    fn evaluate_set_style_fill_and_stroke() {
+        let backend = CpuBackend::new().unwrap();
+        let path = PathData::new();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Path(Arc::new(path)),     // 0: path
+                NodeData::Color(Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }), // 1: fill_color
+                NodeData::Scalar(1.0),               // 2: fill_opacity
+                NodeData::Bool(true),                // 3: has_fill
+                NodeData::Color(Color { r: 0.0, g: 0.0, b: 1.0, a: 1.0 }), // 4: stroke_color
+                NodeData::Scalar(3.0),               // 5: stroke_width
+                NodeData::Scalar(1.0),               // 6: stroke_opacity
+                NodeData::Bool(true),                // 7: has_stroke
+                NodeData::Int(0),                    // 8: cap
+                NodeData::Int(0),                    // 9: join
+                NodeData::Scalar(4.0),               // 10: miter_limit
+                NodeData::Scalar(0.0),               // 11: dash_offset
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        let op = NodeOp::SetStyle { dash_pattern: String::new() };
+        backend
+            .evaluate_node(&op, &inputs, &time_ctx(), &mut outputs)
+            .unwrap();
+
+        if let Some(NodeData::Shape(s)) = &outputs.data[0] {
+            assert_eq!(s.fill, Some(Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }));
+            let stroke = s.stroke.as_ref().expect("expected stroke");
+            assert_eq!(stroke.color, Color { r: 0.0, g: 0.0, b: 1.0, a: 1.0 });
+            assert!((stroke.width - 3.0).abs() < 1e-6);
+        } else {
+            panic!("expected Shape output");
+        }
+    }
+
+    #[test]
+    fn evaluate_set_style_fill_only() {
+        let backend = CpuBackend::new().unwrap();
+        let path = PathData::new();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Path(Arc::new(path)),
+                NodeData::Color(Color { r: 0.0, g: 1.0, b: 0.0, a: 1.0 }),
+                NodeData::Scalar(0.5),  // fill_opacity
+                NodeData::Bool(true),   // has_fill
+                NodeData::Color(Color::BLACK),
+                NodeData::Scalar(2.0),
+                NodeData::Scalar(1.0),
+                NodeData::Bool(false),  // has_stroke = false
+                NodeData::Int(0),
+                NodeData::Int(0),
+                NodeData::Scalar(4.0),
+                NodeData::Scalar(0.0),
+            ],
+        };
+        let mut outputs = NodeOutputs::new(1);
+        let op = NodeOp::SetStyle { dash_pattern: String::new() };
+        backend
+            .evaluate_node(&op, &inputs, &time_ctx(), &mut outputs)
+            .unwrap();
+
+        if let Some(NodeData::Shape(s)) = &outputs.data[0] {
+            // Fill color with opacity applied
+            let fill = s.fill.expect("expected fill");
+            assert!((fill.a - 0.5).abs() < 1e-6);
+            // No stroke
+            assert!(s.stroke.is_none());
+        } else {
+            panic!("expected Shape output");
+        }
+    }
+
+    #[test]
+    fn apply_opacity_modifies_color() {
+        let color = NodeData::Color(Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 });
+        let result = super::apply_opacity_to_color(&color, 0.5);
+        if let NodeData::Color(c) = result {
+            assert!((c.a - 0.5).abs() < 1e-6);
+            assert!((c.r - 1.0).abs() < 1e-6); // RGB unchanged
+        } else {
+            panic!("expected Color");
+        }
+
+        // Opacity 1.0 returns clone (no modification)
+        let same = super::apply_opacity_to_color(&color, 1.0);
+        if let NodeData::Color(c) = same {
+            assert!((c.a - 1.0).abs() < 1e-6);
+        } else {
+            panic!("expected Color");
         }
     }
 }

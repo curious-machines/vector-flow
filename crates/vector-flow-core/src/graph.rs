@@ -126,6 +126,12 @@ impl Graph {
         let id = NodeId(self.next_id);
         self.next_id += 1;
         node.id = id;
+        // Initialize per-instance visibility from port definitions if not already set.
+        if node.input_visibility.len() != node.inputs.len()
+            || node.output_visibility.len() != node.outputs.len()
+        {
+            node.init_visibility();
+        }
         self.adjacency_out.entry(id).or_default();
         self.adjacency_in.entry(id).or_default();
         self.nodes.insert(id, node);
@@ -597,6 +603,11 @@ impl Graph {
                 .or_default()
                 .push(edge.from.node);
         }
+
+        // Sync port visibility after deserialization (handles older saves and new ports).
+        for node in self.nodes.values_mut() {
+            node.sync_visibility();
+        }
     }
 }
 
@@ -956,5 +967,54 @@ mod tests {
         assert!(upstream.contains(&recv));
         assert!(upstream.contains(&send), "portal send should be included via portal connection");
         assert!(upstream.contains(&color), "upstream of portal send should be included");
+    }
+
+    #[test]
+    fn add_node_initializes_visibility() {
+        let mut g = Graph::new();
+        let id = g.add_node(NodeDef::set_stroke(NodeId(0)));
+        let node = g.node(id).unwrap();
+        // Visibility should be initialized from port definitions.
+        assert_eq!(node.input_visibility.len(), node.inputs.len());
+        assert_eq!(node.output_visibility.len(), node.outputs.len());
+        // geometry, color, width visible; cap, join, etc. hidden
+        assert!(node.input_visibility[0]); // geometry
+        assert!(node.input_visibility[1]); // color
+        assert!(node.input_visibility[2]); // width
+        assert!(!node.input_visibility[3]); // cap (hidden)
+    }
+
+    #[test]
+    fn rebuild_caches_syncs_visibility() {
+        let mut g = Graph::new();
+        let id = g.add_node(NodeDef::circle(NodeId(0)));
+        // Simulate clearing visibility as if from an old save
+        g.node_mut(id).unwrap().input_visibility.clear();
+        g.node_mut(id).unwrap().output_visibility.clear();
+        g.rebuild_caches();
+        let node = g.node(id).unwrap();
+        assert_eq!(node.input_visibility.len(), node.inputs.len());
+        assert_eq!(node.output_visibility.len(), node.outputs.len());
+    }
+
+    #[test]
+    fn connect_with_hidden_ports() {
+        // Ensure connections work at the core graph level regardless of visibility.
+        // Visibility is a UI concern; the graph uses actual port indices.
+        let mut g = Graph::new();
+        let a = g.add_node(NodeDef::regular_polygon(NodeId(0)));
+        let b = g.add_node(NodeDef::set_stroke(NodeId(0)));
+
+        // Connect polygon path output (0) -> set_stroke geometry input (0)
+        let result = g.connect(
+            PortId { node: a, port: PortIndex(0) },
+            PortId { node: b, port: PortIndex(0) },
+        );
+        assert!(result.is_ok());
+
+        // Verify visible/hidden counts on set_stroke
+        let node = g.node(b).unwrap();
+        assert_eq!(node.visible_input_count(), 3); // geometry, color, width
+        assert_eq!(node.inputs.len(), 8); // all 8 ports
     }
 }
