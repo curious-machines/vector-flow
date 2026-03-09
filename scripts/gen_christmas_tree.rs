@@ -12,30 +12,42 @@
 //!                                           ├→ Merge → Warp to Curve → Graph Output
 //!   SVG Path (tree)    → Set Fill (green) ─┘        ↑
 //!                                                    │ (curved backbone)
-//!   Generate (wind VFS) → Pack Points → Spline from Points
+//!   Generate X (wind) ──→ Pack Points → Spline from Points
+//!   Generate Y (height) ─┘
 //!
-//! The Generate node computes 5 control points each frame. The bottom
-//! point is fixed (rooted), higher points sway more. Pack Points zips
-//! the x/y scalar arrays into Points. Spline from Points creates a
-//! smooth backbone. Warp to Curve deforms the tree onto the backbone.
+//! The source tree geometry is laid out HORIZONTALLY (X = tree height,
+//! Y = tree width) because Warp to Curve maps source X → arc length
+//! along the backbone and source Y → perpendicular offset. The backbone
+//! is a roughly vertical curve, so the final rendered tree appears
+//! vertical on screen.
+//!
+//! Two Generate nodes are needed because Generate only collects its
+//! first script output. gen_x produces wind sway, gen_y produces
+//! evenly-spaced heights. Pack Points zips them into a point list,
+//! Spline from Points makes a smooth backbone, Warp deforms the tree.
 
 use std::fmt::Write as FmtWrite;
 
 fn main() {
     let mut b = ProjectBuilder::new();
 
-    // Layout: 6 columns, ~200px apart
-    let c = 200.0; // column spacing
+    // Layout columns in the node editor
+    let c = 220.0;
 
     // =====================================================================
-    // ROW 1 (y=0): Tree trunk — brown rectangle
+    // Source geometry: laid out HORIZONTALLY for warp mapping.
+    // X axis = tree height (left=base, right=peak)
+    // Y axis = tree width (perpendicular spread)
     // =====================================================================
+
+    // Trunk: horizontal rectangle at the left (base) side
+    // center at (0, 0), width=40 (x: -20..20), height=20 (y: -10..10)
     let trunk_rect = b.add_node(
         "Rectangle", "Rectangle", 0.0, 0.0, GEN,
         &[
-            port_f("width", "Scalar", 20.0),
-            port_f("height", "Scalar", 80.0),
-            port_v2("center", [0.0, 100.0]), // below origin — trunk base at y=140
+            port_f("width", "Scalar", 40.0),
+            port_f("height", "Scalar", 20.0),
+            port_v2("center", [0.0, 0.0]),
         ],
         &[port("path", "Path")],
     );
@@ -50,12 +62,17 @@ fn main() {
     );
     b.wire(trunk_rect, 0, trunk_fill, 0);
 
-    // =====================================================================
-    // ROW 2 (y=-200): Tree silhouette — 3-tier green SVG path
-    // =====================================================================
+    // Tree canopy: horizontal 3-tier Christmas tree silhouette.
+    // Peak at x=170, base at x=20, Y spread ±85 at widest.
+    //
+    // Shape (clockwise from peak):
+    //   peak(170,0) → top-tier edge(120,30) → notch(120,15) →
+    //   mid-tier edge(75,55) → notch(75,35) → base edge(20,85) →
+    //   base edge(20,-85) → notch(75,-35) → mid-tier(75,-55) →
+    //   notch(120,-15) → top-tier(120,-30) → close
     let tree_svg = b.add_node_op(
         "SVG Path",
-        r#"{"SvgPath":{"data":"M -90 -10 L 90 -10 L 55 -55 L -55 -55 L -35 -95 L 35 -95 L 0 -160 Z"}}"#,
+        r#"{"SvgPath":{"data":"M 170 0 L 120 30 L 120 15 L 75 55 L 75 35 L 20 85 L 20 -85 L 75 -35 L 75 -55 L 120 -15 L 120 -30 Z"}}"#,
         0.0, -200.0, GEN,
         &[port("path", "Path")],
     );
@@ -70,9 +87,7 @@ fn main() {
     );
     b.wire(tree_svg, 0, tree_fill, 0);
 
-    // =====================================================================
-    // Merge trunk + tree
-    // =====================================================================
+    // Merge trunk + tree canopy
     let merge = b.add_node_op(
         "Merge",
         r#"{"Merge":{"keep_separate":false}}"#,
@@ -84,57 +99,66 @@ fn main() {
     b.wire(tree_fill, 0, merge, 1);
 
     // =====================================================================
-    // ROW 3 (y=-400): Animated backbone via Generate + Pack Points + Spline
+    // Animated backbone: two Generate nodes → Pack Points → Spline
+    //
+    // Generate only collects its first script output, so we need
+    // separate nodes for X (sway) and Y (height).
+    //
+    // 7 control points from ground (-20) to above peak (180).
+    // Uses cubic ramp (frac^3) so bottom points barely move — this
+    // keeps the Catmull-Rom tangent at the base nearly vertical,
+    // producing a bending effect rather than rigid rotation.
     // =====================================================================
 
-    // Generate 0..5: produces 5 spine control points with wind sway
-    // Bottom point fixed at (0, 140), higher points sway more
-    let wind_gen = b.add_node_op(
+    // Generate X: wind sway per control point (cubic ramp)
+    // NOTE: index and count are Int, so we multiply by 1.0 to force
+    // float division (VFS uses integer division for Int/Int).
+    let gen_x = b.add_node_op(
         "Generate",
         &gen_op(
-            // VFS source: compute sway per control point
-            r#"let base_y = 140.0;
-let peak_y = -170.0;
-let frac = index / (count - 1);
-let height = base_y + (peak_y - base_y) * frac;
+            r#"let frac = 1.0 * index / (count - 1);
+let t = frac * frac * frac;
 let wind = sin(time * 0.8) * 0.7 + sin(time * 2.3) * 0.3;
-let sway = wind * frac * frac * 40.0;
-out_x = sway;
-out_y = height;"#,
-            // script_inputs (index and count are built-in)
+result = wind * t * 50.0;"#,
             &[("index", "Int"), ("count", "Int")],
-            // script_outputs
-            &[("out_x", "Scalar"), ("out_y", "Scalar")],
+            &[("result", "Scalar")],
         ),
         0.0, -400.0, CODE,
         &[],
     );
-    // Generate has fixed graph ports: start(0), end(1)
-    let wind_gen = b.replace_inputs(wind_gen, &[
-        port_i("start", 0),
-        port_i("end", 5),
-    ]);
-    // Generate outputs: one per script_output
-    let wind_gen = b.replace_outputs(wind_gen, &[
-        port("out_x", "Scalar"),
-        port("out_y", "Scalar"),
-    ]);
+    let gen_x = b.replace_inputs(gen_x, &[port_i("start", 0), port_i("end", 7)]);
+    let gen_x = b.replace_outputs(gen_x, &[port("result", "Scalars")]);
 
-    // Pack Points: zip xs + ys → Points
+    // Generate Y: evenly spaced heights (vertical backbone)
+    let gen_y = b.add_node_op(
+        "Generate",
+        &gen_op(
+            r#"let frac = 1.0 * index / (count - 1);
+result = -20.0 + 200.0 * frac;"#,
+            &[("index", "Int"), ("count", "Int")],
+            &[("result", "Scalar")],
+        ),
+        0.0, -550.0, CODE,
+        &[],
+    );
+    let gen_y = b.replace_inputs(gen_y, &[port_i("start", 0), port_i("end", 7)]);
+    let gen_y = b.replace_outputs(gen_y, &[port("result", "Scalars")]);
+
+    // Pack Points: zip X sway + Y heights → Points
     let pack = b.add_node(
-        "Pack Points", "PackPoints", c, -400.0, UTIL,
+        "Pack Points", "PackPoints", c, -475.0, UTIL,
         &[
             port("xs", "Scalars"),
             port("ys", "Scalars"),
         ],
         &[port("points", "Points")],
     );
-    b.wire(wind_gen, 0, pack, 0); // out_x → xs
-    b.wire(wind_gen, 1, pack, 1); // out_y → ys
+    b.wire(gen_x, 0, pack, 0); // sway values → xs
+    b.wire(gen_y, 0, pack, 1); // height values → ys
 
-    // Spline from Points: smooth backbone curve
+    // Spline from Points: smooth backbone curve through control points
     let spline = b.add_node(
-        "Spline from Points", "SplineFromPoints", c * 2.0, -400.0, PATHOPS,
+        "Spline from Points", "SplineFromPoints", c * 2.0, -475.0, PATHOPS,
         &[
             port("points", "Points"),
             port_b("close", false),
@@ -145,7 +169,7 @@ out_y = height;"#,
     b.wire(pack, 0, spline, 0);
 
     // =====================================================================
-    // Warp to Curve: deform merged tree onto backbone
+    // Warp to Curve: deform horizontal tree onto vertical backbone
     // =====================================================================
     let warp = b.add_node(
         "Warp to Curve", "WarpToCurve", c * 3.0, -200.0, XFORM,
@@ -157,7 +181,7 @@ out_y = height;"#,
         ],
         &[port("geometry", "Any")],
     );
-    b.wire(merge, 0, warp, 0);   // merged geometry → warp
+    b.wire(merge, 0, warp, 0);   // horizontal tree → warp
     b.wire(spline, 0, warp, 1);  // backbone curve → warp
 
     // =====================================================================
