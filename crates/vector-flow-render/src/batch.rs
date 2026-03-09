@@ -137,7 +137,6 @@ fn raw_path_preview_stroke() -> StrokeStyle {
         line_join: LineJoin::Round,
         dash_array: Vec::new(),
         dash_offset: 0.0,
-        tolerance: 0.5,
     }
 }
 
@@ -499,10 +498,8 @@ fn tessellate_stroke(
     }
 
     // If dash pattern is set, split into dashed sub-paths.
-    // Use the stroke's own tolerance for dash flattening so it matches StrokeToPath output.
     if !stroke.dash_array.is_empty() {
-        let dash_tol = if stroke.tolerance > 0.0 { stroke.tolerance } else { tolerance };
-        let dashed = apply_dash_pattern(path, &stroke.dash_array, stroke.dash_offset, dash_tol);
+        let dashed = apply_dash_pattern(path, &stroke.dash_array, stroke.dash_offset, tolerance);
         for sub_path in &dashed {
             tessellate_stroke_simple(sub_path, stroke, tolerance, transform, tint, buf);
         }
@@ -978,7 +975,6 @@ mod tests {
                     line_join: LineJoin::Miter(4.0),
                     dash_array: vec![],
                     dash_offset: 0.0,
-                    tolerance: 0.5,
                 }),
                 transform: Affine2::IDENTITY,
             },

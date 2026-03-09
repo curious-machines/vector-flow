@@ -2,30 +2,35 @@
 
 ## Philosophy
 
-Tolerance (flatness) controls how finely curves are approximated by line segments. While it's tempting to treat this as a behind-the-scenes rendering quality knob, **artists consider render quality a design parameter**. Visible faceting, dash placement, and stroke outline fidelity all affect the final artwork. Tolerance must be user-controllable wherever it influences the output.
+Tolerance (flatness) controls how finely curves are approximated by line segments. There are two distinct tolerance contexts:
 
-## Implementation (completed)
+1. **Render tolerance** — controls visual smoothness of curves on screen. This is now **zoom-aware** (`0.5 / zoom`), so curves stay smooth at any zoom level without user intervention.
 
-Tolerance input ports (Scalar, default `0.5`, clamped > 0) on:
+2. **Geometric tolerance** — controls precision of operations that produce new path data (boolean ops, resampling, stroke-to-path conversion). This remains user-controllable via per-node tolerance ports because it affects the actual output geometry.
 
-- **Path Boolean** — controls flattening for boolean operations
-- **Resample Path** — controls resampling precision
-- **Copy to Points** — controls flattening during copy
-- **Stroke to Path** — controls flattening for outline extraction and dash pattern application
-- **Set Stroke** — controls flattening for render-time dash pattern application
+## Render Tolerance (automatic)
 
-All five nodes are at version 1. Tolerance values <= 0 are clamped to `DEFAULT_FLATTEN_TOLERANCE` (0.5).
+The render pipeline computes tolerance as `0.5 / zoom`, passed to `prepare_scene_full()` and related functions. This means:
+- At zoom 1.0: tolerance = 0.5 (standard)
+- At zoom 2.0: tolerance = 0.25 (finer, for zoomed-in detail)
+- At zoom 0.5: tolerance = 1.0 (coarser, acceptable since zoomed out)
 
-### StrokeStyle
+Dash pattern flattening at render time also uses this zoom-aware tolerance (via the render pipeline tolerance parameter).
 
-`tolerance: f32` field added to `StrokeStyle` in core types. Set by both SetStroke and StrokeToPath when constructing the style.
+Export uses a fixed tolerance of 0.1 for high quality output.
 
-### Render-Time Dash Consistency
+## Geometric Tolerance (per-node ports)
 
-When SetStroke has a dash pattern, the render crate's `tessellate_stroke()` in `batch.rs` uses `stroke.tolerance` for dash flattening instead of the pipeline tolerance. This ensures that when a user wires the same Constant Scalar into both SetStroke and StrokeToPath tolerance ports, the visual dashes and the geometric dashes match.
+Tolerance input ports (Scalar, default `0.5`, clamped > 0) remain on:
 
-Non-dashed stroke tessellation still uses the pipeline tolerance since it's purely about screen fidelity.
+- **Path Boolean** (v2) — controls flattening for boolean operations
+- **Resample Path** (v1) — controls resampling precision
+- **Copy to Points** (v1) — controls flattening during copy
+- **Stroke to Path** (v1) — controls flattening for outline extraction and dash pattern application
 
-### Consistency Between SetStroke and StrokeToPath
+Values <= 0 are clamped to `DEFAULT_FLATTEN_TOLERANCE` (0.5).
 
-SetStroke and StrokeToPath are independent nodes with their own tolerance ports. When used side-by-side on the same input (as in `stroke-path.vflow`), the user is responsible for matching tolerance values. A Constant Scalar wired to both nodes is the clean pattern for this.
+## Removed
+
+- **Set Stroke** tolerance port — removed in v2. Dash flattening now uses the zoom-aware render tolerance automatically.
+- **StrokeStyle.tolerance** field — removed from core types. The render crate uses the pipeline tolerance for all stroke operations.

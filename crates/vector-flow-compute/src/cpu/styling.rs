@@ -127,7 +127,6 @@ pub fn set_stroke(
     join: LineJoin,
     dash_array: Vec<f32>,
     dash_offset: f32,
-    tolerance: f32,
 ) -> NodeData {
     let make_stroke = |color: Color| StrokeStyle {
         color,
@@ -136,7 +135,6 @@ pub fn set_stroke(
         line_join: join,
         dash_array: dash_array.clone(),
         dash_offset,
-        tolerance,
     };
 
     match color_data {
@@ -821,7 +819,7 @@ mod tests {
         };
         let data = NodeData::Shape(Arc::new(shape));
         let color_data = NodeData::Color(Color::WHITE);
-        let result = set_stroke(&data, &color_data, 3.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0, 0.5);
+        let result = set_stroke(&data, &color_data, 3.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
         if let NodeData::Shape(s) = result {
             assert_eq!(s.fill, Some(Color::BLACK)); // preserved
             let st = s.stroke.clone().unwrap();
@@ -871,7 +869,7 @@ mod tests {
         ];
         let data = NodeData::Shapes(Arc::new(shapes));
         let color_data = NodeData::Color(Color::WHITE);
-        let result = set_stroke(&data, &color_data, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0, 0.5);
+        let result = set_stroke(&data, &color_data, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
         if let NodeData::Shapes(s) = result {
             assert_eq!(s.len(), 1);
             assert_eq!(s[0].fill, Some(Color::BLACK)); // preserved
@@ -907,7 +905,6 @@ mod tests {
             LineJoin::Bevel,
             vec![],
             0.0,
-            0.5,
         );
         if let NodeData::Shape(s) = result {
             let st = s.stroke.clone().unwrap();
@@ -932,7 +929,6 @@ mod tests {
             LineJoin::Miter(4.0),
             vec![10.0, 5.0],
             0.0,
-            0.5,
         );
         if let NodeData::Shape(s) = result {
             let st = s.stroke.clone().unwrap();
@@ -954,7 +950,6 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![],
             dash_offset: 0.0,
-            tolerance: 0.5,
         };
         let result = stroke_to_path(&data, &stroke, 0.5);
         if let NodeData::Path(p) = result {
@@ -984,7 +979,6 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![20.0, 10.0],
             dash_offset: 0.0,
-            tolerance: 0.5,
         };
         let result = stroke_to_path(&data, &stroke, 0.5);
         if let NodeData::Path(p) = result {
@@ -1030,7 +1024,6 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![],
             dash_offset: 0.0,
-            tolerance: 0.5,
         };
         let result1 = stroke_to_path(&data, &stroke, 0.5);
         let result2 = stroke_to_path(&data, &stroke, 0.5);
@@ -1061,7 +1054,6 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![12.0],
             dash_offset: 0.0,
-            tolerance: 0.5,
         };
         let result1 = stroke_to_path(&data, &stroke, 0.5);
         let result2 = stroke_to_path(&data, &stroke, 0.5);
@@ -1110,7 +1102,6 @@ mod tests {
             line_join: LineJoin::Miter(4.0),
             dash_array: vec![],
             dash_offset: 0.0,
-            tolerance: 0.5,
         };
         let coarse = stroke_to_path(&data, &stroke, 5.0);
         let fine = stroke_to_path(&data, &stroke, 0.01);
@@ -1205,7 +1196,7 @@ mod tests {
     fn set_stroke_with_colors_batch() {
         let data = NodeData::Shapes(Arc::new(make_shapes(3)));
         let colors = NodeData::Colors(Arc::new(vec![RED, GREEN, BLUE]));
-        let result = set_stroke(&data, &colors, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0, 0.5);
+        let result = set_stroke(&data, &colors, 2.0, LineCap::Butt, LineJoin::Miter(4.0), vec![], 0.0);
         if let NodeData::Shapes(s) = result {
             assert_eq!(s.len(), 3);
             assert_eq!(s[0].stroke.as_ref().unwrap().color, RED);

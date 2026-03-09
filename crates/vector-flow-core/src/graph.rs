@@ -1015,6 +1015,6 @@ mod tests {
         // Verify visible/hidden counts on set_stroke
         let node = g.node(b).unwrap();
         assert_eq!(node.visible_input_count(), 3); // geometry, color, width
-        assert_eq!(node.inputs.len(), 8); // all 8 ports
+        assert_eq!(node.inputs.len(), 7); // all 7 ports (tolerance removed in v2)
     }
 }

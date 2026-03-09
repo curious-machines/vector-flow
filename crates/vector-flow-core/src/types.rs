@@ -65,7 +65,6 @@ pub struct StrokeStyle {
     pub line_join: LineJoin,
     pub dash_array: Vec<f32>,
     pub dash_offset: f32,
-    pub tolerance: f32,
 }
 
 // ---------------------------------------------------------------------------

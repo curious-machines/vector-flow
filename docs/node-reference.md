@@ -797,7 +797,6 @@ Applies a stroke (outline) to a shape.
 | join         | Int    | 0                     | Line join style: 0=Miter, 1=Round, 2=Bevel |
 | miter_limit  | Scalar | 4.0                   | Miter limit (only applies to Miter join)   |
 | dash_offset  | Scalar | 0.0                   | Dash pattern offset                        |
-| tolerance    | Scalar | 0.5                   | Curve flattening tolerance for dash pattern (smaller = more precise) |
 
 **Outputs:**
 
@@ -811,7 +810,7 @@ Applies a stroke (outline) to a shape.
 |--------------|-----------------------------------------------------------------|
 | Dash Pattern | Comma or space-separated dash/gap lengths (e.g., "10 5" or "10,5,2,5") |
 
-**Notes:** Both open and closed paths can have strokes. Chain Set Fill and Set Stroke to get both a fill and an outline. The tolerance parameter controls curve flattening precision when rendering dash patterns — use the same value on Set Stroke and Stroke to Path to ensure visual consistency.
+**Notes:** Both open and closed paths can have strokes. Chain Set Fill and Set Stroke to get both a fill and an outline. Dash pattern rendering uses zoom-aware tolerance automatically, so curves stay smooth at any zoom level.
 
 ```
 Example patch: Circle -> Set Fill (red) -> Set Stroke (black, 3px) -> Graph Output

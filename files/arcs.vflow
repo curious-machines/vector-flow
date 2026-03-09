@@ -1,0 +1,942 @@
+{
+  "graph": {
+    "nodes": {
+      "8": {
+        "id": 8,
+        "name": "Arc",
+        "op": "Arc",
+        "inputs": [
+          {
+            "name": "outer_radius",
+            "data_type": "Scalar",
+            "description": "Outer radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "inner_radius",
+            "data_type": "Scalar",
+            "description": "Inner radius (0 = wedge/arc, >0 = donut)",
+            "default_value": {
+              "Float": 50.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "start_angle",
+            "data_type": "Scalar",
+            "description": "Start angle in degrees",
+            "default_value": {
+              "Float": 90.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "sweep_angle",
+            "data_type": "Scalar",
+            "description": "Sweep angle in degrees",
+            "default_value": {
+              "Float": 60.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "close",
+            "data_type": "Bool",
+            "description": "Whether to close the shape",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -454.15945,
+          -318.73676
+        ],
+        "generation": 12,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "3": {
+        "id": 3,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.45916995,
+                0.0,
+                0.0,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -210.49893,
+          -122.114716
+        ],
+        "generation": 303,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "5": {
+        "id": 5,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "d",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          152.14062,
+          26.984375
+        ],
+        "generation": 4,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "2": {
+        "id": 2,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.0,
+                0.047643587,
+                0.45916995,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -43.203125,
+          94.234375
+        ],
+        "generation": 265,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "7": {
+        "id": 7,
+        "name": "Arc",
+        "op": "Arc",
+        "inputs": [
+          {
+            "name": "outer_radius",
+            "data_type": "Scalar",
+            "description": "Outer radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "inner_radius",
+            "data_type": "Scalar",
+            "description": "Inner radius (0 = wedge/arc, >0 = donut)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "start_angle",
+            "data_type": "Scalar",
+            "description": "Start angle in degrees",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "sweep_angle",
+            "data_type": "Scalar",
+            "description": "Sweep angle in degrees",
+            "default_value": {
+              "Float": 90.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "close",
+            "data_type": "Bool",
+            "description": "Whether to close the shape",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -232.51562,
+          -11.890625
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "6": {
+        "id": 6,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [],
+        "position": [
+          280.89062,
+          -127.328125
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true
+        ],
+        "output_visibility": []
+      },
+      "9": {
+        "id": 9,
+        "name": "Arc",
+        "op": "Arc",
+        "inputs": [
+          {
+            "name": "outer_radius",
+            "data_type": "Scalar",
+            "description": "Outer radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "inner_radius",
+            "data_type": "Scalar",
+            "description": "Inner radius (0 = wedge/arc, >0 = donut)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "start_angle",
+            "data_type": "Scalar",
+            "description": "Start angle in degrees",
+            "default_value": {
+              "Float": 150.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "sweep_angle",
+            "data_type": "Scalar",
+            "description": "Sweep angle in degrees",
+            "default_value": {
+              "Float": 60.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "close",
+            "data_type": "Bool",
+            "description": "Whether to close the shape",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -454.0443,
+          -155.54675
+        ],
+        "generation": 17,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "10": {
+        "id": 10,
+        "name": "Set Stroke",
+        "op": {
+          "SetStroke": {
+            "dash_pattern": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Stroke color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.0,
+                0.45641097,
+                1.08816856e-7,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -229.01562,
+          14.015625
+        ],
+        "generation": 94,
+        "version": 2,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "output_visibility": [
+          true
+        ]
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 5,
+          "port": 0
+        },
+        "to": {
+          "node": 6,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 0
+        },
+        "to": {
+          "node": 2,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 8,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 9,
+          "port": 0
+        },
+        "to": {
+          "node": 10,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 10,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 2
+        }
+      }
+    ],
+    "next_id": 12,
+    "generation": 901,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 9,
+          "display_name": "Arc",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -453.50455,
+          "y": 91.018036
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -258.47485,
+          "y": -226.10977
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -256.17676,
+          "y": -73.03461
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 8,
+          "display_name": "Arc",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -450.39212,
+          "y": -67.43445
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -28.39093,
+          "y": -143.38144
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 6,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 314.54282,
+          "y": -9.21582
+        },
+        "open": true
+      },
+      "6": {
+        "value": {
+          "core_id": 7,
+          "display_name": "Arc",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -450.50726,
+          "y": -230.62445
+        },
+        "open": true
+      },
+      "7": {
+        "value": {
+          "core_id": 10,
+          "display_name": "Set Stroke",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -254.5239,
+          "y": 70.18231
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 7,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      0.0,
+      0.0
+    ],
+    "graph_scale": 1.0,
+    "canvas_center": [
+      0.0,
+      0.0
+    ],
+    "canvas_zoom": 1.0
+  },
+  "window_geometry": {
+    "x": 79.0,
+    "y": 96.0,
+    "width": 1345.0,
+    "height": 1607.0,
+    "node_editor_height": 726.0,
+    "properties_width": 274.46875
+  },
+  "settings": {
+    "canvas_width": 640,
+    "canvas_height": 480,
+    "background_color": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1.0
+    ],
+    "fps": 30.0
+  }
+}

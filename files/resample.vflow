@@ -253,15 +253,6 @@
               "Float": 0.0
             },
             "expression": null
-          },
-          {
-            "name": "tolerance",
-            "data_type": "Scalar",
-            "description": "Curve flattening tolerance for dash pattern (smaller = more precise)",
-            "default_value": {
-              "Float": 0.5
-            },
-            "expression": null
           }
         ],
         "outputs": [
@@ -278,7 +269,16 @@
           -646.21875
         ],
         "generation": 59,
-        "version": 1
+        "version": 2,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
       }
     },
     "edges": [

@@ -1005,9 +1005,10 @@ impl VectorFlowApp {
             let visible = self.visible_node_set(selected_snarl_ids);
             let order = self.graph_output_order();
             let collected = collect_scene_ordered(eval, visible.as_ref(), Some(&order));
+            let tolerance = 0.5 / self.cam_state.current_zoom.max(0.01);
             let scene = prepare_scene_full_with_text(
                 &collected,
-                0.5,
+                tolerance,
                 self.cam_state.current_zoom,
                 1.0, // pixels_per_point applied at render time
             );
@@ -1131,7 +1132,7 @@ impl VectorFlowApp {
                     let visible = self.export_visible_nodes();
                     let order = self.graph_output_order();
                     let collected = collect_scene_ordered(eval, visible.as_ref(), Some(&order));
-                    empty_scene = prepare_scene_full(&collected, 0.5);
+                    empty_scene = prepare_scene_full(&collected, 0.1);
                     &empty_scene
                 } else {
                     empty_scene = PreparedScene {

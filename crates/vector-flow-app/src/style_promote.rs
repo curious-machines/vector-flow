@@ -50,7 +50,6 @@ fn stroke_to_style_port_map() -> &'static [(usize, usize)] {
         (4, 9),   // join → join
         (5, 10),  // miter_limit → miter_limit
         (6, 11),  // dash_offset → dash_offset
-        // port 7 (tolerance) has no equivalent in SetStyle
     ]
 }
 
