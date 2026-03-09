@@ -97,7 +97,7 @@ pub enum NodeOp {
     Translate,
     Rotate,
     Scale,
-    WarpToCurve,
+    WarpToCurve { #[serde(default)] mode: i32 },
     // Path ops
     ClosePath,
     PathBoolean { operation: i32 },
@@ -1243,14 +1243,10 @@ impl NodeDef {
         Self {
             id,
             name: "Warp to Curve".into(),
-            op: NodeOp::WarpToCurve,
+            op: NodeOp::WarpToCurve { mode: 0 },
             inputs: vec![
                 PortDef::new("geometry", DataType::Any).with_description("Geometry to warp"),
-                PortDef::new("curve", DataType::Path).with_description("Target curve"),
-                PortDef::new("mode", DataType::Int)
-                    .with_default(ParamValue::Int(0))
-                    .with_description("0 = simple positional, 1 = curvature-aware")
-                    .hidden(),
+                PortDef::new("spine", DataType::Path).with_description("Spine curve to warp along"),
                 PortDef::new("tolerance", DataType::Scalar)
                     .with_default(ParamValue::Float(0.5))
                     .with_description("Curve flattening tolerance")

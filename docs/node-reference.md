@@ -422,16 +422,21 @@ Example patch: Circle -> Translate (offset: 100, 50) -> Graph Output
 
 ### Warp to Curve
 
-Deforms geometry to follow a target curve, mapping the source bounding box onto the curve's arc length.
+Deforms geometry to follow a spine curve, mapping the source bounding box onto the curve's arc length.
 
 **Inputs:**
 
 | Name      | Type   | Default | Hidden | Description                                              |
 |-----------|--------|---------|--------|----------------------------------------------------------|
 | geometry  | Any    | --      | No     | Input geometry to warp                                   |
-| curve     | Path   | --      | No     | Target curve to warp along                               |
-| mode      | Int    | 0       | Yes    | 0 = simple positional, 1 = curvature-aware               |
+| spine     | Path   | --      | No     | Spine curve to warp along                                |
 | tolerance | Scalar | 0.5     | Yes    | Curve flattening tolerance (smaller = more precise)      |
+
+**Parameters (property panel):**
+
+| Name | Values                     | Default | Description                                              |
+|------|----------------------------|---------|----------------------------------------------------------|
+| Mode | Simple, Curvature-Aware    | Simple  | Warping algorithm                                        |
 
 **Outputs:**
 
@@ -439,10 +444,10 @@ Deforms geometry to follow a target curve, mapping the source bounding box onto 
 |----------|------|-------------------|
 | geometry | Any  | Warped geometry   |
 
-**Notes:** The source geometry's bounding box is mapped onto the curve: the horizontal axis maps to arc length along the curve, and the vertical axis maps to perpendicular offset from the curve. Mode 0 performs a simple positional mapping. Mode 1 is curvature-aware, adjusting for bend distortion to produce more uniform results on tight curves. Handles Path, Paths, Shape, and Shapes — for batches, a collective bounding box is computed so all elements are warped consistently.
+**Notes:** The source geometry's bounding box is mapped onto the spine: the horizontal axis maps to arc length along the curve, and the vertical axis maps to perpendicular offset from the curve. **Simple** mode performs a direct positional mapping. **Curvature-Aware** mode adjusts for bend distortion, compressing perpendicular offsets on tight curves to produce more uniform results. Handles Path, Paths, Shape, and Shapes — for batches, a collective bounding box is computed so all elements are warped consistently.
 
 ```
-Example patch: Rectangle (200x50) -> Warp to Curve (curve: Circle) -> Set Stroke -> Graph Output
+Example patch: Rectangle (200x50) -> Warp to Curve (spine: Circle) -> Set Stroke -> Graph Output
 ```
 
 ---

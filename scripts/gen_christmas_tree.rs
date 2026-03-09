@@ -158,12 +158,11 @@ out_y = -20.0 + 200.0 * frac;"#,
     // =====================================================================
     // Warp to Curve: deform horizontal tree onto vertical backbone
     // =====================================================================
-    let warp = b.add_node(
-        "Warp to Curve", "WarpToCurve", c * 3.0, -200.0, XFORM,
+    let warp = b.add_node_inner(
+        "Warp to Curve", r#"{"WarpToCurve": {"mode": 0}}"#, c * 3.0, -200.0, XFORM,
         &[
             port("geometry", "Any"),
-            port("curve", "Path"),
-            port_i("mode", 0),
+            port("spine", "Path"),
             port_f("tolerance", "Scalar", 0.5),
         ],
         &[port("geometry", "Any")],

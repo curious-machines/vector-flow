@@ -164,6 +164,12 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get WarpToCurve mode if applicable.
+    let warp_mode = match &node.op {
+        NodeOp::WarpToCurve { mode } => Some(*mode),
+        _ => None,
+    };
+
     // Get Merge keep_separate flag if applicable.
     let merge_keep_separate = match &node.op {
         NodeOp::Merge { keep_separate } => Some(*keep_separate),
@@ -382,6 +388,35 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
             if let Some(node) = graph.node_mut(core_id) {
                 if let NodeOp::PathBoolean { operation } = &mut node.op {
                     *operation = bool_op;
+                    node.touch();
+                    changed = true;
+                }
+            }
+        }
+        ui.separator();
+    }
+
+    // Warp to Curve mode selector.
+    if let Some(mut wm) = warp_mode {
+        let labels = ["Simple", "Curvature-Aware"];
+        let current_label = labels.get(wm as usize).unwrap_or(&"Simple");
+        ui.horizontal(|ui| {
+            ui.label("Mode");
+            egui::ComboBox::from_id_salt("warp_mode")
+                .selected_text(*current_label)
+                .width(130.0)
+                .show_ui(ui, |ui| {
+                    for (i, label) in labels.iter().enumerate() {
+                        if ui.selectable_label(wm == i as i32, *label).clicked() {
+                            wm = i as i32;
+                        }
+                    }
+                });
+        });
+        if warp_mode != Some(wm) {
+            if let Some(node) = graph.node_mut(core_id) {
+                if let NodeOp::WarpToCurve { mode } = &mut node.op {
+                    *mode = wm;
                     node.touch();
                     changed = true;
                 }

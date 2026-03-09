@@ -152,11 +152,11 @@ impl ComputeBackend for CpuBackend {
                 let xform = get_transform(inputs, 1);
                 transforms::apply_transform(&geometry, &xform)
             }
-            NodeOp::WarpToCurve => {
+            NodeOp::WarpToCurve { mode } => {
                 let geometry = get_any(inputs, 0);
                 let curve = get_path(inputs, 1);
-                let mode = get_int(inputs, 2);
-                let tolerance = get_scalar(inputs, 3) as f32;
+                let mode = *mode as i64;
+                let tolerance = get_scalar(inputs, 2) as f32;
                 let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
                 path_ops::warp_to_curve(&geometry, &curve, mode, tolerance)
             }

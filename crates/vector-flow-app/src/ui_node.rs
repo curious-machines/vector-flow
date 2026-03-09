@@ -240,7 +240,7 @@ pub fn node_op_label(op: &NodeOp) -> &'static str {
         NodeOp::Rotate => "Rotate",
         NodeOp::Scale => "Scale",
         NodeOp::ApplyTransform => "Apply Transform",
-        NodeOp::WarpToCurve => "Warp to Curve",
+        NodeOp::WarpToCurve { .. } => "Warp to Curve",
         NodeOp::ClosePath => "Close Path",
         NodeOp::PathBoolean { .. } => "Path Boolean",
         NodeOp::PathIntersectionPoints => "Path Intersection Points",
