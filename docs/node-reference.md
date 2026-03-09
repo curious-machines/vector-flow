@@ -1341,7 +1341,7 @@ Zips two scalar arrays into a point batch.
 **Notes:** Pairs elements from `xs` and `ys` by index to produce a Points batch. If the two arrays differ in length, the output length is the minimum of the two. This node is useful for bridging VFS Code or Generate scalar outputs into geometry construction nodes such as Polygon from Points or Spline from Points.
 
 ```
-Example patch: Generate (xs) -> Pack Points (ys: Generate) -> Polygon from Points -> Set Stroke -> Graph Output
+Example patch: Generate (out_x, out_y) -> Pack Points -> Polygon from Points -> Set Stroke -> Graph Output
 ```
 
 ---
@@ -1463,9 +1463,11 @@ Additional inputs can be added in the properties panel to pass extra data into t
 | `index`   | Int  | Current value in `start..end`            |
 | `count`   | Int  | Total number of iterations (`end - start`) |
 
-If `start >= end`, the node produces empty batches. User-added script inputs get graph input ports starting at port 2.
+If `start >= end`, the node produces empty batches. User-added script inputs get graph input ports starting at port 2. All script outputs are collected into batches — you can define multiple outputs (e.g., `out_x` and `out_y`) and each produces its own batch on a separate graph output port.
 
 A single `DslContext` is reused across iterations for efficiency. Scripts require semicolons — use explicit assignment rather than tail expressions.
+
+**Caution:** `index` and `count` are Int. Dividing two Ints uses integer division in VFS (truncating toward zero). To get float division, promote one operand: `1.0 * index / (count - 1)`.
 
 **Example — generate indices:**
 
@@ -1482,8 +1484,19 @@ Script inputs: `index` (Int), `count` (Int)
 Script outputs: `result` (Color)
 
 ```
-let hue = index * 360.0 / count;
+let hue = 1.0 * index * 360 / count;
 result = hsl(hue, 100.0, 50.0);
+```
+
+**Example — generate X/Y coordinates (multiple outputs):**
+
+Script inputs: `index` (Int), `count` (Int)
+Script outputs: `out_x` (Scalar), `out_y` (Scalar)
+
+```
+let frac = 1.0 * index / (count - 1);
+out_x = sin(frac * 6.28) * 100.0;
+out_y = cos(frac * 6.28) * 100.0;
 ```
 
 ---

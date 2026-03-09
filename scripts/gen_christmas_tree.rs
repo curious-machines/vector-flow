@@ -12,8 +12,8 @@
 //!                                           ├→ Merge → Warp to Curve → Graph Output
 //!   SVG Path (tree)    → Set Fill (green) ─┘        ↑
 //!                                                    │ (curved backbone)
-//!   Generate X (wind) ──→ Pack Points → Spline from Points
-//!   Generate Y (height) ─┘
+//!   Generate (wind) ──→ Pack Points → Spline from Points
+//!     (out_x, out_y)     (xs, ys)
 //!
 //! The source tree geometry is laid out HORIZONTALLY (X = tree height,
 //! Y = tree width) because Warp to Curve maps source X → arc length
@@ -21,10 +21,10 @@
 //! is a roughly vertical curve, so the final rendered tree appears
 //! vertical on screen.
 //!
-//! Two Generate nodes are needed because Generate only collects its
-//! first script output. gen_x produces wind sway, gen_y produces
-//! evenly-spaced heights. Pack Points zips them into a point list,
-//! Spline from Points makes a smooth backbone, Warp deforms the tree.
+//! A single Generate node with two outputs (out_x, out_y) computes
+//! wind sway and height for 7 backbone control points. Pack Points
+//! zips them into a point list, Spline from Points makes a smooth
+//! backbone, Warp deforms the tree.
 
 use std::fmt::Write as FmtWrite;
 
@@ -99,66 +99,53 @@ fn main() {
     b.wire(tree_fill, 0, merge, 1);
 
     // =====================================================================
-    // Animated backbone: two Generate nodes → Pack Points → Spline
+    // Animated backbone: Generate → Pack Points → Spline
     //
-    // Generate only collects its first script output, so we need
-    // separate nodes for X (sway) and Y (height).
-    //
+    // Single Generate with two outputs (out_x = sway, out_y = height).
     // 7 control points from ground (-20) to above peak (180).
     // Uses cubic ramp (frac^3) so bottom points barely move — this
     // keeps the Catmull-Rom tangent at the base nearly vertical,
     // producing a bending effect rather than rigid rotation.
-    // =====================================================================
-
-    // Generate X: wind sway per control point (cubic ramp)
+    //
     // NOTE: index and count are Int, so we multiply by 1.0 to force
     // float division (VFS uses integer division for Int/Int).
-    let gen_x = b.add_node_op(
+    // =====================================================================
+
+    let gen = b.add_node_op(
         "Generate",
         &gen_op(
             r#"let frac = 1.0 * index / (count - 1);
 let t = frac * frac * frac;
 let wind = sin(time * 0.8) * 0.7 + sin(time * 2.3) * 0.3;
-result = wind * t * 50.0;"#,
+out_x = wind * t * 50.0;
+out_y = -20.0 + 200.0 * frac;"#,
             &[("index", "Int"), ("count", "Int")],
-            &[("result", "Scalar")],
+            &[("out_x", "Scalar"), ("out_y", "Scalar")],
         ),
         0.0, -400.0, CODE,
         &[],
     );
-    let gen_x = b.replace_inputs(gen_x, &[port_i("start", 0), port_i("end", 7)]);
-    let gen_x = b.replace_outputs(gen_x, &[port("result", "Scalars")]);
-
-    // Generate Y: evenly spaced heights (vertical backbone)
-    let gen_y = b.add_node_op(
-        "Generate",
-        &gen_op(
-            r#"let frac = 1.0 * index / (count - 1);
-result = -20.0 + 200.0 * frac;"#,
-            &[("index", "Int"), ("count", "Int")],
-            &[("result", "Scalar")],
-        ),
-        0.0, -550.0, CODE,
-        &[],
-    );
-    let gen_y = b.replace_inputs(gen_y, &[port_i("start", 0), port_i("end", 7)]);
-    let gen_y = b.replace_outputs(gen_y, &[port("result", "Scalars")]);
+    let gen = b.replace_inputs(gen, &[port_i("start", 0), port_i("end", 7)]);
+    let gen = b.replace_outputs(gen, &[
+        port("out_x", "Scalars"),
+        port("out_y", "Scalars"),
+    ]);
 
     // Pack Points: zip X sway + Y heights → Points
     let pack = b.add_node(
-        "Pack Points", "PackPoints", c, -475.0, UTIL,
+        "Pack Points", "PackPoints", c, -450.0, UTIL,
         &[
             port("xs", "Scalars"),
             port("ys", "Scalars"),
         ],
         &[port("points", "Points")],
     );
-    b.wire(gen_x, 0, pack, 0); // sway values → xs
-    b.wire(gen_y, 0, pack, 1); // height values → ys
+    b.wire(gen, 0, pack, 0); // out_x → xs
+    b.wire(gen, 1, pack, 1); // out_y → ys
 
     // Spline from Points: smooth backbone curve through control points
     let spline = b.add_node(
-        "Spline from Points", "SplineFromPoints", c * 2.0, -475.0, PATHOPS,
+        "Spline from Points", "SplineFromPoints", c * 2.0, -450.0, PATHOPS,
         &[
             port("points", "Points"),
             port_b("close", false),

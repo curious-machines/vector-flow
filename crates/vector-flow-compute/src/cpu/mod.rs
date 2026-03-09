@@ -1392,6 +1392,57 @@ mod tests {
     }
 
     #[test]
+    fn generate_multi_output() {
+        // Generate 0..4 with two outputs: out_x = index * 10, out_y = index * 100.
+        let backend = CpuBackend::new().unwrap();
+        let inputs = ResolvedInputs {
+            data: vec![
+                NodeData::Int(0), // start
+                NodeData::Int(4), // end
+            ],
+        };
+        let mut outputs = NodeOutputs::new(2);
+        backend
+            .evaluate_node(
+                &NodeOp::Generate {
+                    source: "out_x = 1.0 * index * 10;\nout_y = 1.0 * index * 100;".into(),
+                    script_inputs: vec![
+                        ("index".into(), DataType::Int),
+                        ("count".into(), DataType::Int),
+                    ],
+                    script_outputs: vec![
+                        ("out_x".into(), DataType::Scalar),
+                        ("out_y".into(), DataType::Scalar),
+                    ],
+                },
+                &inputs,
+                &time_ctx(),
+                &mut outputs,
+            )
+            .unwrap();
+
+        if let Some(NodeData::Scalars(xs)) = &outputs.data[0] {
+            assert_eq!(xs.len(), 4);
+            assert!((xs[0] - 0.0).abs() < 1e-10);
+            assert!((xs[1] - 10.0).abs() < 1e-10);
+            assert!((xs[2] - 20.0).abs() < 1e-10);
+            assert!((xs[3] - 30.0).abs() < 1e-10);
+        } else {
+            panic!("expected Scalars for output 0, got {:?}", outputs.data[0]);
+        }
+
+        if let Some(NodeData::Scalars(ys)) = &outputs.data[1] {
+            assert_eq!(ys.len(), 4);
+            assert!((ys[0] - 0.0).abs() < 1e-10);
+            assert!((ys[1] - 100.0).abs() < 1e-10);
+            assert!((ys[2] - 200.0).abs() < 1e-10);
+            assert!((ys[3] - 300.0).abs() < 1e-10);
+        } else {
+            panic!("expected Scalars for output 1, got {:?}", outputs.data[1]);
+        }
+    }
+
+    #[test]
     fn evaluate_set_style_fill_and_stroke() {
         let backend = CpuBackend::new().unwrap();
         let path = PathData::new();

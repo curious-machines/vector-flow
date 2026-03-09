@@ -722,8 +722,20 @@ pub fn generate_range(
 
     let output_slot_offset = input_slot_count;
 
-    // Iterate.
-    let mut results = Vec::with_capacity(count);
+    // Compute slot offsets for each script output.
+    let mut output_slot_offsets: Vec<usize> = Vec::with_capacity(script_outputs.len());
+    {
+        let mut slot = 0;
+        for (_, dt) in script_outputs.iter() {
+            output_slot_offsets.push(slot);
+            slot += slots_for_dsl_type(data_type_to_dsl(dt));
+        }
+    }
+
+    // Iterate — collect results for ALL script outputs.
+    let mut all_results: Vec<Vec<NodeData>> = (0..script_outputs.len())
+        .map(|_| Vec::with_capacity(count))
+        .collect();
     for i in 0..count {
         let index_value = start + i as i64;
 
@@ -733,16 +745,19 @@ pub fn generate_range(
 
         unsafe { func(&mut ctx) };
 
-        if !script_outputs.is_empty() {
-            let result = read_value_from_slots(&ctx, output_slot_offset, &script_outputs[0].1);
-            results.push(result);
+        for (oi, (_, dt)) in script_outputs.iter().enumerate() {
+            let slot = output_slot_offset + output_slot_offsets[oi];
+            let result = read_value_from_slots(&ctx, slot, dt);
+            all_results[oi].push(result);
         }
     }
 
-    // Write collected output.
-    if !outputs.data.is_empty() && !script_outputs.is_empty() {
-        let out_dt = &script_outputs[0].1;
-        outputs.data[0] = Some(collect_into_batch(results, out_dt));
+    // Write all collected output batches.
+    for (i, (_, dt)) in script_outputs.iter().enumerate() {
+        if i < outputs.data.len() {
+            let results = std::mem::take(&mut all_results[i]);
+            outputs.data[i] = Some(collect_into_batch(results, dt));
+        }
     }
 
     Ok(())
