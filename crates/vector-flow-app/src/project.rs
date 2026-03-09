@@ -92,16 +92,6 @@ pub struct ProjectSettings {
     pub fps: f32,
 }
 
-impl ProjectSettings {
-    /// Approximate equality for dirty tracking.
-    pub fn approx_eq(&self, other: &Self) -> bool {
-        self.canvas_width == other.canvas_width
-            && self.canvas_height == other.canvas_height
-            && self.background_color == other.background_color
-            && (self.fps - other.fps).abs() < 0.01
-    }
-}
-
 impl Default for ProjectSettings {
     fn default() -> Self {
         Self {
@@ -110,20 +100,6 @@ impl Default for ProjectSettings {
             background_color: Some([40.0 / 255.0, 40.0 / 255.0, 40.0 / 255.0, 1.0]),
             fps: 30.0,
         }
-    }
-}
-
-impl ViewState {
-    /// Approximate equality check for dirty tracking (tolerates small float drift).
-    pub fn approx_eq(&self, other: &Self) -> bool {
-        const EPS: f32 = 0.5;
-        const SCALE_EPS: f32 = 0.001;
-        (self.graph_offset[0] - other.graph_offset[0]).abs() < EPS
-            && (self.graph_offset[1] - other.graph_offset[1]).abs() < EPS
-            && (self.graph_scale - other.graph_scale).abs() < SCALE_EPS
-            && (self.canvas_center[0] - other.canvas_center[0]).abs() < EPS
-            && (self.canvas_center[1] - other.canvas_center[1]).abs() < EPS
-            && (self.canvas_zoom - other.canvas_zoom).abs() < SCALE_EPS
     }
 }
 

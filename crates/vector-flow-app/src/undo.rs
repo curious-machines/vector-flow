@@ -116,7 +116,8 @@ impl UndoHistory {
     /// `current_graph` and `current_settings` are used to compute a descriptive label.
     /// `pointer_down`: true if the primary mouse button is held — prevents premature
     /// coalescing reset during slow drags where the value may not change every frame.
-    pub fn end_frame(&mut self, fingerprint: u64, current_graph: &Graph, current_settings: &ProjectSettings, node_pos_hash: u64, pointer_down: bool) {
+    /// Returns `true` if a new undo entry was pushed this frame.
+    pub fn end_frame(&mut self, fingerprint: u64, current_graph: &Graph, current_settings: &ProjectSettings, node_pos_hash: u64, pointer_down: bool) -> bool {
         let current_info = FrameInfo {
             graph_gen: current_graph.generation(),
             node_pos_hash,
@@ -128,6 +129,7 @@ impl UndoHistory {
             }),
         };
         let changed = fingerprint != self.prev_fingerprint;
+        let mut pushed = false;
 
         if changed {
             if !self.was_changing {
@@ -142,6 +144,7 @@ impl UndoHistory {
                     snapshot.label = label;
                     self.push_snapshot(snapshot);
                     self.redo_stack.clear();
+                    pushed = true;
                 }
             }
             self.was_changing = true;
@@ -152,6 +155,7 @@ impl UndoHistory {
         }
 
         self.prev_fingerprint = fingerprint;
+        pushed
     }
 
     /// Undo: restore the previous state. Returns the restored (graph, snarl, id_map) if successful.

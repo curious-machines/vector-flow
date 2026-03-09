@@ -68,8 +68,6 @@ pub struct VectorFlowApp {
     transport: TransportState,
     cam_state: CameraState,
     project_settings: ProjectSettings,
-    saved_settings: ProjectSettings,
-
     /// Cached eval result from last graph evaluation.
     last_eval: Option<EvalResult>,
 
@@ -88,24 +86,9 @@ pub struct VectorFlowApp {
     /// Current project file path (None if unsaved).
     project_path: Option<PathBuf>,
 
-    /// Graph generation at the last save/load (or initial empty state).
-    saved_gen: u64,
-
-    /// Panel sizes at last save/load, for dirty tracking (graph editor height, properties width).
-    saved_panel_sizes: Option<[f32; 2]>,
-
-    /// View state snapshot at last save/load, for dirty tracking.
-    saved_view_state: Option<ViewState>,
-
-    /// Hash of node positions at last save/load, for layout dirty tracking.
-    saved_node_pos_hash: u64,
-
-    /// Window position/size at last save/load, for dirty tracking.
-    saved_window_geom: Option<[f32; 4]>,
-
-    /// Frames remaining before re-snapshotting saved state after load.
-    /// Needed because viewport commands (window resize/move) apply asynchronously.
-    pending_snapshot_frames: u8,
+    /// State fingerprint at the last save/load, for dirty tracking.
+    /// Only undo-eligible changes (graph edits, node moves, settings) affect this.
+    saved_fingerprint: u64,
 
     /// The egui UI Id for the node editor panel (needed to access snarl view state).
     node_editor_ui_id: egui::Id,
@@ -190,7 +173,6 @@ impl VectorFlowApp {
         }
 
         let snarl = Snarl::new();
-        let saved_node_pos_hash = Self::node_position_hash(&snarl);
 
         let mut app = Self {
             graph: Graph::new(),
@@ -202,19 +184,13 @@ impl VectorFlowApp {
             transport: TransportState::default(),
             cam_state: CameraState::default(),
             project_settings: ProjectSettings::default(),
-            saved_settings: ProjectSettings::default(),
             last_eval: None,
             node_errors: HashMap::new(),
             last_eval_gen: u64::MAX,
             last_eval_frame: u64::MAX,
             prepared_scene: None,
             project_path: None,
-            saved_gen: 0,
-            saved_panel_sizes: None,
-            saved_view_state: None,
-            saved_node_pos_hash,
-            saved_window_geom: None,
-            pending_snapshot_frames: 0,
+            saved_fingerprint: 0,
             node_editor_ui_id: egui::Id::NULL,
             pending_view_restore: None,
             pending_canvas_restore: None,
@@ -238,7 +214,9 @@ impl VectorFlowApp {
             pre_edit_fps: None,
             pending_cli_load: file.map(|f| (f, 2)),
         };
-        app.undo.sync_fingerprint(app.state_fingerprint());
+        let fp = app.state_fingerprint();
+        app.undo.sync_fingerprint(fp);
+        app.saved_fingerprint = fp;
         app
     }
 
@@ -255,46 +233,10 @@ impl VectorFlowApp {
     }
 
     /// Returns `true` if the project has unsaved changes.
-    fn is_dirty(&self, ctx: &egui::Context) -> bool {
-        if self.graph.generation() != self.saved_gen {
-            return true;
-        }
-        // Check project settings (canvas size, background, fps).
-        if !self.current_settings().approx_eq(&self.saved_settings) {
-            return true;
-        }
-        // Check if any panel width has changed since last save/load.
-        if let (Some(saved), Some(current)) =
-            (self.saved_panel_sizes, Self::current_panel_sizes(ctx))
-        {
-            for (s, c) in saved.iter().zip(current.iter()) {
-                if (c - s).abs() > 1.0 {
-                    return true;
-                }
-            }
-        }
-        // Check if node positions changed (layout drag).
-        if Self::node_position_hash(&self.snarl) != self.saved_node_pos_hash {
-            return true;
-        }
-        // Check if window position/size changed.
-        if let (Some(saved), Some(current)) =
-            (self.saved_window_geom, Self::current_window_rect(ctx))
-        {
-            for (s, c) in saved.iter().zip(current.iter()) {
-                if (c - s).abs() > 1.0 {
-                    return true;
-                }
-            }
-        }
-        // Check if view state changed (pan/zoom in either view).
-        if let Some(ref saved_vs) = self.saved_view_state {
-            let current_vs = self.current_view_state(ctx);
-            if !saved_vs.approx_eq(&current_vs) {
-                return true;
-            }
-        }
-        false
+    /// Only undo-eligible changes (graph edits, node moves, settings) are considered dirty.
+    /// UI layout (panel sizes, window geometry, view pan/zoom) is saved but not tracked.
+    fn is_dirty(&self) -> bool {
+        self.state_fingerprint() != self.saved_fingerprint
     }
 
     /// Current project settings with FPS synced from transport.
@@ -307,37 +249,18 @@ impl VectorFlowApp {
     }
 
     /// Build a window title reflecting the current file and dirty state.
-    fn window_title(&self, ctx: &egui::Context) -> String {
+    fn window_title(&self) -> String {
         let name = self
             .project_path
             .as_ref()
             .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Untitled".to_string());
-        if self.is_dirty(ctx) {
+        if self.is_dirty() {
             format!("{name}* — Vector Flow")
         } else {
             format!("{name} — Vector Flow")
         }
-    }
-
-    /// Read current sizes of tracked panels (height for graph editor, width for properties).
-    fn current_panel_sizes(ctx: &egui::Context) -> Option<[f32; 2]> {
-        let editor_height = egui::containers::panel::PanelState::load(
-            ctx, egui::Id::new("node_editor_panel"),
-        )?.rect.height();
-        let props_width = egui::containers::panel::PanelState::load(
-            ctx, egui::Id::new("properties"),
-        )?.rect.width();
-        Some([editor_height, props_width])
-    }
-
-    /// Read current window position and size as [x, y, w, h].
-    fn current_window_rect(ctx: &egui::Context) -> Option<[f32; 4]> {
-        ctx.input(|i| {
-            let outer = i.viewport().outer_rect?;
-            Some([outer.min.x, outer.min.y, outer.width(), outer.height()])
-        })
     }
 
     /// Read current window geometry from the egui context.
@@ -948,12 +871,7 @@ impl VectorFlowApp {
                 Ok(()) => {
                     log::info!("Saved project to {}", path.display());
                     self.project_path = Some(path);
-                    self.saved_gen = self.graph.generation();
-                    self.saved_settings = self.project_settings.clone();
-                    self.saved_panel_sizes = Self::current_panel_sizes(ctx);
-                    self.saved_view_state = Some(self.current_view_state(ctx));
-                    self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
-                    self.saved_window_geom = Self::current_window_rect(ctx);
+                    self.saved_fingerprint = self.state_fingerprint();
                 }
                 Err(e) => log::error!("Failed to save: {e}"),
             }
@@ -984,22 +902,19 @@ impl VectorFlowApp {
         self.last_eval_frame = u64::MAX;
         self.prepared_scene = None;
         self.project_path = None;
-        self.saved_gen = self.graph.generation();
-        self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
         self.project_settings = ProjectSettings::default();
-        self.saved_settings = self.project_settings.clone();
         self.image_export_dialog.initialized = false;
         self.video_export_dialog.initialized = false;
         self.cam_state.do_reset = true;
         self.selected_box = None;
-        self.saved_window_geom = None;
         self.undo.clear();
         self.undo.sync_fingerprint(self.state_fingerprint());
+        self.saved_fingerprint = self.state_fingerprint();
     }
 
     /// Request a new file, prompting for unsaved changes if dirty.
-    fn request_new(&mut self, ctx: &egui::Context) {
-        if self.is_dirty(ctx) {
+    fn request_new(&mut self, _ctx: &egui::Context) {
+        if self.is_dirty() {
             self.pending_action = Some(PendingAction::New);
         } else {
             self.reset_to_new();
@@ -1021,7 +936,7 @@ impl VectorFlowApp {
 
     /// Request a file close, prompting for unsaved changes if dirty.
     fn request_close_file(&mut self, ctx: &egui::Context) {
-        if self.is_dirty(ctx) {
+        if self.is_dirty() {
             self.pending_action = Some(PendingAction::CloseFile);
         } else {
             self.close_file(ctx);
@@ -1030,7 +945,7 @@ impl VectorFlowApp {
 
     /// Request an open, prompting for unsaved changes if dirty.
     fn request_open(&mut self, ctx: &egui::Context) {
-        if self.is_dirty(ctx) {
+        if self.is_dirty() {
             self.pending_action = Some(PendingAction::Open);
         } else {
             self.open_project(ctx);
@@ -1039,7 +954,7 @@ impl VectorFlowApp {
 
     /// Request a close, prompting for unsaved changes if dirty.
     fn request_close(&mut self, ctx: &egui::Context) {
-        if self.is_dirty(ctx) && !self.close_confirmed {
+        if self.is_dirty() && !self.close_confirmed {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.pending_action = Some(PendingAction::Close);
         }
@@ -1051,7 +966,6 @@ impl VectorFlowApp {
                 self.graph = pf.graph;
                 self.snarl = pf.snarl;
                 self.project_settings = pf.settings;
-                self.saved_settings = self.project_settings.clone();
                 self.transport.eval_ctx.fps = self.project_settings.fps;
                 self.image_export_dialog.initialized = false;
                 self.video_export_dialog.initialized = false;
@@ -1061,21 +975,14 @@ impl VectorFlowApp {
                 self.last_eval_frame = u64::MAX;
                 self.prepared_scene = None;
                 self.project_path = Some(path.to_owned());
-                self.saved_gen = self.graph.generation();
                 Self::restore_window_geometry(ctx, pf.window_geometry);
-                self.saved_panel_sizes = Self::current_panel_sizes(ctx);
-                self.saved_view_state = pf.view_state.clone();
-                self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
-                self.saved_window_geom = Self::current_window_rect(ctx);
-
-                // Re-snapshot after viewport commands settle (async resize/move).
-                self.pending_snapshot_frames = 3;
 
                 // Restore view state (graph editor + canvas camera).
                 self.pending_view_restore = pf.view_state;
 
                 self.undo.clear();
                 self.undo.sync_fingerprint(self.state_fingerprint());
+                self.saved_fingerprint = self.state_fingerprint();
                 log::info!("Loaded project from {}", path.display());
             }
             Err(e) => log::error!("Failed to load: {e}"),
@@ -1415,24 +1322,12 @@ impl eframe::App for VectorFlowApp {
             }
         }
 
-        // Re-snapshot saved state after load once viewport commands have settled.
-        if self.pending_snapshot_frames > 0 {
-            self.pending_snapshot_frames -= 1;
-            if self.pending_snapshot_frames == 0 {
-                self.saved_window_geom = Self::current_window_rect(ctx);
-                self.saved_panel_sizes = Self::current_panel_sizes(ctx);
-                self.saved_view_state = Some(self.current_view_state(ctx));
-                self.saved_node_pos_hash = Self::node_position_hash(&self.snarl);
-            }
-            ctx.request_repaint();
-        }
-
         // Undo: capture pre-frame snapshot before any mutations.
         let pre_pos_hash = Self::node_position_hash(&self.snarl);
         self.undo.begin_frame(&self.graph, &self.snarl, &self.current_settings(), pre_pos_hash);
 
         // Update window title to reflect dirty state.
-        ctx.send_viewport_cmd(egui::ViewportCommand::Title(self.window_title(ctx)));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Title(self.window_title()));
 
         // Handle close request (window X button).
         if ctx.input(|i| i.viewport().close_requested()) {
@@ -1770,7 +1665,7 @@ impl eframe::App for VectorFlowApp {
         }
 
         // 2b. Bottom panel: status bar (always visible, shows transient messages).
-        let status_msg = self.status_bar.update(ctx).map(|s| s.to_string());
+        let status_msg = self.status_bar.message().map(|s| s.to_string());
         egui::TopBottomPanel::bottom("status_bar")
             .exact_height(22.0)
             .show(ctx, |ui| {
@@ -2354,6 +2249,9 @@ impl eframe::App for VectorFlowApp {
         let current_settings = self.current_settings();
         let pos_hash = Self::node_position_hash(&self.snarl);
         let pointer_down = ctx.input(|i| i.pointer.button_down(egui::PointerButton::Primary));
-        self.undo.end_frame(self.state_fingerprint(), &self.graph, &current_settings, pos_hash, pointer_down);
+        let pushed = self.undo.end_frame(self.state_fingerprint(), &self.graph, &current_settings, pos_hash, pointer_down);
+        if pushed {
+            self.status_bar.clear();
+        }
     }
 }
