@@ -137,6 +137,7 @@ fn raw_path_preview_stroke() -> StrokeStyle {
         line_join: LineJoin::Round,
         dash_array: Vec::new(),
         dash_offset: 0.0,
+        tolerance: 0.0,
     }
 }
 
@@ -415,9 +416,10 @@ pub fn prepare_scene(shapes: &[CollectedShape], tolerance: f32) -> PreparedScene
             tessellate_fill(&shape.path, fill_color, tol, transform, tint, &mut buf);
         }
 
-        // Stroke pass
+        // Stroke pass — use per-shape tolerance if set, otherwise global.
         if let Some(ref stroke) = shape.stroke {
-            tessellate_stroke(&shape.path, stroke, tol, transform, tint, &mut buf);
+            let stroke_tol = if stroke.tolerance > 0.0 { stroke.tolerance } else { tol };
+            tessellate_stroke(&shape.path, stroke, stroke_tol, transform, tint, &mut buf);
         }
     }
 
@@ -975,6 +977,7 @@ mod tests {
                     line_join: LineJoin::Miter(4.0),
                     dash_array: vec![],
                     dash_offset: 0.0,
+                    tolerance: 0.0,
                 }),
                 transform: Affine2::IDENTITY,
             },

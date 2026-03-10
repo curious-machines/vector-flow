@@ -193,16 +193,18 @@ impl NodeOp {
             // Version 2: added parts output port + Divide operation.
             NodeOp::PathBoolean { .. } => 2,
 
-            // Version 2: removed tolerance port (now zoom-aware at render time).
-            NodeOp::SetStroke { .. } => 2,
+            // Version 3: re-added tolerance port (0 = zoom-aware).
+            NodeOp::SetStroke { .. } => 3,
 
             // Version 2: tolerance default changed to 0 (zoom-aware).
             NodeOp::StrokeToPath { .. } => 2,
 
+            // Version 2: added tolerance port (0 = zoom-aware).
+            NodeOp::SetStyle { .. } => 2,
+
             // Version 1: added tolerance input port.
             NodeOp::ResamplePath
-            | NodeOp::CopyToPoints
-            | NodeOp::SetStyle { .. } => 1,
+            | NodeOp::CopyToPoints => 1,
 
             // All other built-in ops start at version 0. Bump individually when
             // a node's port layout or behavior changes.
@@ -673,11 +675,15 @@ impl NodeDef {
                     .with_default(ParamValue::Float(0.0))
                     .with_description("Dash pattern offset")
                     .hidden(),
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
+                    .hidden(),
             ],
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 2,
+            version: 3,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -784,11 +790,16 @@ impl NodeDef {
                     .with_default(ParamValue::Float(0.0))
                     .with_description("Dash pattern offset")
                     .hidden(),
+                // 12: tolerance
+                PortDef::new("tolerance", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
+                    .hidden(),
             ],
             outputs: vec![PortDef::new("output", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 1,
+            version: 2,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1919,8 +1930,8 @@ mod tests {
     fn set_style_factory() {
         let mut node = NodeDef::set_style(NodeId(1));
         node.init_visibility();
-        // 12 input ports
-        assert_eq!(node.inputs.len(), 12);
+        // 13 input ports
+        assert_eq!(node.inputs.len(), 13);
         assert_eq!(node.inputs[0].name, "path");
         assert_eq!(node.inputs[1].name, "fill_color");
         assert_eq!(node.inputs[2].name, "fill_opacity");
@@ -1933,6 +1944,7 @@ mod tests {
         assert_eq!(node.inputs[9].name, "join");
         assert_eq!(node.inputs[10].name, "miter_limit");
         assert_eq!(node.inputs[11].name, "dash_offset");
+        assert_eq!(node.inputs[12].name, "tolerance");
         // 1 output port
         assert_eq!(node.outputs.len(), 1);
         assert_eq!(node.outputs[0].name, "output");
@@ -1947,7 +1959,7 @@ mod tests {
         assert!(node.input_visibility[5]);  // stroke_width
         assert!(!node.input_visibility[6]); // stroke_opacity (hidden)
         // version
-        assert_eq!(node.version, 1);
+        assert_eq!(node.version, 2);
         assert!(!node.is_outdated());
     }
 
@@ -1988,10 +2000,10 @@ mod tests {
         assert!(stp.inputs.iter().any(|p| p.name == "tolerance"));
 
         let ss = NodeDef::set_stroke(NodeId(5));
-        assert_eq!(ss.version, 2);
-        assert_eq!(ss.op.current_version(), 2);
+        assert_eq!(ss.version, 3);
+        assert_eq!(ss.op.current_version(), 3);
         assert!(!ss.is_outdated());
-        assert!(!ss.inputs.iter().any(|p| p.name == "tolerance"));
+        assert!(ss.inputs.iter().any(|p| p.name == "tolerance"));
     }
 
     #[test]

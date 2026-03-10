@@ -435,6 +435,15 @@
               "Float": 0.0
             },
             "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
           }
         ],
         "outputs": [
@@ -451,11 +460,12 @@
           -94.546875
         ],
         "generation": 68,
-        "version": 2,
+        "version": 3,
         "input_visibility": [
           true,
           true,
           true,
+          false,
           false,
           false,
           false,

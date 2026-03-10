@@ -65,6 +65,9 @@ pub struct StrokeStyle {
     pub line_join: LineJoin,
     pub dash_array: Vec<f32>,
     pub dash_offset: f32,
+    /// Curve flattening tolerance.  0 means "use the global zoom-aware value".
+    #[serde(default)]
+    pub tolerance: f32,
 }
 
 // ---------------------------------------------------------------------------

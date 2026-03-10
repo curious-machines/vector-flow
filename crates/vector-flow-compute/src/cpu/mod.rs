@@ -298,8 +298,9 @@ impl ComputeBackend for CpuBackend {
                 let cap = int_to_line_cap(get_int(inputs, 3));
                 let join = int_to_line_join(get_int(inputs, 4), get_scalar(inputs, 5) as f32);
                 let dash_offset = get_scalar(inputs, 6) as f32;
+                let tolerance = get_scalar(inputs, 7) as f32;
                 let dash_array = parse_dash_pattern(dash_pattern);
-                styling::set_stroke(&shape, color_data, width, cap, join, dash_array, dash_offset)
+                styling::set_stroke(&shape, color_data, width, cap, join, dash_array, dash_offset, tolerance)
             }
             NodeOp::SetStyle { ref dash_pattern } => {
                 let shape = get_any(inputs, 0);
@@ -315,6 +316,7 @@ impl ComputeBackend for CpuBackend {
                 let cap = int_to_line_cap(get_int(inputs, 8));
                 let join = int_to_line_join(get_int(inputs, 9), get_scalar(inputs, 10) as f32);
                 let dash_offset = get_scalar(inputs, 11) as f32;
+                let tolerance = get_scalar(inputs, 12) as f32;
                 let dash_array = parse_dash_pattern(dash_pattern);
 
                 // Apply fill first (if enabled), then stroke.
@@ -328,7 +330,7 @@ impl ComputeBackend for CpuBackend {
                     let stroke_data = apply_opacity_to_color(stroke_color_data, stroke_opacity);
                     result = styling::set_stroke(
                         &result, &stroke_data, stroke_width, cap, join,
-                        dash_array, dash_offset,
+                        dash_array, dash_offset, tolerance,
                     );
                 }
                 result
@@ -349,6 +351,7 @@ impl ComputeBackend for CpuBackend {
                     line_join: join,
                     dash_array,
                     dash_offset,
+                    tolerance: 0.0,
                 };
                 styling::stroke_to_path(&shape, &stroke, tolerance)
             }

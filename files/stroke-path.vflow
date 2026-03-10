@@ -133,6 +133,15 @@
               "Float": 0.0
             },
             "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
           }
         ],
         "outputs": [
@@ -149,11 +158,12 @@
           130.84375
         ],
         "generation": 397,
-        "version": 2,
+        "version": 3,
         "input_visibility": [
           true,
           true,
           true,
+          false,
           false,
           false,
           false,
@@ -456,6 +466,15 @@
               "Float": 0.0
             },
             "expression": null
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null
           }
         ],
         "outputs": [
@@ -472,11 +491,12 @@
           -261.5
         ],
         "generation": 89,
-        "version": 2,
+        "version": 3,
         "input_visibility": [
           true,
           true,
           true,
+          false,
           false,
           false,
           false,

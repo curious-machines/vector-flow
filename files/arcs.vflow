@@ -523,7 +523,7 @@
               "Color": [
                 0.0,
                 0.45641097,
-                1.08816856e-7,
+                1.08816856e-07,
                 1.0
               ]
             },
@@ -579,6 +579,16 @@
             },
             "expression": null,
             "visible_by_default": false
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": false
           }
         ],
         "outputs": [
@@ -596,11 +606,12 @@
           14.015625
         ],
         "generation": 94,
-        "version": 2,
+        "version": 3,
         "input_visibility": [
           true,
           true,
           true,
+          false,
           false,
           false,
           false,
