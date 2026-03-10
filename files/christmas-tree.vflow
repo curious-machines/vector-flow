@@ -1,6 +1,36 @@
 {
   "graph": {
     "nodes": {
+      "3": {
+        "id": 3,
+        "name": "SVG Path",
+        "op": {
+          "SvgPath": {
+            "data": "M 170 0 L 120 30 L 120 15 L 75 55 L 75 35 L 20 85 L 20 -85 L 75 -35 L 75 -55 L 120 -15 L 120 -30 Z"
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          0.0,
+          -200.0
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [],
+        "output_visibility": [
+          true
+        ]
+      },
       "7": {
         "id": 7,
         "name": "Pack Points",
@@ -36,56 +66,6 @@
         "position": [
           220.0,
           -450.0
-        ],
-        "generation": 0,
-        "version": 0,
-        "input_visibility": [
-          true,
-          true
-        ],
-        "output_visibility": [
-          true
-        ]
-      },
-      "5": {
-        "id": 5,
-        "name": "Merge",
-        "op": {
-          "Merge": {
-            "keep_separate": false
-          }
-        },
-        "inputs": [
-          {
-            "name": "input_0",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "input_1",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          440.0,
-          -100.0
         ],
         "generation": 0,
         "version": 0,
@@ -145,7 +125,7 @@
           440.0,
           -450.0
         ],
-        "generation": 0,
+        "generation": 2,
         "version": 0,
         "input_visibility": [
           true,
@@ -155,121 +135,6 @@
         "output_visibility": [
           true
         ]
-      },
-      "6": {
-        "id": 6,
-        "name": "Generate",
-        "op": {
-          "Generate": {
-            "source": "let frac = 1.0 * index / (count - 1);\nlet t = frac * frac * frac;\nlet wind = sin(time * 0.8) * 0.7 + sin(time * 2.3) * 0.3;\nout_x = wind * t * 50.0;\nout_y = -20.0 + 200.0 * frac;",
-            "script_inputs": [
-              [
-                "index",
-                "Int"
-              ],
-              [
-                "count",
-                "Int"
-              ]
-            ],
-            "script_outputs": [
-              [
-                "out_x",
-                "Scalar"
-              ],
-              [
-                "out_y",
-                "Scalar"
-              ]
-            ]
-          }
-        },
-        "inputs": [
-          {
-            "name": "start",
-            "data_type": "Int",
-            "description": "",
-            "default_value": {
-              "Int": 0
-            },
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "end",
-            "data_type": "Int",
-            "description": "",
-            "default_value": {
-              "Int": 7
-            },
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "out_x",
-            "data_type": "Scalars",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "out_y",
-            "data_type": "Scalars",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          0.0,
-          -400.0
-        ],
-        "generation": 0,
-        "version": 0,
-        "input_visibility": [
-          true,
-          true
-        ],
-        "output_visibility": [
-          true,
-          true
-        ]
-      },
-      "10": {
-        "id": 10,
-        "name": "Graph Output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any",
-            "order": 0
-          }
-        },
-        "inputs": [
-          {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [],
-        "position": [
-          880.0,
-          -200.0
-        ],
-        "generation": 0,
-        "version": 0,
-        "input_visibility": [
-          true
-        ],
-        "output_visibility": []
       },
       "1": {
         "id": 1,
@@ -388,12 +253,97 @@
           true
         ]
       },
+      "2": {
+        "id": 2,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "",
+            "default_value": {
+              "Color": [
+                0.36,
+                0.2,
+                0.09,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          220.0,
+          0.0
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "10": {
+        "id": 10,
+        "name": "Graph Output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [],
+        "position": [
+          880.0,
+          -200.0
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true
+        ],
+        "output_visibility": []
+      },
       "12": {
         "id": 12,
         "name": "Warp to Curve",
         "op": {
           "WarpToCurve": {
-            "mode": 1
+            "mode": 0
           }
         },
         "inputs": [
@@ -438,43 +388,13 @@
           186.42188,
           -141.92188
         ],
-        "generation": 1,
+        "generation": 2,
         "version": 0,
         "input_visibility": [
           true,
           true,
           false
         ],
-        "output_visibility": [
-          true
-        ]
-      },
-      "3": {
-        "id": 3,
-        "name": "SVG Path",
-        "op": {
-          "SvgPath": {
-            "data": "M 170 0 L 120 30 L 120 15 L 75 55 L 75 35 L 20 85 L 20 -85 L 75 -35 L 75 -55 L 120 -15 L 120 -30 Z"
-          }
-        },
-        "inputs": [],
-        "outputs": [
-          {
-            "name": "path",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          0.0,
-          -200.0
-        ],
-        "generation": 0,
-        "version": 0,
-        "input_visibility": [],
         "output_visibility": [
           true
         ]
@@ -530,13 +450,100 @@
           true
         ]
       },
-      "2": {
-        "id": 2,
-        "name": "Set Fill",
-        "op": "SetFill",
+      "6": {
+        "id": 6,
+        "name": "Generate",
+        "op": {
+          "Generate": {
+            "source": "let frac = 1.0 * index / (count - 1);\nlet t = frac * frac * frac;\nlet wind = sin(time * 0.8) * 0.7 + sin(time * 2.3) * 0.3;\nout_x = wind * t * 50.0;\nout_y = -20.0 + 200.0 * frac;",
+            "script_inputs": [
+              [
+                "index",
+                "Int"
+              ],
+              [
+                "count",
+                "Int"
+              ]
+            ],
+            "script_outputs": [
+              [
+                "out_x",
+                "Scalar"
+              ],
+              [
+                "out_y",
+                "Scalar"
+              ]
+            ]
+          }
+        },
         "inputs": [
           {
-            "name": "geometry",
+            "name": "start",
+            "data_type": "Int",
+            "description": "",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "end",
+            "data_type": "Int",
+            "description": "",
+            "default_value": {
+              "Int": 16
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "out_x",
+            "data_type": "Scalars",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "out_y",
+            "data_type": "Scalars",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          0.0,
+          -400.0
+        ],
+        "generation": 2,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true,
+          true
+        ]
+      },
+      "5": {
+        "id": 5,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "input_0",
             "data_type": "Any",
             "description": "",
             "default_value": null,
@@ -544,17 +551,10 @@
             "visible_by_default": true
           },
           {
-            "name": "color",
-            "data_type": "Color",
+            "name": "input_1",
+            "data_type": "Any",
             "description": "",
-            "default_value": {
-              "Color": [
-                0.36,
-                0.2,
-                0.09,
-                1.0
-              ]
-            },
+            "default_value": null,
             "expression": null,
             "visible_by_default": true
           }
@@ -570,8 +570,8 @@
           }
         ],
         "position": [
-          220.0,
-          0.0
+          440.0,
+          -100.0
         ],
         "generation": 0,
         "version": 0,
@@ -697,7 +697,7 @@
       }
     ],
     "next_id": 13,
-    "generation": 182,
+    "generation": 187,
     "network_boxes": {},
     "next_box_id": 0
   },
@@ -857,7 +857,7 @@
             80,
             255
           ],
-          "pinned": true
+          "pinned": false
         },
         "pos": {
           "x": 401.20886,
@@ -905,36 +905,6 @@
     "wires": [
       {
         "out_pin": {
-          "node": 4,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 11,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 1,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 4,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 3,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
           "node": 3,
           "output": 0
         },
@@ -965,6 +935,26 @@
       },
       {
         "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 11,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 10,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
           "node": 5,
           "output": 0
         },
@@ -975,11 +965,31 @@
       },
       {
         "out_pin": {
-          "node": 0,
+          "node": 10,
           "output": 0
         },
         "in_pin": {
+          "node": 9,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 11,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
           "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
           "input": 0
         }
       },
@@ -995,21 +1005,11 @@
       },
       {
         "out_pin": {
-          "node": 10,
+          "node": 2,
           "output": 0
         },
         "in_pin": {
-          "node": 9,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 11,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 10,
+          "node": 3,
           "input": 0
         }
       }
@@ -1031,7 +1031,7 @@
     "x": 243.0,
     "y": 132.5,
     "width": 1496.0,
-    "height": 1197.0,
+    "height": 1234.0,
     "node_editor_height": 473.59375,
     "properties_width": 350.03125
   },

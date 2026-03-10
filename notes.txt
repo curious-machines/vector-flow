@@ -1,5 +1,7 @@
-- can we add support to programatically interact with the UI for testing and automation purposes
 - render SVG? Maybe have a tool that converts svg to vflow graph?
 - we need a place in the project to store "classes" to create reusable nodes/graphs. There are project level and application level classes.
 - would like a way to copy selected nodes and get a text version of the selection including edges that could be sent to someone else who could then "paste" that into their own document
-- does it make sense to have a "style" node that combines stroke and fill in one place?
+- Allow labels on nodes
+- Image info: stats, histogram, color counts (maybe), etc.
+- Need a path editor panel that allows us to edit paths and maybe even styling them resulting in a sub-graph to implements it. Ideally we can select a path and edit it. If it has styling info, that would come in too.
+- We should be able to attach a file to maybe SVG Path. It the entire contents as path data. However, it would be nice to be able to have style info in that file as well so we could draw a serialized (flattened) equivalent of an SVG file, like what I used in the rasterizer project.
