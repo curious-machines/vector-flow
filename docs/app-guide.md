@@ -115,10 +115,11 @@ The transport bar sits in the top panel to the right of the menu bar. It control
 
 | Control | Description |
 |---------|-------------|
-| **\|<** (Rewind) | Stop playback and reset to frame 0. |
+| **\|<<** (Rewind) | Stop playback and reset to frame 0. |
+| **<\|** (Step Back) | Go back one frame and pause. Clamped at frame 0. Hold **Shift** to step 10 frames. |
 | **>** (Play) | Start playing forward. The frame counter advances each tick based on FPS. Shown when paused. |
 | **\|\|** (Pause) | Pause playback at the current frame. Shown when playing. |
-| **>\|** (Step) | Advance by one frame and pause. |
+| **\|>** (Step Forward) | Advance by one frame and pause. Hold **Shift** to step 10 frames. |
 | **Frame / Time / FPS display** | Shows the current frame number, elapsed time in seconds, and the configured frames per second. |
 
 When playback is active, the graph re-evaluates each frame and the canvas updates in real time. This is how you preview animations driven by the built-in `frame` and `time` global variables.

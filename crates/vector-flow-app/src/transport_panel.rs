@@ -84,9 +84,17 @@ impl TransportState {
         self.playback = PlaybackState::Stopped;
     }
 
-    pub fn step_forward(&mut self) {
+    pub fn step_forward(&mut self, count: u64) {
         self.playback = PlaybackState::Paused;
-        self.eval_ctx.frame += 1;
+        self.eval_ctx.frame += count;
+        self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
+        self.accumulated_time = 0.0;
+        self.last_tick = None;
+    }
+
+    pub fn step_backward(&mut self, count: u64) {
+        self.playback = PlaybackState::Paused;
+        self.eval_ctx.frame = self.eval_ctx.frame.saturating_sub(count);
         self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
         self.accumulated_time = 0.0;
         self.last_tick = None;
@@ -99,9 +107,18 @@ pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState, fps_editing: 
     let mut time_changed = false;
 
     ui.horizontal(|ui| {
+        let shift = ui.input(|i| i.modifiers.shift);
+        let step_count = if shift { 10 } else { 1 };
+
         // Rewind
-        if ui.button("|<").on_hover_text("Rewind").clicked() {
+        if ui.button("|<<").on_hover_text("Rewind to start").clicked() {
             state.rewind();
+            time_changed = true;
+        }
+
+        // Step backward
+        if ui.button("<|").on_hover_text("Step back (Shift: 10 frames)").clicked() {
+            state.step_backward(step_count);
             time_changed = true;
         }
 
@@ -119,9 +136,9 @@ pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState, fps_editing: 
             }
         }
 
-        // Step
-        if ui.button(">|").on_hover_text("Step").clicked() {
-            state.step_forward();
+        // Step forward
+        if ui.button("|>").on_hover_text("Step forward (Shift: 10 frames)").clicked() {
+            state.step_forward(step_count);
             time_changed = true;
         }
 
@@ -157,4 +174,71 @@ pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState, fps_editing: 
     });
 
     time_changed
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn step_backward_decrements_frame() {
+        let mut state = TransportState::default();
+        state.eval_ctx.fps = 30.0;
+        // Advance to frame 5
+        for _ in 0..5 {
+            state.step_forward(1);
+        }
+        assert_eq!(state.eval_ctx.frame, 5);
+
+        state.step_backward(1);
+        assert_eq!(state.eval_ctx.frame, 4);
+        assert_eq!(state.playback, PlaybackState::Paused);
+        assert!((state.eval_ctx.time_secs - 4.0 / 30.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn step_backward_clamps_at_zero() {
+        let mut state = TransportState::default();
+        state.step_backward(1);
+        assert_eq!(state.eval_ctx.frame, 0);
+        assert_eq!(state.eval_ctx.time_secs, 0.0);
+    }
+
+    #[test]
+    fn step_backward_pauses_playback() {
+        let mut state = TransportState::default();
+        state.playback = PlaybackState::Playing;
+        state.eval_ctx.frame = 10;
+        state.step_backward(1);
+        assert_eq!(state.playback, PlaybackState::Paused);
+        assert_eq!(state.eval_ctx.frame, 9);
+    }
+
+    #[test]
+    fn step_forward_multi_frame() {
+        let mut state = TransportState::default();
+        state.eval_ctx.fps = 30.0;
+        state.step_forward(10);
+        assert_eq!(state.eval_ctx.frame, 10);
+        assert!((state.eval_ctx.time_secs - 10.0 / 30.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn step_backward_multi_frame() {
+        let mut state = TransportState::default();
+        state.eval_ctx.fps = 30.0;
+        state.eval_ctx.frame = 25;
+        state.step_backward(10);
+        assert_eq!(state.eval_ctx.frame, 15);
+        assert!((state.eval_ctx.time_secs - 15.0 / 30.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn step_backward_multi_frame_clamps_at_zero() {
+        let mut state = TransportState::default();
+        state.eval_ctx.frame = 3;
+        state.step_backward(10);
+        assert_eq!(state.eval_ctx.frame, 0);
+        assert_eq!(state.eval_ctx.time_secs, 0.0);
+    }
 }
