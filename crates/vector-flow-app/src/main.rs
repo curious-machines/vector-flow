@@ -5,6 +5,7 @@ mod export_dialog;
 mod id_map;
 mod project;
 mod properties_panel;
+mod recent_files;
 mod status_bar;
 mod style_promote;
 mod transport_panel;

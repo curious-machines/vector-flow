@@ -51,15 +51,29 @@ impl TransportState {
 
         self.accumulated_time += dt;
         let frame_duration = 1.0 / self.eval_ctx.fps as f64;
-        let target_frame = (self.accumulated_time / frame_duration) as u64;
 
-        if target_frame > self.eval_ctx.frame {
-            self.eval_ctx.frame = target_frame;
+        if self.accumulated_time >= frame_duration {
+            // Advance exactly one frame per tick so every frame is displayed,
+            // even if the system can't keep up with real-time.
+            self.eval_ctx.frame += 1;
             self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
+            self.accumulated_time -= frame_duration;
+            // If we've fallen far behind, reset rather than slowly catching up.
+            if self.accumulated_time > frame_duration {
+                self.accumulated_time = 0.0;
+            }
             true
         } else {
             false
         }
+    }
+
+    pub fn pause(&mut self) {
+        self.playback = PlaybackState::Paused;
+        // Reset fractional accumulator so resuming play starts fresh
+        // from the current frame without residual time carrying over.
+        self.accumulated_time = 0.0;
+        self.last_tick = None;
     }
 
     pub fn rewind(&mut self) {
@@ -74,8 +88,7 @@ impl TransportState {
         self.playback = PlaybackState::Paused;
         self.eval_ctx.frame += 1;
         self.eval_ctx.time_secs = self.eval_ctx.frame as f32 / self.eval_ctx.fps;
-        // Keep accumulated_time in sync so resuming play continues from here.
-        self.accumulated_time = self.eval_ctx.frame as f64 / self.eval_ctx.fps as f64;
+        self.accumulated_time = 0.0;
         self.last_tick = None;
     }
 }
@@ -96,7 +109,7 @@ pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState, fps_editing: 
         match state.playback {
             PlaybackState::Playing => {
                 if ui.button("||").on_hover_text("Pause").clicked() {
-                    state.playback = PlaybackState::Paused;
+                    state.pause();
                 }
             }
             _ => {
@@ -112,9 +125,13 @@ pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState, fps_editing: 
             time_changed = true;
         }
 
+        // Advance time AFTER processing button clicks so that a pause
+        // click this frame prevents the tick from advancing the frame.
+        time_changed |= state.tick();
+
         ui.separator();
 
-        // Frame / time display.
+        // Frame / time display (shown after tick so the counter is accurate).
         ui.label(format!(
             "Frame: {}  Time: {:.2}s",
             state.eval_ctx.frame, state.eval_ctx.time_secs
@@ -134,7 +151,7 @@ pub fn show_transport_bar(ui: &mut Ui, state: &mut TransportState, fps_editing: 
             state.eval_ctx.fps = fps;
             // Recompute time_secs from current frame at new fps.
             state.eval_ctx.time_secs = state.eval_ctx.frame as f32 / fps;
-            state.accumulated_time = state.eval_ctx.frame as f64 / fps as f64;
+            state.accumulated_time = 0.0;
             time_changed = true;
         }
     });

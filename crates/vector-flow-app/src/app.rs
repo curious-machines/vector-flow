@@ -22,6 +22,7 @@ use crate::export::{self, ExportState, VideoExportConfig};
 use crate::export_dialog::{self, ImageExportDialog, VideoExportDialog};
 use crate::id_map::IdMap;
 use crate::project::{self, ProjectFile, ProjectSettings, ViewState, WindowGeometry};
+use crate::recent_files::RecentFiles;
 use crate::properties_panel;
 use crate::transport_panel::{self, TransportState};
 use crate::ui_node::{node_catalog, CatalogEntry, UiNode};
@@ -152,6 +153,12 @@ pub struct VectorFlowApp {
     /// File path from command-line argument, loaded after window initializes.
     /// Counter: starts at 2, decrements each frame, loads when it hits 0.
     pending_cli_load: Option<(PathBuf, u8)>,
+
+    /// Recently opened/saved project files.
+    recent_files: RecentFiles,
+
+    /// Path to open after the unsaved-changes dialog resolves (for Open Recent).
+    pending_open_path: Option<PathBuf>,
 }
 
 impl VectorFlowApp {
@@ -217,6 +224,8 @@ impl VectorFlowApp {
             fps_editing: false,
             pre_edit_fps: None,
             pending_cli_load: file.map(|f| (f, 2)),
+            recent_files: RecentFiles::load(),
+            pending_open_path: None,
         };
         let fp = app.state_fingerprint();
         app.undo.sync_fingerprint(fp);
@@ -881,6 +890,7 @@ impl VectorFlowApp {
             match pf.save(&path) {
                 Ok(()) => {
                     log::info!("Saved project to {}", path.display());
+                    self.recent_files.add(&path);
                     self.project_path = Some(path);
                     self.saved_fingerprint = self.state_fingerprint();
                 }
@@ -898,6 +908,16 @@ impl VectorFlowApp {
 
     fn open_project(&mut self, ctx: &egui::Context) {
         if let Some(path) = project::open_dialog() {
+            self.load_project_from(&path, ctx);
+        }
+    }
+
+    /// Open a specific recent file, prompting for unsaved changes if dirty.
+    fn open_recent(&mut self, path: PathBuf, ctx: &egui::Context) {
+        if self.is_dirty() {
+            self.pending_open_path = Some(path);
+            self.pending_action = Some(PendingAction::Open);
+        } else {
             self.load_project_from(&path, ctx);
         }
     }
@@ -1007,6 +1027,7 @@ impl VectorFlowApp {
                 self.undo.clear();
                 self.undo.sync_fingerprint(self.state_fingerprint());
                 self.saved_fingerprint = self.state_fingerprint();
+                self.recent_files.add(path);
                 log::info!("Loaded project from {}", path.display());
             }
             Err(e) => log::error!("Failed to load: {e}"),
@@ -1318,7 +1339,11 @@ impl VectorFlowApp {
     fn finish_pending_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         match action {
             PendingAction::Open => {
-                self.open_project(ctx);
+                if let Some(path) = self.pending_open_path.take() {
+                    self.load_project_from(&path, ctx);
+                } else {
+                    self.open_project(ctx);
+                }
             }
             PendingAction::Close => {
                 self.close_confirmed = true;
@@ -1493,19 +1518,15 @@ impl eframe::App for VectorFlowApp {
             }
         }
 
-        // 1. Transport tick — advance time if playing.
-        let time_changed = self.transport.tick();
-        if self.transport.playback == transport_panel::PlaybackState::Playing {
-            ctx.request_repaint();
-        }
-
-        // 2. Top panel: menu bar + transport bar.
+        // 1. Top panel: menu bar + transport bar.
         let mut transport_changed = false;
         let mut menu_save = false;
         let mut menu_save_as = false;
         let mut menu_open = false;
         let mut menu_new = false;
         let mut menu_close_file = false;
+        let mut menu_open_recent: Option<PathBuf> = None;
+        let mut menu_clear_recents = false;
         let mut menu_export_image = false;
         let mut menu_export_video = false;
         let mut menu_graph_screenshot = false;
@@ -1526,6 +1547,27 @@ impl eframe::App for VectorFlowApp {
                         ui.close_menu();
                         menu_open = true;
                     }
+                    let recent_entries: Vec<PathBuf> = self.recent_files.entries().to_vec();
+                    ui.add_enabled_ui(!recent_entries.is_empty(), |ui| {
+                        ui.menu_button("Recent Files", |ui| {
+                            for path in &recent_entries {
+                                let label = path
+                                    .file_name()
+                                    .map(|n| n.to_string_lossy().into_owned())
+                                    .unwrap_or_else(|| path.display().to_string());
+                                let btn = ui.button(&label).on_hover_text(path.display().to_string());
+                                if btn.clicked() {
+                                    menu_open_recent = Some(path.clone());
+                                    ui.close_menu();
+                                }
+                            }
+                            ui.separator();
+                            if ui.button("Clear Recents").clicked() {
+                                menu_clear_recents = true;
+                                ui.close_menu();
+                            }
+                        });
+                    });
                     if ui.button("Close  Ctrl+W").clicked() {
                         ui.close_menu();
                         menu_close_file = true;
@@ -1631,11 +1673,18 @@ impl eframe::App for VectorFlowApp {
                 self.pre_edit_fps = None;
             }
         });
+
         if menu_new {
             self.request_new(ctx);
         }
         if menu_open {
             self.request_open(ctx);
+        }
+        if let Some(path) = menu_open_recent {
+            self.open_recent(path, ctx);
+        }
+        if menu_clear_recents {
+            self.recent_files.clear();
         }
         if menu_close_file {
             self.request_close_file(ctx);
@@ -2248,7 +2297,7 @@ impl eframe::App for VectorFlowApp {
                 filter.iter().any(|id| !eval.outputs.contains_key(id))
             })
         });
-        if self.needs_eval() || time_changed || transport_changed || props_changed || selection_needs_eval {
+        if self.needs_eval() || transport_changed || props_changed || selection_needs_eval {
             self.evaluate(eval_filter.as_ref());
         }
 
@@ -2268,6 +2317,11 @@ impl eframe::App for VectorFlowApp {
                 canvas_panel::restore_camera(render_state, &mut self.cam_state, center, zoom);
             }
             canvas_panel::apply_camera_commands(render_state, &mut self.cam_state);
+        }
+
+        // Request continuous repaints while playing.
+        if self.transport.playback == transport_panel::PlaybackState::Playing {
+            ctx.request_repaint();
         }
 
         // Undo: detect changes and auto-push undo entries.
