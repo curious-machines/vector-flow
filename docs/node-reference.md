@@ -797,6 +797,7 @@ Applies a stroke (outline) to a shape.
 | join         | Int    | 0                     | Line join style: 0=Miter, 1=Round, 2=Bevel |
 | miter_limit  | Scalar | 4.0                   | Miter limit (only applies to Miter join)   |
 | dash_offset  | Scalar | 0.0                   | Dash pattern offset                        |
+| tolerance    | Scalar | 0.0                   | Curve flattening tolerance (0 = zoom-aware) |
 
 **Outputs:**
 
@@ -810,7 +811,7 @@ Applies a stroke (outline) to a shape.
 |--------------|-----------------------------------------------------------------|
 | Dash Pattern | Comma or space-separated dash/gap lengths (e.g., "10 5" or "10,5,2,5") |
 
-**Notes:** Both open and closed paths can have strokes. Chain Set Fill and Set Stroke to get both a fill and an outline. Dash pattern rendering uses zoom-aware tolerance automatically, so curves stay smooth at any zoom level.
+**Notes:** Both open and closed paths can have strokes. Chain Set Fill and Set Stroke to get both a fill and an outline. When tolerance is 0 (the default), dash and stroke rendering uses zoom-aware tolerance automatically, so curves stay smooth at any zoom level. Set a positive tolerance value to override with a fixed precision.
 
 ```
 Example patch: Circle -> Set Fill (red) -> Set Stroke (black, 3px) -> Graph Output
@@ -838,6 +839,7 @@ Combined fill + stroke styling node. Applies both fill and stroke to a shape in 
 | join           | Int    | 0                     | no      | Line join: 0=Miter, 1=Round, 2=Bevel      |
 | miter_limit    | Scalar | 4.0                   | no      | Miter limit (only for Miter join)          |
 | dash_offset    | Scalar | 0.0                   | no      | Dash pattern offset                        |
+| tolerance      | Scalar | 0.0                   | no      | Curve flattening tolerance (0 = zoom-aware) |
 
 **Outputs:**
 
@@ -873,7 +875,7 @@ Converts a stroke outline into a filled path. The resulting path traces the outl
 | join         | Int    | 0       | Line join style: 0=Miter, 1=Round, 2=Bevel|
 | miter_limit  | Scalar | 4.0     | Miter limit (only applies to Miter join)   |
 | dash_offset  | Scalar | 0.0     | Dash pattern offset                        |
-| tolerance    | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise) |
+| tolerance    | Scalar | 0.0     | Curve flattening tolerance (0 = zoom-aware) |
 
 **Outputs:**
 
@@ -887,7 +889,7 @@ Converts a stroke outline into a filled path. The resulting path traces the outl
 |--------------|-----------------------------------------------------------------|
 | Dash Pattern | Comma or space-separated dash/gap lengths (e.g., "10 5" or "10,5,2,5") |
 
-**Notes:** This node tessellates the stroke into a triangle mesh, then extracts the boundary edges to produce a closed path. It supports all stroke parameters including dashes. An empty dash pattern produces a solid stroke outline. The tolerance parameter controls curve flattening precision — smaller values produce smoother outlines with more segments. This is useful for creating outlined text effects, converting strokes into cuttable paths, or applying further path operations to a stroke shape.
+**Notes:** This node tessellates the stroke into a triangle mesh, then extracts the boundary edges to produce a closed path. It supports all stroke parameters including dashes. An empty dash pattern produces a solid stroke outline. When tolerance is 0 (the default), curve flattening adapts to the current zoom level — the path is re-evaluated when you zoom in or out, producing smoother outlines at closer zoom. Set a positive tolerance to use a fixed precision instead. This is useful for creating outlined text effects, converting strokes into cuttable paths, or applying further path operations to a stroke shape.
 
 ```
 Example patch: Circle -> Stroke to Path (width: 5, cap: Round) -> Set Fill (gold) -> Graph Output
