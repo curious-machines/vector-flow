@@ -1,38 +1,33 @@
 {
   "graph": {
     "nodes": {
-      "14": {
-        "id": 14,
-        "name": "Rotate",
-        "op": "Rotate",
+      "24": {
+        "id": 24,
+        "name": "Set Fill",
+        "op": "SetFill",
         "inputs": [
           {
             "name": "geometry",
             "data_type": "Any",
             "description": "Input geometry",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           },
           {
-            "name": "angle",
-            "data_type": "Scalar",
-            "description": "Rotation angle in degrees",
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
             "default_value": {
-              "Float": 0.0
-            },
-            "expression": null
-          },
-          {
-            "name": "center",
-            "data_type": "Vec2",
-            "description": "Center of rotation",
-            "default_value": {
-              "Vec2": [
-                0.0,
-                0.0
+              "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
               ]
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "outputs": [
@@ -41,54 +36,85 @@
             "data_type": "Any",
             "description": "",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "position": [
-          -197.93463,
-          -949.4253
+          26.617006,
+          216.6061
         ],
-        "generation": 0
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
       },
-      "4": {
-        "id": 4,
-        "name": "Output: output",
+      "15": {
+        "id": 15,
+        "name": "VFS Code",
         "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any",
-            "order": 1
+          "DslCode": {
+            "source": "angle = (time / 10.0) * 360.0;",
+            "script_inputs": [],
+            "script_outputs": [
+              [
+                "angle",
+                "Scalar"
+              ]
+            ]
           }
         },
-        "inputs": [
+        "inputs": [],
+        "outputs": [
           {
-            "name": "output",
-            "data_type": "Any",
+            "name": "angle",
+            "data_type": "Scalar",
             "description": "",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
-        "outputs": [],
         "position": [
-          277.98438,
-          -171.90625
+          -297.03662,
+          -950.2514
         ],
-        "generation": 1
+        "generation": 42,
+        "version": 0,
+        "input_visibility": [],
+        "output_visibility": [
+          true
+        ]
       },
-      "22": {
-        "id": 22,
-        "name": "Circle",
-        "op": "Circle",
+      "8": {
+        "id": 8,
+        "name": "Rectangle",
+        "op": "Rectangle",
         "inputs": [
           {
-            "name": "radius",
+            "name": "width",
             "data_type": "Scalar",
-            "description": "Circle radius",
+            "description": "Width",
             "default_value": {
-              "Float": 200.0
+              "Float": 25.0
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "height",
+            "data_type": "Scalar",
+            "description": "Height",
+            "default_value": {
+              "Float": 25.0
+            },
+            "expression": null,
+            "visible_by_default": true
           },
           {
             "name": "center",
@@ -100,7 +126,8 @@
                 0.0
               ]
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "outputs": [
@@ -109,14 +136,130 @@
             "data_type": "Path",
             "description": "",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "position": [
-          -153.36119,
-          290.11627
+          -460.90158,
+          -594.50433
         ],
-        "generation": 3
+        "generation": 6,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "27": {
+        "id": 27,
+        "name": "Copy to Points",
+        "op": "CopyToPoints",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Shape to copy to each point",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "target_path",
+            "data_type": "Path",
+            "description": "Path whose sampled points receive copies",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "count",
+            "data_type": "Int",
+            "description": "Number of copies along path",
+            "default_value": {
+              "Int": 32
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "align",
+            "data_type": "Bool",
+            "description": "Rotate copies to align with path tangent",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Shapes",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "tangent_angles",
+            "data_type": "Scalars",
+            "description": "Tangent angle in degrees at each point",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "indices",
+            "data_type": "Scalars",
+            "description": "Index of each copy (0..count-1)",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "count",
+            "data_type": "Scalar",
+            "description": "Total number of copies",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -35.56338,
+          -232.8125
+        ],
+        "generation": 2,
+        "version": 2,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          true,
+          false
+        ],
+        "output_visibility": [
+          true,
+          true,
+          true,
+          true
+        ]
       },
       "26": {
         "id": 26,
@@ -154,7 +297,8 @@
             "default_value": {
               "Int": 0
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           },
           {
             "name": "end",
@@ -163,14 +307,16 @@
             "default_value": {
               "Int": 10
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           },
           {
             "name": "base_color",
             "data_type": "Color",
             "description": "",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "outputs": [
@@ -179,24 +325,42 @@
             "data_type": "Color",
             "description": "Collected output batch",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "position": [
           119.858284,
           -543.09595
         ],
-        "generation": 14
+        "generation": 14,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
       },
-      "25": {
-        "id": 25,
-        "name": "Adjust Lightness",
-        "op": "AdjustLightness",
+      "21": {
+        "id": 21,
+        "name": "Set Fill",
+        "op": "SetFill",
         "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
           {
             "name": "color",
             "data_type": "Color",
-            "description": "Input color",
+            "description": "Fill color (single or batch)",
             "default_value": {
               "Color": [
                 1.0,
@@ -205,125 +369,65 @@
                 1.0
               ]
             },
-            "expression": null
-          },
-          {
-            "name": "amount",
-            "data_type": "Scalar",
-            "description": "Lightness adjustment (-1..1)",
-            "default_value": {
-              "Float": 0.42
-            },
-            "expression": null
-          },
-          {
-            "name": "absolute",
-            "data_type": "Bool",
-            "description": "If true, set lightness; if false, shift",
-            "default_value": {
-              "Bool": true
-            },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "outputs": [
-          {
-            "name": "color",
-            "data_type": "Color",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -86.464386,
-          70.094475
-        ],
-        "generation": 266
-      },
-      "7": {
-        "id": 7,
-        "name": "Copy to Points",
-        "op": "CopyToPoints",
-        "inputs": [
           {
             "name": "geometry",
             "data_type": "Any",
-            "description": "Shape to copy to each point",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "target_path",
-            "data_type": "Path",
-            "description": "Path whose sampled points receive copies",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "count",
-            "data_type": "Int",
-            "description": "Number of copies along path",
-            "default_value": {
-              "Int": 32
-            },
-            "expression": null
-          },
-          {
-            "name": "align",
-            "data_type": "Bool",
-            "description": "Rotate copies to align with path tangent",
-            "default_value": {
-              "Bool": true
-            },
-            "expression": null
-          },
-          {
-            "name": "tolerance",
-            "data_type": "Scalar",
-            "description": "Curve flattening tolerance (smaller = more precise)",
-            "default_value": {
-              "Float": 0.5
-            },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Shapes",
             "description": "",
             "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "tangent_angles",
-            "data_type": "Scalars",
-            "description": "Tangent angle in degrees at each point",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "indices",
-            "data_type": "Scalars",
-            "description": "Index of each copy (0..count-1)",
-            "default_value": null,
-            "expression": null
-          },
-          {
-            "name": "count",
-            "data_type": "Scalar",
-            "description": "Total number of copies",
-            "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "position": [
-          -292.86996,
-          -516.7026
+          418.15042,
+          -794.51306
         ],
-        "generation": 5,
-        "version": 1
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "23": {
+        "id": 23,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [],
+        "position": [
+          142.56903,
+          329.36047
+        ],
+        "generation": 10,
+        "version": 0,
+        "input_visibility": [
+          true
+        ],
+        "output_visibility": []
       },
       "16": {
         "id": 16,
@@ -342,7 +446,8 @@
                 1.0
               ]
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "outputs": [
@@ -351,40 +456,111 @@
             "data_type": "Color",
             "description": "",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "position": [
           -504.19693,
           -465.58865
         ],
-        "generation": 11
+        "generation": 11,
+        "version": 0,
+        "input_visibility": [
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
       },
-      "24": {
-        "id": 24,
-        "name": "Set Fill",
-        "op": "SetFill",
+      "22": {
+        "id": 22,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 200.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -153.36119,
+          290.11627
+        ],
+        "generation": 3,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "14": {
+        "id": 14,
+        "name": "Rotate",
+        "op": "Rotate",
         "inputs": [
           {
             "name": "geometry",
             "data_type": "Any",
             "description": "Input geometry",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           },
           {
-            "name": "color",
-            "data_type": "Color",
-            "description": "Fill color (single or batch)",
+            "name": "angle",
+            "data_type": "Scalar",
+            "description": "Rotation angle in degrees",
             "default_value": {
-              "Color": [
-                1.0,
-                1.0,
-                1.0,
-                1.0
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center of rotation",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
               ]
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "outputs": [
@@ -393,14 +569,24 @@
             "data_type": "Any",
             "description": "",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "position": [
-          26.617006,
-          216.6061
+          -197.93463,
+          -949.4253
         ],
-        "generation": 0
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
       },
       "13": {
         "id": 13,
@@ -414,7 +600,8 @@
             "default_value": {
               "Float": 200.0
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           },
           {
             "name": "center",
@@ -426,7 +613,8 @@
                 0.0
               ]
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "outputs": [
@@ -435,31 +623,65 @@
             "data_type": "Path",
             "description": "",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "position": [
           -436.1133,
           -176.06111
         ],
-        "generation": 3
+        "generation": 3,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
       },
-      "21": {
-        "id": 21,
-        "name": "Set Fill",
-        "op": "SetFill",
+      "4": {
+        "id": 4,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 1
+          }
+        },
         "inputs": [
           {
-            "name": "geometry",
+            "name": "output",
             "data_type": "Any",
-            "description": "Input geometry",
+            "description": "",
             "default_value": null,
-            "expression": null
-          },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [],
+        "position": [
+          277.98438,
+          -171.90625
+        ],
+        "generation": 1,
+        "version": 0,
+        "input_visibility": [
+          true
+        ],
+        "output_visibility": []
+      },
+      "25": {
+        "id": 25,
+        "name": "Adjust Lightness",
+        "op": "AdjustLightness",
+        "inputs": [
           {
             "name": "color",
             "data_type": "Color",
-            "description": "Fill color (single or batch)",
+            "description": "Input color",
             "default_value": {
               "Color": [
                 1.0,
@@ -468,144 +690,57 @@
                 1.0
               ]
             },
-            "expression": null
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          418.15042,
-          -794.51306
-        ],
-        "generation": 0
-      },
-      "23": {
-        "id": 23,
-        "name": "Output: output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any",
-            "order": 0
-          }
-        },
-        "inputs": [
-          {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "outputs": [],
-        "position": [
-          142.56903,
-          329.36047
-        ],
-        "generation": 10
-      },
-      "15": {
-        "id": 15,
-        "name": "VFS Code",
-        "op": {
-          "DslCode": {
-            "source": "angle = (time / 10.0) * 360.0;",
-            "script_inputs": [],
-            "script_outputs": [
-              [
-                "angle",
-                "Scalar"
-              ]
-            ]
-          }
-        },
-        "inputs": [],
-        "outputs": [
-          {
-            "name": "angle",
-            "data_type": "Scalar",
-            "description": "",
-            "default_value": null,
-            "expression": null
-          }
-        ],
-        "position": [
-          -297.03662,
-          -950.2514
-        ],
-        "generation": 42
-      },
-      "8": {
-        "id": 8,
-        "name": "Rectangle",
-        "op": "Rectangle",
-        "inputs": [
-          {
-            "name": "width",
-            "data_type": "Scalar",
-            "description": "Width",
-            "default_value": {
-              "Float": 25.0
-            },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           },
           {
-            "name": "height",
+            "name": "amount",
             "data_type": "Scalar",
-            "description": "Height",
+            "description": "Lightness adjustment (-1..1)",
             "default_value": {
-              "Float": 25.0
+              "Float": 0.42
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           },
           {
-            "name": "center",
-            "data_type": "Vec2",
-            "description": "Center position",
+            "name": "absolute",
+            "data_type": "Bool",
+            "description": "If true, set lightness; if false, shift",
             "default_value": {
-              "Vec2": [
-                0.0,
-                0.0
-              ]
+              "Bool": true
             },
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "outputs": [
           {
-            "name": "path",
-            "data_type": "Path",
+            "name": "color",
+            "data_type": "Color",
             "description": "",
             "default_value": null,
-            "expression": null
+            "expression": null,
+            "visible_by_default": true
           }
         ],
         "position": [
-          -460.90158,
-          -594.50433
+          -86.464386,
+          70.094475
         ],
-        "generation": 6
+        "generation": 266,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
       }
     },
     "edges": [
-      {
-        "from": {
-          "node": 13,
-          "port": 0
-        },
-        "to": {
-          "node": 7,
-          "port": 1
-        }
-      },
       {
         "from": {
           "node": 15,
@@ -614,26 +749,6 @@
         "to": {
           "node": 14,
           "port": 1
-        }
-      },
-      {
-        "from": {
-          "node": 14,
-          "port": 0
-        },
-        "to": {
-          "node": 7,
-          "port": 0
-        }
-      },
-      {
-        "from": {
-          "node": 7,
-          "port": 0
-        },
-        "to": {
-          "node": 21,
-          "port": 0
         }
       },
       {
@@ -698,16 +813,6 @@
       },
       {
         "from": {
-          "node": 7,
-          "port": 3
-        },
-        "to": {
-          "node": 26,
-          "port": 1
-        }
-      },
-      {
-        "from": {
           "node": 25,
           "port": 0
         },
@@ -725,10 +830,50 @@
           "node": 21,
           "port": 1
         }
+      },
+      {
+        "from": {
+          "node": 14,
+          "port": 0
+        },
+        "to": {
+          "node": 27,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 13,
+          "port": 0
+        },
+        "to": {
+          "node": 27,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 27,
+          "port": 0
+        },
+        "to": {
+          "node": 21,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 27,
+          "port": 3
+        },
+        "to": {
+          "node": 26,
+          "port": 1
+        }
       }
     ],
-    "next_id": 27,
-    "generation": 1143,
+    "next_id": 28,
+    "generation": 1154,
     "network_boxes": {},
     "next_box_id": 1
   },
@@ -842,24 +987,6 @@
         },
         "open": true
       },
-      "6": {
-        "value": {
-          "core_id": 7,
-          "display_name": "Copy to Points",
-          "color": [
-            140,
-            140,
-            140,
-            255
-          ],
-          "pinned": false
-        },
-        "pos": {
-          "x": -164.17514,
-          "y": -72.85925
-        },
-        "open": true
-      },
       "7": {
         "value": {
           "core_id": 8,
@@ -967,19 +1094,27 @@
           "y": 122.7676
         },
         "open": true
+      },
+      "13": {
+        "value": {
+          "core_id": 27,
+          "display_name": "Copy to Points",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -170.04138,
+          "y": -97.72823
+        },
+        "open": true
       }
     },
     "wires": [
-      {
-        "out_pin": {
-          "node": 11,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 10,
-          "input": 1
-        }
-      },
       {
         "out_pin": {
           "node": 8,
@@ -992,12 +1127,32 @@
       },
       {
         "out_pin": {
-          "node": 6,
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
           "output": 0
         },
         "in_pin": {
           "node": 8,
-          "input": 0
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 1
         }
       },
       {
@@ -1006,18 +1161,8 @@
           "output": 0
         },
         "in_pin": {
-          "node": 6,
+          "node": 13,
           "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 6,
-          "output": 3
-        },
-        "in_pin": {
-          "node": 0,
-          "input": 1
         }
       },
       {
@@ -1032,21 +1177,31 @@
       },
       {
         "out_pin": {
-          "node": 9,
+          "node": 11,
           "output": 0
         },
         "in_pin": {
-          "node": 2,
+          "node": 10,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 13,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
           "input": 0
         }
       },
       {
         "out_pin": {
-          "node": 0,
-          "output": 0
+          "node": 13,
+          "output": 3
         },
         "in_pin": {
-          "node": 8,
+          "node": 0,
           "input": 1
         }
       },
@@ -1056,8 +1211,18 @@
           "output": 0
         },
         "in_pin": {
+          "node": 0,
+          "input": 2
+        }
+      },
+      {
+        "out_pin": {
+          "node": 9,
+          "output": 0
+        },
+        "in_pin": {
           "node": 2,
-          "input": 1
+          "input": 0
         }
       },
       {
@@ -1076,28 +1241,8 @@
           "output": 0
         },
         "in_pin": {
-          "node": 6,
+          "node": 13,
           "input": 1
-        }
-      },
-      {
-        "out_pin": {
-          "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 4,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 1,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 0,
-          "input": 2
         }
       }
     ]
@@ -1118,7 +1263,7 @@
     "x": 407.0,
     "y": 77.0,
     "width": 1261.5,
-    "height": 1337.5,
+    "height": 1374.5,
     "node_editor_height": 587.46875,
     "properties_width": 374.9375
   },

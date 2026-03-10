@@ -1,62 +1,37 @@
 {
   "graph": {
     "nodes": {
-      "3": {
-        "id": 3,
-        "name": "SVG Path",
-        "op": {
-          "SvgPath": {
-            "data": "M 170 0 L 120 30 L 120 15 L 75 55 L 75 35 L 20 85 L 20 -85 L 75 -35 L 75 -55 L 120 -15 L 120 -30 Z"
-          }
-        },
-        "inputs": [],
-        "outputs": [
-          {
-            "name": "path",
-            "data_type": "Path",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          0.0,
-          -200.0
-        ],
-        "generation": 0,
-        "version": 0,
-        "input_visibility": [],
-        "output_visibility": [
-          true
-        ]
-      },
-      "7": {
-        "id": 7,
-        "name": "Pack Points",
-        "op": "PackPoints",
+      "11": {
+        "id": 11,
+        "name": "Translate",
+        "op": "Translate",
         "inputs": [
           {
-            "name": "xs",
-            "data_type": "Scalars",
-            "description": "",
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
             "default_value": null,
             "expression": null,
             "visible_by_default": true
           },
           {
-            "name": "ys",
-            "data_type": "Scalars",
-            "description": "",
-            "default_value": null,
+            "name": "offset",
+            "data_type": "Vec2",
+            "description": "Translation offset",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                -100.0
+              ]
+            },
             "expression": null,
             "visible_by_default": true
           }
         ],
         "outputs": [
           {
-            "name": "points",
-            "data_type": "Points",
+            "name": "geometry",
+            "data_type": "Any",
             "description": "",
             "default_value": null,
             "expression": null,
@@ -64,10 +39,10 @@
           }
         ],
         "position": [
-          220.0,
-          -450.0
+          428.8125,
+          -129.20312
         ],
-        "generation": 0,
+        "generation": 169,
         "version": 0,
         "input_visibility": [
           true,
@@ -133,6 +108,243 @@
           true
         ],
         "output_visibility": [
+          true
+        ]
+      },
+      "10": {
+        "id": 10,
+        "name": "Graph Output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [],
+        "position": [
+          880.0,
+          -200.0
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true
+        ],
+        "output_visibility": []
+      },
+      "13": {
+        "id": 13,
+        "name": "Warp to Curve",
+        "op": {
+          "WarpToCurve": {
+            "mode": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Geometry to warp",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "spine",
+            "data_type": "Path",
+            "description": "Spine curve to warp along",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "smoothing",
+            "data_type": "Scalar",
+            "description": "Curvature smoothing (0 = local, 1 = global average)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          104.234375,
+          -140.32812
+        ],
+        "generation": 0,
+        "version": 1,
+        "input_visibility": [
+          true,
+          true,
+          false,
+          false
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "5": {
+        "id": 5,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "input_0",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "input_1",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          440.0,
+          -100.0
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "6": {
+        "id": 6,
+        "name": "Generate",
+        "op": {
+          "Generate": {
+            "source": "let frac = 1.0 * index / (count - 1);\nlet t = frac * frac * frac;\nlet wind = sin(time * 0.8) * 0.7 + sin(time * 2.3) * 0.3;\nout_x = wind * t * 50.0;\nout_y = -20.0 + 200.0 * frac;",
+            "script_inputs": [
+              [
+                "index",
+                "Int"
+              ],
+              [
+                "count",
+                "Int"
+              ]
+            ],
+            "script_outputs": [
+              [
+                "out_x",
+                "Scalar"
+              ],
+              [
+                "out_y",
+                "Scalar"
+              ]
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "start",
+            "data_type": "Int",
+            "description": "",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "end",
+            "data_type": "Int",
+            "description": "",
+            "default_value": {
+              "Int": 16
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "out_x",
+            "data_type": "Scalars",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "out_y",
+            "data_type": "Scalars",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          0.0,
+          -400.0
+        ],
+        "generation": 2,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true,
           true
         ]
       },
@@ -253,6 +465,36 @@
           true
         ]
       },
+      "3": {
+        "id": 3,
+        "name": "SVG Path",
+        "op": {
+          "SvgPath": {
+            "data": "M 170 0 L 120 30 L 120 15 L 75 55 L 75 35 L 20 85 L 20 -85 L 75 -35 L 75 -55 L 120 -15 L 120 -30 Z"
+          }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          0.0,
+          -200.0
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [],
+        "output_visibility": [
+          true
+        ]
+      },
       "2": {
         "id": 2,
         "name": "Set Fill",
@@ -306,203 +548,13 @@
           true
         ]
       },
-      "10": {
-        "id": 10,
-        "name": "Graph Output",
-        "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any",
-            "order": 0
-          }
-        },
+      "7": {
+        "id": 7,
+        "name": "Pack Points",
+        "op": "PackPoints",
         "inputs": [
           {
-            "name": "output",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [],
-        "position": [
-          880.0,
-          -200.0
-        ],
-        "generation": 0,
-        "version": 0,
-        "input_visibility": [
-          true
-        ],
-        "output_visibility": []
-      },
-      "12": {
-        "id": 12,
-        "name": "Warp to Curve",
-        "op": {
-          "WarpToCurve": {
-            "mode": 0
-          }
-        },
-        "inputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "Geometry to warp",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "spine",
-            "data_type": "Path",
-            "description": "Spine curve to warp along",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "tolerance",
-            "data_type": "Scalar",
-            "description": "Curve flattening tolerance",
-            "default_value": {
-              "Float": 0.5
-            },
-            "expression": null,
-            "visible_by_default": false
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          186.42188,
-          -141.92188
-        ],
-        "generation": 2,
-        "version": 0,
-        "input_visibility": [
-          true,
-          true,
-          false
-        ],
-        "output_visibility": [
-          true
-        ]
-      },
-      "11": {
-        "id": 11,
-        "name": "Translate",
-        "op": "Translate",
-        "inputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "Input geometry",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "offset",
-            "data_type": "Vec2",
-            "description": "Translation offset",
-            "default_value": {
-              "Vec2": [
-                0.0,
-                -100.0
-              ]
-            },
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          428.8125,
-          -129.20312
-        ],
-        "generation": 169,
-        "version": 0,
-        "input_visibility": [
-          true,
-          true
-        ],
-        "output_visibility": [
-          true
-        ]
-      },
-      "6": {
-        "id": 6,
-        "name": "Generate",
-        "op": {
-          "Generate": {
-            "source": "let frac = 1.0 * index / (count - 1);\nlet t = frac * frac * frac;\nlet wind = sin(time * 0.8) * 0.7 + sin(time * 2.3) * 0.3;\nout_x = wind * t * 50.0;\nout_y = -20.0 + 200.0 * frac;",
-            "script_inputs": [
-              [
-                "index",
-                "Int"
-              ],
-              [
-                "count",
-                "Int"
-              ]
-            ],
-            "script_outputs": [
-              [
-                "out_x",
-                "Scalar"
-              ],
-              [
-                "out_y",
-                "Scalar"
-              ]
-            ]
-          }
-        },
-        "inputs": [
-          {
-            "name": "start",
-            "data_type": "Int",
-            "description": "",
-            "default_value": {
-              "Int": 0
-            },
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "end",
-            "data_type": "Int",
-            "description": "",
-            "default_value": {
-              "Int": 16
-            },
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "out_x",
+            "name": "xs",
             "data_type": "Scalars",
             "description": "",
             "default_value": null,
@@ -510,49 +562,8 @@
             "visible_by_default": true
           },
           {
-            "name": "out_y",
+            "name": "ys",
             "data_type": "Scalars",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          0.0,
-          -400.0
-        ],
-        "generation": 2,
-        "version": 0,
-        "input_visibility": [
-          true,
-          true
-        ],
-        "output_visibility": [
-          true,
-          true
-        ]
-      },
-      "5": {
-        "id": 5,
-        "name": "Merge",
-        "op": {
-          "Merge": {
-            "keep_separate": false
-          }
-        },
-        "inputs": [
-          {
-            "name": "input_0",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "input_1",
-            "data_type": "Any",
             "description": "",
             "default_value": null,
             "expression": null,
@@ -561,8 +572,8 @@
         ],
         "outputs": [
           {
-            "name": "geometry",
-            "data_type": "Any",
+            "name": "points",
+            "data_type": "Points",
             "description": "",
             "default_value": null,
             "expression": null,
@@ -570,8 +581,8 @@
           }
         ],
         "position": [
-          440.0,
-          -100.0
+          220.0,
+          -450.0
         ],
         "generation": 0,
         "version": 0,
@@ -671,7 +682,7 @@
           "port": 0
         },
         "to": {
-          "node": 12,
+          "node": 13,
           "port": 0
         }
       },
@@ -681,13 +692,13 @@
           "port": 0
         },
         "to": {
-          "node": 12,
+          "node": 13,
           "port": 1
         }
       },
       {
         "from": {
-          "node": 12,
+          "node": 13,
           "port": 0
         },
         "to": {
@@ -696,8 +707,8 @@
         }
       }
     ],
-    "next_id": 13,
-    "generation": 187,
+    "next_id": 14,
+    "generation": 194,
     "network_boxes": {},
     "next_box_id": 0
   },
@@ -847,6 +858,24 @@
         },
         "open": true
       },
+      "8": {
+        "value": {
+          "core_id": 13,
+          "display_name": "Warp to Curve",
+          "color": [
+            80,
+            120,
+            200,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 27.269714,
+          "y": -1.5971069
+        },
+        "open": true
+      },
       "9": {
         "value": {
           "core_id": 10,
@@ -882,27 +911,39 @@
           "y": -1.7590942
         },
         "open": true
-      },
-      "11": {
-        "value": {
-          "core_id": 12,
-          "display_name": "Warp to Curve",
-          "color": [
-            80,
-            120,
-            200,
-            255
-          ],
-          "pinned": false
-        },
-        "pos": {
-          "x": 23.488708,
-          "y": -1.2029114
-        },
-        "open": true
       }
     },
     "wires": [
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 6,
+          "input": 0
+        }
+      },
       {
         "out_pin": {
           "node": 3,
@@ -911,6 +952,56 @@
         "in_pin": {
           "node": 4,
           "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 8,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 10,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 7,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 10,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
         }
       },
       {
@@ -932,86 +1023,6 @@
           "node": 6,
           "input": 1
         }
-      },
-      {
-        "out_pin": {
-          "node": 0,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 1,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 11,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 10,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 5,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 6,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 10,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 9,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 4,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 11,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 1,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 4,
-          "input": 0
-        }
-      },
-      {
-        "out_pin": {
-          "node": 7,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 11,
-          "input": 1
-        }
-      },
-      {
-        "out_pin": {
-          "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 3,
-          "input": 0
-        }
       }
     ]
   },
@@ -1029,9 +1040,9 @@
   },
   "window_geometry": {
     "x": 243.0,
-    "y": 132.5,
+    "y": 169.5,
     "width": 1496.0,
-    "height": 1234.0,
+    "height": 1271.0,
     "node_editor_height": 473.59375,
     "properties_width": 350.03125
   },
