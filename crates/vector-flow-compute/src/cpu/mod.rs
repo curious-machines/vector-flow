@@ -340,7 +340,7 @@ impl ComputeBackend for CpuBackend {
                 let join = int_to_line_join(get_int(inputs, 3), get_scalar(inputs, 4) as f32);
                 let dash_offset = get_scalar(inputs, 5) as f32;
                 let tolerance = get_scalar(inputs, 6) as f32;
-                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let tolerance = if tolerance <= 0.0 { time_ctx.tolerance } else { tolerance };
                 let dash_array = parse_dash_pattern(dash_pattern);
                 let stroke = StrokeStyle {
                     color: Color::BLACK,
@@ -872,7 +872,7 @@ fn parse_dash_pattern(s: &str) -> Vec<f32> {
 mod tests {
     use super::*;
     use vector_flow_core::compute::ResolvedInputs;
-    use vector_flow_core::types::{DataType, PathVerb, EvalContext};
+    use vector_flow_core::types::{DataType, PathVerb, Point, EvalContext};
 
     fn time_ctx() -> EvalContext {
         EvalContext::default()
@@ -1646,5 +1646,81 @@ mod tests {
         } else {
             panic!("expected Points output");
         }
+    }
+
+    #[test]
+    fn stroke_to_path_uses_eval_context_tolerance() {
+        // When the tolerance port is 0 (default), StrokeToPath should use
+        // EvalContext.tolerance — the zoom-aware value set by the app.
+        let backend = CpuBackend::new().unwrap();
+
+        // A circle path with curves — tolerance differences are visible.
+        let circle = PathData {
+            verbs: vec![
+                PathVerb::MoveTo(Point { x: 50.0, y: 0.0 }),
+                PathVerb::CubicTo {
+                    ctrl1: Point { x: 50.0, y: 27.6 },
+                    ctrl2: Point { x: 27.6, y: 50.0 },
+                    to: Point { x: 0.0, y: 50.0 },
+                },
+                PathVerb::CubicTo {
+                    ctrl1: Point { x: -27.6, y: 50.0 },
+                    ctrl2: Point { x: -50.0, y: 27.6 },
+                    to: Point { x: -50.0, y: 0.0 },
+                },
+                PathVerb::CubicTo {
+                    ctrl1: Point { x: -50.0, y: -27.6 },
+                    ctrl2: Point { x: -27.6, y: -50.0 },
+                    to: Point { x: 0.0, y: -50.0 },
+                },
+                PathVerb::CubicTo {
+                    ctrl1: Point { x: 27.6, y: -50.0 },
+                    ctrl2: Point { x: 50.0, y: -27.6 },
+                    to: Point { x: 50.0, y: 0.0 },
+                },
+                PathVerb::Close,
+            ],
+            closed: true,
+        };
+
+        let make_inputs = || ResolvedInputs {
+            data: vec![
+                NodeData::Path(Arc::new(circle.clone())), // geometry
+                NodeData::Scalar(5.0),                     // width
+                NodeData::Int(0),                          // cap (Butt)
+                NodeData::Int(0),                          // join (Miter)
+                NodeData::Scalar(4.0),                     // miter_limit
+                NodeData::Scalar(0.0),                     // dash_offset
+                NodeData::Scalar(0.0),                     // tolerance = 0 → use context
+            ],
+        };
+
+        let op = NodeOp::StrokeToPath { dash_pattern: String::new() };
+
+        // Coarse tolerance (zoomed out): e.g. 0.5 / 0.1 = 5.0
+        let mut ctx_coarse = EvalContext::default();
+        ctx_coarse.tolerance = 5.0;
+        let mut out_coarse = NodeOutputs::new(1);
+        backend.evaluate_node(&op, &make_inputs(), &ctx_coarse, &mut out_coarse).unwrap();
+
+        // Fine tolerance (zoomed in): e.g. 0.5 / 10.0 = 0.05
+        let mut ctx_fine = EvalContext::default();
+        ctx_fine.tolerance = 0.05;
+        let mut out_fine = NodeOutputs::new(1);
+        backend.evaluate_node(&op, &make_inputs(), &ctx_fine, &mut out_fine).unwrap();
+
+        let verbs_coarse = match out_coarse.data[0].as_ref().unwrap() {
+            NodeData::Path(p) => p.verbs.len(),
+            _ => panic!("expected Path"),
+        };
+        let verbs_fine = match out_fine.data[0].as_ref().unwrap() {
+            NodeData::Path(p) => p.verbs.len(),
+            _ => panic!("expected Path"),
+        };
+
+        assert!(
+            verbs_fine > verbs_coarse,
+            "finer context tolerance should produce more verbs: fine={verbs_fine} coarse={verbs_coarse}"
+        );
     }
 }

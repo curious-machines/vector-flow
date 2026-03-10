@@ -366,6 +366,9 @@ pub struct EvalContext {
     /// Base directory for resolving relative file paths (e.g. project dir).
     /// Empty string means use current working directory.
     pub project_dir: String,
+    /// Zoom-aware curve flattening tolerance.  Nodes that flatten curves
+    /// (e.g. StrokeToPath) use this when no explicit tolerance is provided.
+    pub tolerance: f32,
 }
 
 impl Default for EvalContext {
@@ -375,6 +378,7 @@ impl Default for EvalContext {
             time_secs: 0.0,
             fps: 30.0,
             project_dir: String::new(),
+            tolerance: 0.5,
         }
     }
 }

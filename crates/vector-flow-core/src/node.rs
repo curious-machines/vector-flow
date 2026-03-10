@@ -196,11 +196,13 @@ impl NodeOp {
             // Version 2: removed tolerance port (now zoom-aware at render time).
             NodeOp::SetStroke { .. } => 2,
 
+            // Version 2: tolerance default changed to 0 (zoom-aware).
+            NodeOp::StrokeToPath { .. } => 2,
+
             // Version 1: added tolerance input port.
             NodeOp::ResamplePath
             | NodeOp::CopyToPoints
-            | NodeOp::SetStyle { .. }
-            | NodeOp::StrokeToPath { .. } => 1,
+            | NodeOp::SetStyle { .. } => 1,
 
             // All other built-in ops start at version 0. Bump individually when
             // a node's port layout or behavior changes.
@@ -708,14 +710,14 @@ impl NodeDef {
                     .with_description("Dash pattern offset")
                     .hidden(),
                 PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance (smaller = more precise)")
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
                     .hidden(),
             ],
             outputs: vec![PortDef::new("path", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 1,
+            version: 2,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1980,8 +1982,8 @@ mod tests {
         assert!(cp.inputs.iter().any(|p| p.name == "tolerance"));
 
         let stp = NodeDef::stroke_to_path(NodeId(4));
-        assert_eq!(stp.version, 1);
-        assert_eq!(stp.op.current_version(), 1);
+        assert_eq!(stp.version, 2);
+        assert_eq!(stp.op.current_version(), 2);
         assert!(!stp.is_outdated());
         assert!(stp.inputs.iter().any(|p| p.name == "tolerance"));
 

@@ -856,9 +856,9 @@
           {
             "name": "tolerance",
             "data_type": "Scalar",
-            "description": "Curve flattening tolerance (smaller = more precise)",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
             "default_value": {
-              "Float": 0.5
+              "Float": 0.0
             },
             "expression": null
           }
@@ -877,7 +877,7 @@
           -171.9375
         ],
         "generation": 0,
-        "version": 1
+        "version": 2
       },
       "42": {
         "id": 42,

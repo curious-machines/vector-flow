@@ -80,6 +80,9 @@ pub struct VectorFlowApp {
     /// Last frame number we evaluated at.
     last_eval_frame: u64,
 
+    /// Last zoom-aware tolerance we evaluated at.
+    last_eval_tolerance: f32,
+
     /// Prepared scene for the canvas.
     prepared_scene: Option<PreparedScene>,
 
@@ -188,6 +191,7 @@ impl VectorFlowApp {
             node_errors: HashMap::new(),
             last_eval_gen: u64::MAX,
             last_eval_frame: u64::MAX,
+            last_eval_tolerance: f32::MAX,
             prepared_scene: None,
             project_path: None,
             saved_fingerprint: 0,
@@ -752,6 +756,7 @@ impl VectorFlowApp {
         self.transport.eval_ctx.fps = self.project_settings.fps;
         self.last_eval_gen = u64::MAX; // force re-eval
         self.last_eval_frame = u64::MAX;
+        self.last_eval_tolerance = f32::MAX;
         self.node_rects.clear();
         // Update undo fingerprint to the restored state so end_frame doesn't
         // treat the restore itself as a new change.
@@ -761,7 +766,8 @@ impl VectorFlowApp {
     fn needs_eval(&self) -> bool {
         let gen = self.graph.generation();
         let frame = self.transport.eval_ctx.frame;
-        gen != self.last_eval_gen || frame != self.last_eval_frame
+        let tol = 0.5 / self.cam_state.current_zoom.max(0.01);
+        gen != self.last_eval_gen || frame != self.last_eval_frame || tol != self.last_eval_tolerance
     }
 
     fn evaluate(&mut self, node_filter: Option<&std::collections::HashSet<CoreNodeId>>) {
@@ -772,6 +778,10 @@ impl VectorFlowApp {
             .and_then(|p| p.parent())
             .map(|d| d.to_string_lossy().into_owned())
             .unwrap_or_default();
+
+        // Sync zoom-aware tolerance so nodes like StrokeToPath can adapt.
+        self.transport.eval_ctx.tolerance =
+            0.5 / self.cam_state.current_zoom.max(0.01);
 
         // Clear cache so downstream nodes pick up upstream changes.
         self.scheduler.clear_cache();
@@ -788,6 +798,7 @@ impl VectorFlowApp {
         }
         self.last_eval_gen = self.graph.generation();
         self.last_eval_frame = self.transport.eval_ctx.frame;
+        self.last_eval_tolerance = self.transport.eval_ctx.tolerance;
     }
 
     /// After evaluation, auto-populate LoadImage width/height defaults from
@@ -900,6 +911,7 @@ impl VectorFlowApp {
         self.node_errors.clear();
         self.last_eval_gen = u64::MAX;
         self.last_eval_frame = u64::MAX;
+        self.last_eval_tolerance = f32::MAX;
         self.prepared_scene = None;
         self.project_path = None;
         self.project_settings = ProjectSettings::default();
@@ -984,6 +996,7 @@ impl VectorFlowApp {
                 self.last_eval = None;
                 self.last_eval_gen = u64::MAX;
                 self.last_eval_frame = u64::MAX;
+                self.last_eval_tolerance = f32::MAX;
                 self.prepared_scene = None;
                 self.project_path = Some(path.to_owned());
                 Self::restore_window_geometry(ctx, pf.window_geometry);
