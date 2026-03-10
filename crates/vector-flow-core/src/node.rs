@@ -190,8 +190,9 @@ impl NodeOp {
             | NodeOp::GraphInput { .. }
             | NodeOp::GraphOutput { .. } => 0,
 
-            // Version 2: added parts output port + Divide operation.
-            NodeOp::PathBoolean { .. } => 2,
+            // Version 3: tolerance default changed to 0 (zoom-aware).
+            // (v2 added parts output port + Divide operation.)
+            NodeOp::PathBoolean { .. } => 3,
 
             // Version 3: re-added tolerance port (0 = zoom-aware).
             NodeOp::SetStroke { .. } => 3,
@@ -202,9 +203,15 @@ impl NodeOp {
             // Version 2: added tolerance port (0 = zoom-aware).
             NodeOp::SetStyle { .. } => 2,
 
-            // Version 1: added tolerance input port.
+            // Version 2: tolerance default changed to 0 (zoom-aware).
             NodeOp::ResamplePath
-            | NodeOp::CopyToPoints => 1,
+            | NodeOp::CopyToPoints => 2,
+
+            // Version 1: tolerance default changed to 0 (zoom-aware).
+            NodeOp::WarpToCurve { .. }
+            | NodeOp::PathOffset
+            | NodeOp::PathIntersectionPoints
+            | NodeOp::SplitPathAtT => 1,
 
             // All other built-in ops start at version 0. Bump individually when
             // a node's port layout or behavior changes.
@@ -880,8 +887,9 @@ impl NodeDef {
                     .with_default(ParamValue::Bool(true))
                     .with_description("Rotate copies to align with path tangent"),
                 PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance (smaller = more precise)"),
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
+                    .hidden(),
             ],
             outputs: vec![
                 PortDef::new("geometry", DataType::Shapes),
@@ -894,7 +902,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
-            version: 1,
+            version: 2,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1071,8 +1079,9 @@ impl NodeDef {
                 PortDef::new("a", DataType::Path).with_description("First path"),
                 PortDef::new("b", DataType::Path).with_description("Second path"),
                 PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance (smaller = more precise)"),
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
+                    .hidden(),
             ],
             outputs: vec![
                 PortDef::new("result", DataType::Path),
@@ -1080,7 +1089,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
-            version: 2,
+            version: 3,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1097,13 +1106,14 @@ impl NodeDef {
                     .with_default(ParamValue::Float(10.0))
                     .with_description("Offset distance"),
                 PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance (smaller = more precise)"),
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
+                    .hidden(),
             ],
             outputs: vec![PortDef::new("result", DataType::Path)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 1,
+            version: 2,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1157,13 +1167,14 @@ impl NodeDef {
                     .with_default(ParamValue::Int(32))
                     .with_description("Number of samples"),
                 PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance (smaller = more precise)"),
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
+                    .hidden(),
             ],
             outputs: vec![PortDef::new("points", DataType::Points)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 1,
+            version: 2,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1178,8 +1189,8 @@ impl NodeDef {
                 PortDef::new("a", DataType::Path).with_description("First path"),
                 PortDef::new("b", DataType::Path).with_description("Second path"),
                 PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance")
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
                     .hidden(),
             ],
             outputs: vec![
@@ -1190,7 +1201,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1206,8 +1217,8 @@ impl NodeDef {
                 PortDef::new("t_values", DataType::Scalars)
                     .with_description("Arc-length normalized split positions (0..1)"),
                 PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance")
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
                     .hidden(),
                 PortDef::new("close", DataType::Bool)
                     .with_default(ParamValue::Bool(false))
@@ -1220,7 +1231,7 @@ impl NodeDef {
             ],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1300,14 +1311,14 @@ impl NodeDef {
                     .with_description("Curvature smoothing (0 = local, 1 = global average)")
                     .hidden(),
                 PortDef::new("tolerance", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Curve flattening tolerance")
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Curve flattening tolerance (0 = zoom-aware)")
                     .hidden(),
             ],
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],
             generation: 0,
-            version: 0,
+            version: 1,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1838,10 +1849,10 @@ mod tests {
     #[test]
     fn outdated_detection_after_version_bump() {
         // Simulate a node saved at version 0 loaded into code where
-        // current_version is now 2 (e.g. PathBoolean gained tolerance + parts port).
+        // current_version is now 3 (e.g. PathBoolean gained tolerance + parts port, then zoom-aware).
         let mut node = NodeDef::path_boolean(NodeId(1));
-        assert_eq!(node.op.current_version(), 2);
-        assert_eq!(node.version, 2);
+        assert_eq!(node.op.current_version(), 3);
+        assert_eq!(node.version, 3);
         assert!(!node.is_outdated());
 
         // A node saved before the bump would have version 0.
@@ -1973,23 +1984,23 @@ mod tests {
     }
 
     #[test]
-    fn tolerance_port_nodes_at_version_1() {
+    fn tolerance_port_nodes_zoom_aware() {
         let pb = NodeDef::path_boolean(NodeId(1));
-        assert_eq!(pb.version, 2);
-        assert_eq!(pb.op.current_version(), 2);
+        assert_eq!(pb.version, 3);
+        assert_eq!(pb.op.current_version(), 3);
         assert!(!pb.is_outdated());
         assert!(pb.inputs.iter().any(|p| p.name == "tolerance"));
         assert!(pb.outputs.iter().any(|p| p.name == "parts"));
 
         let rp = NodeDef::resample_path(NodeId(2));
-        assert_eq!(rp.version, 1);
-        assert_eq!(rp.op.current_version(), 1);
+        assert_eq!(rp.version, 2);
+        assert_eq!(rp.op.current_version(), 2);
         assert!(!rp.is_outdated());
         assert!(rp.inputs.iter().any(|p| p.name == "tolerance"));
 
         let cp = NodeDef::copy_to_points(NodeId(3));
-        assert_eq!(cp.version, 1);
-        assert_eq!(cp.op.current_version(), 1);
+        assert_eq!(cp.version, 2);
+        assert_eq!(cp.op.current_version(), 2);
         assert!(!cp.is_outdated());
         assert!(cp.inputs.iter().any(|p| p.name == "tolerance"));
 

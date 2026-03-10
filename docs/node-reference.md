@@ -467,7 +467,7 @@ Deforms geometry to follow a spine curve, mapping the source bounding box onto t
 |-----------|--------|---------|--------|----------------------------------------------------------|
 | geometry  | Any    | --      | No     | Input geometry to warp                                   |
 | spine     | Path   | --      | No     | Spine curve to warp along                                |
-| tolerance | Scalar | 0.5     | Yes    | Curve flattening tolerance (smaller = more precise)      |
+| tolerance | Scalar | 0.0     | Yes    | Curve flattening tolerance (0 = zoom-aware)              |
 
 **Parameters (property panel):**
 
@@ -519,11 +519,11 @@ Performs boolean geometry operations on two closed paths using the [i_overlay](h
 
 **Inputs:**
 
-| Name | Type | Default | Description  |
-|------|------|---------|--------------|
-| a         | Path   | --      | First path   |
-| b         | Path   | --      | Second path  |
-| tolerance | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise) |
+| Name      | Type   | Default | Hidden | Description                                         |
+|-----------|--------|---------|--------|-----------------------------------------------------|
+| a         | Path   | --      | No     | First path                                          |
+| b         | Path   | --      | No     | Second path                                         |
+| tolerance | Scalar | 0.0     | Yes    | Curve flattening tolerance (0 = zoom-aware)         |
 
 **Properties:**
 
@@ -546,7 +546,7 @@ Performs boolean geometry operations on two closed paths using the [i_overlay](h
 - **Xor** — keeps the area covered by exactly one of the two paths, excluding the overlap.
 - **Divide** — splits both paths into all distinct non-overlapping regions. For two overlapping shapes this produces up to three parts: the area unique to `a`, the intersection, and the area unique to `b`. Empty regions are omitted.
 
-**Notes:** Input paths are flattened to polygon approximations before the boolean operation. The `tolerance` parameter controls the maximum allowed distance between the true curve and the approximating line segments — smaller values produce more precise results with more vertices. The output is always a polygon path (no curves). Both paths should be closed for meaningful results. If the paths do not overlap, Union returns both contours, Intersect returns an empty path, and Difference returns path `a` unchanged.
+**Notes:** Input paths are flattened to polygon approximations before the boolean operation. When tolerance is 0 (the default), zoom-aware tolerance is used automatically, so results stay precise at any zoom level. Set a positive tolerance value to override with a fixed precision. The output is always a polygon path (no curves). Both paths should be closed for meaningful results. If the paths do not overlap, Union returns both contours, Intersect returns an empty path, and Difference returns path `a` unchanged.
 
 ```
 Example patch: Circle (50) -> [a] Path Boolean (Difference) [b] <- Rectangle (40x40)
@@ -564,7 +564,7 @@ Finds all intersection points between two paths.
 |-----------|--------|---------|--------|-----------------------------------------------------|
 | a         | Path   | --      | No     | First path                                          |
 | b         | Path   | --      | No     | Second path                                         |
-| tolerance | Scalar | 0.5     | Yes    | Curve flattening tolerance (smaller = more precise) |
+| tolerance | Scalar | 0.0     | Yes    | Curve flattening tolerance (0 = zoom-aware)         |
 
 **Outputs:**
 
@@ -589,11 +589,11 @@ Expands or contracts a path by a given distance. Curves are flattened to line se
 
 **Inputs:**
 
-| Name      | Type   | Default | Description                                              |
-|-----------|--------|---------|----------------------------------------------------------|
-| path      | Path   | --      | Input path                                               |
-| distance  | Scalar | 10.0    | Offset distance (positive = outward, negative = inward)  |
-| tolerance | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise)      |
+| Name      | Type   | Default | Hidden | Description                                              |
+|-----------|--------|---------|--------|----------------------------------------------------------|
+| path      | Path   | --      | No     | Input path                                               |
+| distance  | Scalar | 10.0    | No     | Offset distance (positive = outward, negative = inward)  |
+| tolerance | Scalar | 0.0     | Yes    | Curve flattening tolerance (0 = zoom-aware)              |
 
 **Outputs:**
 
@@ -679,11 +679,11 @@ Samples evenly-spaced points along a path.
 
 **Inputs:**
 
-| Name  | Type | Default | Description                        |
-|-------|------|---------|------------------------------------|
-| path      | Path   | --      | Input path                         |
-| count     | Int    | 32      | Number of points to sample         |
-| tolerance | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise) |
+| Name      | Type   | Default | Hidden | Description                                         |
+|-----------|--------|---------|--------|-----------------------------------------------------|
+| path      | Path   | --      | No     | Input path                                          |
+| count     | Int    | 32      | No     | Number of points to sample                          |
+| tolerance | Scalar | 0.0     | Yes    | Curve flattening tolerance (0 = zoom-aware)         |
 
 **Outputs:**
 
@@ -691,7 +691,7 @@ Samples evenly-spaced points along a path.
 |--------|--------|----------------------------------|
 | points | Points | Evenly-distributed sample points |
 
-**Notes:** Points are distributed by arc length, so they are evenly spaced along the path regardless of how the original vertices are distributed. The `tolerance` parameter controls the precision of curve flattening before sampling — smaller values produce more accurate point placement on curved paths. This is useful for instancing geometry along a path or extracting a point cloud from a shape.
+**Notes:** Points are distributed by arc length, so they are evenly spaced along the path regardless of how the original vertices are distributed. When tolerance is 0 (the default), zoom-aware tolerance is used automatically, so point placement stays precise at any zoom level. Set a positive tolerance value to override with a fixed precision. This is useful for instancing geometry along a path or extracting a point cloud from a shape.
 
 ```
 Example patch: Circle (100) -> Resample Path (count: 12) -> Regular Polygon (sides: 3, radius: 10) -> Set Fill -> Graph Output
@@ -735,7 +735,7 @@ Splits a path at arc-length normalized parameter values into multiple sub-paths.
 |-----------|---------|---------|--------|-----------------------------------------------------|
 | path      | Path    | --      | No     | Input path to split                                 |
 | t_values  | Scalars | --      | No     | Arc-length normalized split positions (0..1)        |
-| tolerance | Scalar  | 0.5     | Yes    | Curve flattening tolerance (smaller = more precise) |
+| tolerance | Scalar  | 0.0     | Yes    | Curve flattening tolerance (0 = zoom-aware)         |
 | close     | Bool    | false   | Yes    | Whether to close each resulting sub-path            |
 
 **Outputs:**
@@ -1272,13 +1272,13 @@ Places copies of geometry at evenly-spaced points along a target path.
 
 **Inputs:**
 
-| Name        | Type | Default | Description                                      |
-|-------------|------|---------|--------------------------------------------------|
-| geometry    | Any    | --      | Shape to copy to each point                      |
-| target_path | Path   | --      | Path whose sampled points receive copies         |
-| count       | Int    | 10      | Number of copies along the path                  |
-| align       | Bool   | true    | Rotate copies to align with the path tangent     |
-| tolerance   | Scalar | 0.5     | Curve flattening tolerance (smaller = more precise) |
+| Name        | Type   | Default | Hidden | Description                                      |
+|-------------|--------|---------|--------|--------------------------------------------------|
+| geometry    | Any    | --      | No     | Shape to copy to each point                      |
+| target_path | Path   | --      | No     | Path whose sampled points receive copies         |
+| count       | Int    | 10      | No     | Number of copies along the path                  |
+| align       | Bool   | true    | No     | Rotate copies to align with the path tangent     |
+| tolerance   | Scalar | 0.0     | Yes    | Curve flattening tolerance (0 = zoom-aware)      |
 
 **Outputs:**
 
@@ -1289,7 +1289,7 @@ Places copies of geometry at evenly-spaced points along a target path.
 | indices        | Scalars| Index of each copy (0 to count-1)         |
 | count          | Scalar | Total number of copies                     |
 
-**Notes:** Points are distributed by arc length, so copies are evenly spaced regardless of the path's vertex distribution. When `align` is true, each copy is rotated to follow the path's direction at that point. The `tolerance` parameter controls the precision of curve flattening before sampling — smaller values produce more accurate placement on curved paths. The `tangent_angles` and `indices` outputs are useful for driving per-copy variations via downstream nodes.
+**Notes:** Points are distributed by arc length, so copies are evenly spaced regardless of the path's vertex distribution. When `align` is true, each copy is rotated to follow the path's direction at that point. When tolerance is 0 (the default), zoom-aware tolerance is used automatically. Set a positive tolerance value to override with a fixed precision. The `tangent_angles` and `indices` outputs are useful for driving per-copy variations via downstream nodes.
 
 ```
 Example patch: Regular Polygon (sides: 3, radius: 10) -> Set Fill -> Copy to Points (target: Circle, count: 12) -> Graph Output

@@ -172,7 +172,7 @@ impl ComputeBackend for CpuBackend {
                 let mode = *mode as i64;
                 let smoothing = get_scalar(inputs, 2).clamp(0.0, 1.0) as f32;
                 let tolerance = get_scalar(inputs, 3) as f32;
-                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let tolerance = if tolerance <= 0.0 { time_ctx.tolerance } else { tolerance };
                 path_ops::warp_to_curve(&geometry, &curve, mode, smoothing, tolerance)
             }
 
@@ -190,21 +190,21 @@ impl ComputeBackend for CpuBackend {
                 let path = get_path(inputs, 0);
                 let count = get_int(inputs, 1);
                 let tolerance = get_scalar(inputs, 2) as f32;
-                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let tolerance = if tolerance <= 0.0 { time_ctx.tolerance } else { tolerance };
                 path_ops::resample_path(&path, count, tolerance)
             }
             NodeOp::PathOffset => {
                 let path = get_path(inputs, 0);
                 let distance = get_scalar(inputs, 1);
                 let tolerance = get_scalar(inputs, 2) as f32;
-                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let tolerance = if tolerance <= 0.0 { time_ctx.tolerance } else { tolerance };
                 NodeData::Path(Arc::new(path_ops::path_offset(&path, distance, tolerance)))
             }
             NodeOp::PathBoolean { operation } => {
                 let a = get_path(inputs, 0);
                 let b = get_path(inputs, 1);
                 let tolerance = get_scalar(inputs, 2) as f32;
-                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let tolerance = if tolerance <= 0.0 { time_ctx.tolerance } else { tolerance };
                 let (combined, parts) = path_ops::path_boolean_with_parts(&a, &b, *operation, tolerance);
                 if !outputs.data.is_empty() {
                     outputs.data[0] = Some(NodeData::Path(Arc::new(combined)));
@@ -218,7 +218,7 @@ impl ComputeBackend for CpuBackend {
                 let a = get_path(inputs, 0);
                 let b = get_path(inputs, 1);
                 let tolerance = get_scalar(inputs, 2) as f32;
-                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let tolerance = if tolerance <= 0.0 { time_ctx.tolerance } else { tolerance };
                 let (points, t_a, t_b) = path_ops::path_intersection_points(&a, &b, tolerance);
                 let count = points.len() as i64;
                 if !outputs.data.is_empty() {
@@ -239,7 +239,7 @@ impl ComputeBackend for CpuBackend {
                 let path = get_path(inputs, 0);
                 let t_values = get_scalars(inputs, 1);
                 let tolerance = get_scalar(inputs, 2) as f32;
-                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let tolerance = if tolerance <= 0.0 { time_ctx.tolerance } else { tolerance };
                 let close = get_bool(inputs, 3);
                 let parts = path_ops::split_path_at_t(&path, &t_values, tolerance, close);
                 let count = parts.len() as i64;
@@ -467,7 +467,7 @@ impl ComputeBackend for CpuBackend {
                 let count = get_int(inputs, 2);
                 let align = get_bool(inputs, 3);
                 let tolerance = get_scalar(inputs, 4) as f32;
-                let tolerance = if tolerance <= 0.0 { path_ops::DEFAULT_FLATTEN_TOLERANCE } else { tolerance };
+                let tolerance = if tolerance <= 0.0 { time_ctx.tolerance } else { tolerance };
                 let (points, tangent_angles) =
                     path_ops::resample_with_tangents(&target_path, count, tolerance);
                 let (shapes, angles, indices, total) =

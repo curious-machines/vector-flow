@@ -163,7 +163,7 @@ out_y = -20.0 + 200.0 * frac;"#,
         &[
             port("geometry", "Any"),
             port("spine", "Path"),
-            port_f("tolerance", "Scalar", 0.5),
+            port_f("tolerance", "Scalar", 0.0),
         ],
         &[port("geometry", "Any")],
     );

@@ -256,8 +256,9 @@ pub fn resample_with_tangents(path: &PathData, count: i64, tolerance: f32) -> (P
     (PointBatch { xs, ys }, angles)
 }
 
-/// Default tolerance for lyon's adaptive curve flattening.
-pub const DEFAULT_FLATTEN_TOLERANCE: f32 = 0.5;
+/// Default tolerance for lyon's adaptive curve flattening (used in tests).
+#[cfg(test)]
+const DEFAULT_FLATTEN_TOLERANCE: f32 = 0.5;
 
 /// Minimum tolerance to prevent degenerate flattening (e.g. from missing ports).
 const MIN_TOLERANCE: f32 = 0.001;

@@ -20,6 +20,7 @@ This document describes the Vector Flow desktop application from a user's perspe
   - [Mouse Controls](#mouse-controls)
   - [Canvas Toolbar](#canvas-toolbar)
   - [What the Canvas Shows](#what-the-canvas-shows)
+  - [Zoom-Aware Tolerance](#zoom-aware-tolerance)
 - [Properties Panel](#properties-panel)
   - [Standard Node Properties](#standard-node-properties)
   - [VFS Code Node Properties](#vfs-code-node-properties)
@@ -211,6 +212,16 @@ Two buttons are overlaid in the top-left corner of the canvas:
 - **Pinned nodes exist**: Pinned nodes' outputs are always shown, combined with any selected nodes' outputs.
 
 This lets you isolate individual nodes to see their contribution, or pin important nodes so they always remain visible.
+
+### Zoom-Aware Tolerance
+
+Many nodes that flatten curves to line segments — such as Path Boolean, Path Offset, Resample Path, Stroke to Path, and others — have a hidden **tolerance** input port. Tolerance controls how precisely curves are approximated: smaller values produce smoother results with more vertices.
+
+By default, tolerance is **0**, which means **zoom-aware**: the app automatically computes an appropriate tolerance based on the current canvas zoom level (`0.5 / zoom`). When you zoom in, curves are flattened more finely so they stay smooth; when you zoom out, coarser (faster) approximations are used since the difference isn't visible.
+
+This means the graph re-evaluates when you zoom, so nodes always produce results that look correct at the current zoom level. If you need a fixed tolerance (e.g., for deterministic output or performance), you can show the tolerance port in the properties panel and set a positive value to override the zoom-aware default.
+
+Exported images and videos always use a fine fixed tolerance (0.1) regardless of the canvas zoom level.
 
 ---
 

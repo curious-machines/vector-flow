@@ -2,35 +2,34 @@
 
 ## Philosophy
 
-Tolerance (flatness) controls how finely curves are approximated by line segments. There are two distinct tolerance contexts:
+Tolerance (flatness) controls how finely curves are approximated by line segments. All tolerance is now **zoom-aware by default** — both rendering and geometric operations adapt to the current zoom level automatically.
 
-1. **Render tolerance** — controls visual smoothness of curves on screen. This is now **zoom-aware** (`0.5 / zoom`), so curves stay smooth at any zoom level without user intervention.
+## Zoom-Aware Tolerance (default for all nodes)
 
-2. **Geometric tolerance** — controls precision of operations that produce new path data (boolean ops, resampling, stroke-to-path conversion). This remains user-controllable via per-node tolerance ports because it affects the actual output geometry.
-
-## Render Tolerance (automatic)
-
-The render pipeline computes tolerance as `0.5 / zoom`, passed to `prepare_scene_full()` and related functions. This means:
+The app computes tolerance as `0.5 / zoom`, stored in `EvalContext.tolerance`. This means:
 - At zoom 1.0: tolerance = 0.5 (standard)
 - At zoom 2.0: tolerance = 0.25 (finer, for zoomed-in detail)
 - At zoom 0.5: tolerance = 1.0 (coarser, acceptable since zoomed out)
 
-Dash pattern flattening at render time also uses this zoom-aware tolerance (via the render pipeline tolerance parameter).
+When a node's tolerance port is **0** (the default), it uses `EvalContext.tolerance` — the zoom-aware value. Users can set a **positive** tolerance value to override with fixed precision.
 
-Export uses a fixed tolerance of 0.1 for high quality output.
+### Render tolerance
 
-## Geometric Tolerance (per-node ports)
+The render pipeline computes tolerance as `0.5 / zoom`, passed to `prepare_scene_full()` and related functions. Dash pattern flattening at render time also uses this zoom-aware tolerance. Export uses a fixed tolerance of 0.1 for high quality output.
 
-Tolerance input ports (Scalar, default `0.5`, clamped > 0) remain on:
+### Geometric tolerance (per-node ports)
 
-- **Path Boolean** (v2) — controls flattening for boolean operations
-- **Resample Path** (v1) — controls resampling precision
-- **Copy to Points** (v1) — controls flattening during copy
-- **Stroke to Path** (v1) — controls flattening for outline extraction and dash pattern application
+All nodes with tolerance ports default to 0 (zoom-aware). Hidden by default, but can be shown and overridden:
 
-Values <= 0 are clamped to `DEFAULT_FLATTEN_TOLERANCE` (0.5).
+- **Path Boolean** (v3) — flattening for boolean operations
+- **Path Offset** (v2) — flattening for offset computation
+- **Path Intersection Points** (v1) — flattening for intersection detection
+- **Split Path at T** (v1) — flattening for arc-length splitting
+- **Resample Path** (v2) — resampling precision
+- **Copy to Points** (v2) — flattening during copy
+- **Warp to Curve** (v1) — flattening for warp mapping
+- **Stroke to Path** (v2) — outline extraction and dash pattern application
+- **Set Stroke** (v3) — dash/stroke rendering
+- **Set Style** (v2) — combined fill/stroke styling
 
-## Removed
-
-- **Set Stroke** tolerance port — removed in v2. Dash flattening now uses the zoom-aware render tolerance automatically.
-- **StrokeStyle.tolerance** field — removed from core types. The render crate uses the pipeline tolerance for all stroke operations.
+Values <= 0 fall through to `EvalContext.tolerance`. Values > 0 are used directly (clamped to `MIN_TOLERANCE` = 0.001 by the underlying functions).
