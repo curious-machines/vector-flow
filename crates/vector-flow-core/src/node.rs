@@ -1248,9 +1248,6 @@ impl NodeDef {
                     .with_default(ParamValue::Float(2.0))
                     .with_description("Frequency multiplier between octaves")
                     .hidden(),
-                PortDef::new("handle_scale", DataType::Scalar)
-                    .with_default(ParamValue::Float(0.5))
-                    .with_description("Handle length deformation scale (0 = exact follow)"),
             ],
             outputs: vec![PortDef::new("geometry", DataType::Any)],
             position: [0.0, 0.0],

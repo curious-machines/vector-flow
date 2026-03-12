@@ -277,10 +277,9 @@ impl ComputeBackend for CpuBackend {
                 let frequency = get_scalar(inputs, 5);
                 let octaves = get_int(inputs, 6);
                 let lacunarity = get_scalar(inputs, 7);
-                let handle_scale = get_scalar(inputs, 8);
                 perturb::perturb_points(
                     &geometry, seed, *method, *target, *per_axis, *preserve_smoothness,
-                    amount, amount_x, amount_y, frequency, octaves, lacunarity, handle_scale,
+                    amount, amount_x, amount_y, frequency, octaves, lacunarity,
                 )
             }
             NodeOp::ClosePath => {

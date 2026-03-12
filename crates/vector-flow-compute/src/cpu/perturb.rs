@@ -23,13 +23,11 @@ pub fn perturb_points(
     frequency: f64,
     octaves: i64,
     lacunarity: f64,
-    handle_scale: f64,
 ) -> NodeData {
     let seed = seed as u64;
     let amount = amount as f32;
     let amount_x = amount_x as f32;
     let amount_y = amount_y as f32;
-    let handle_scale = handle_scale as f32;
     let octaves = (octaves.max(1) as usize).min(32);
 
     match geometry {
@@ -43,7 +41,7 @@ pub fn perturb_points(
         NodeData::Path(p) => {
             let perturbed = perturb_path_data(
                 p, seed, method, target, per_axis, preserve_smoothness,
-                amount, amount_x, amount_y, frequency, octaves, lacunarity, handle_scale,
+                amount, amount_x, amount_y, frequency, octaves, lacunarity,
             );
             NodeData::Path(Arc::new(perturbed))
         }
@@ -52,7 +50,7 @@ pub fn perturb_points(
                 let path_seed = seed.wrapping_add(pi as u64 * 100_000);
                 perturb_path_data(
                     p, path_seed, method, target, per_axis, preserve_smoothness,
-                    amount, amount_x, amount_y, frequency, octaves, lacunarity, handle_scale,
+                    amount, amount_x, amount_y, frequency, octaves, lacunarity,
                 )
             }).collect();
             NodeData::Paths(Arc::new(perturbed))
@@ -60,7 +58,7 @@ pub fn perturb_points(
         NodeData::Shape(s) => {
             let perturbed_path = perturb_path_data(
                 &s.path, seed, method, target, per_axis, preserve_smoothness,
-                amount, amount_x, amount_y, frequency, octaves, lacunarity, handle_scale,
+                amount, amount_x, amount_y, frequency, octaves, lacunarity,
             );
             NodeData::Shape(Arc::new(Shape {
                 path: Arc::new(perturbed_path),
@@ -73,7 +71,7 @@ pub fn perturb_points(
                 let baked = transforms::bake_shape_to_path(s);
                 let perturbed_path = perturb_path_data(
                     &baked, shape_seed, method, target, per_axis, preserve_smoothness,
-                    amount, amount_x, amount_y, frequency, octaves, lacunarity, handle_scale,
+                    amount, amount_x, amount_y, frequency, octaves, lacunarity,
                 );
                 Shape {
                     path: Arc::new(perturbed_path),
@@ -131,7 +129,6 @@ fn perturb_path_data(
     frequency: f64,
     octaves: usize,
     lacunarity: f64,
-    handle_scale: f32,
 ) -> PathData {
     let mut result = PathData { verbs: Vec::with_capacity(path.verbs.len()), closed: path.closed };
     let mut point_idx: u64 = 0;
@@ -194,7 +191,7 @@ fn perturb_path_data(
                     ctrl, &last_anchor, seed, point_idx + handle_seed_offset,
                     method, target, per_axis, preserve_smoothness,
                     amount, amount_x, amount_y, frequency, octaves, lacunarity,
-                    handle_scale, &last_anchor_delta,
+                    &last_anchor_delta,
                 );
                 point_idx += 1;
 
@@ -217,7 +214,7 @@ fn perturb_path_data(
                     ctrl1, &last_anchor, seed, point_idx + handle_seed_offset,
                     method, target, per_axis, preserve_smoothness,
                     amount, amount_x, amount_y, frequency, octaves, lacunarity,
-                    handle_scale, &last_anchor_delta,
+                    &last_anchor_delta,
                 );
                 point_idx += 1;
 
@@ -226,7 +223,7 @@ fn perturb_path_data(
                     ctrl2, &new_to, seed, point_idx + handle_seed_offset,
                     method, target, per_axis, preserve_smoothness,
                     amount, amount_x, amount_y, frequency, octaves, lacunarity,
-                    handle_scale, &to_delta,
+                    &to_delta,
                 );
                 point_idx += 1;
 
@@ -328,16 +325,15 @@ fn perturb_handle(
     frequency: f64,
     octaves: usize,
     lacunarity: f64,
-    handle_scale: f32,
     anchor_delta: &(f32, f32),
 ) -> Point {
     match target {
         0 => {
-            // Anchors mode: handles follow anchor delta, with optional coherent
-            // length deformation controlled by handle_scale.
-            // handle_scale=0 → exact follow (offset preserved)
-            // handle_scale>0 → coherent length deformation
-            coherent_handle_follow(handle, anchor, anchor_delta, handle_scale)
+            // Anchors mode: handles follow anchor delta exactly (offset preserved).
+            Point {
+                x: handle.x + anchor_delta.0,
+                y: handle.y + anchor_delta.1,
+            }
         }
         1 | 2 => {
             // Handles Only (1) or Both (2) → perturb handles independently.
@@ -356,49 +352,6 @@ fn perturb_handle(
             }
         }
         _ => *handle,
-    }
-}
-
-/// Anchors+Coherent handle perturbation: follow the anchor (preserving tangent
-/// direction), then adjust the handle length based on the projection of the anchor
-/// delta onto the handle direction.
-///
-/// - handle_scale=0 → identical to Anchors Only (offset fully preserved)
-/// - handle_scale>0 → handles aligned with the anchor motion get longer/shorter
-fn coherent_handle_follow(
-    handle: &Point,
-    anchor: &Point, // already perturbed
-    anchor_delta: &(f32, f32),
-    handle_scale: f32,
-) -> Point {
-    // Step 1: drag handle by full anchor delta (preserving offset from anchor).
-    let followed_x = handle.x + anchor_delta.0;
-    let followed_y = handle.y + anchor_delta.1;
-
-    if handle_scale.abs() < 1e-10 {
-        return Point { x: followed_x, y: followed_y };
-    }
-
-    // The offset from the (perturbed) anchor to the followed handle equals the
-    // original offset (handle_old − anchor_old), so direction is preserved.
-    let dx = followed_x - anchor.x;
-    let dy = followed_y - anchor.y;
-    let len = (dx * dx + dy * dy).sqrt();
-
-    if len < 1e-10 {
-        return Point { x: followed_x, y: followed_y };
-    }
-
-    let dir_x = dx / len;
-    let dir_y = dy / len;
-
-    // Project anchor delta onto handle direction for a signed length change.
-    let proj = anchor_delta.0 * dir_x + anchor_delta.1 * dir_y;
-    let new_len = (len + proj * handle_scale).max(0.0);
-
-    Point {
-        x: anchor.x + dir_x * new_len,
-        y: anchor.y + dir_y * new_len,
     }
 }
 
@@ -478,8 +431,8 @@ mod tests {
     #[test]
     fn deterministic_results() {
         let path = NodeData::Path(Arc::new(make_line_path()));
-        let a = perturb_points(&path, 42, 0, 0, false, false, 10.0, 0.0, 0.0, 1.0, 4, 2.0, 0.5);
-        let b = perturb_points(&path, 42, 0, 0, false, false, 10.0, 0.0, 0.0, 1.0, 4, 2.0, 0.5);
+        let a = perturb_points(&path, 42, 0, 0, false, false, 10.0, 0.0, 0.0, 1.0, 4, 2.0);
+        let b = perturb_points(&path, 42, 0, 0, false, false, 10.0, 0.0, 0.0, 1.0, 4, 2.0);
         assert_eq!(format!("{a:?}"), format!("{b:?}"));
     }
 
@@ -488,7 +441,7 @@ mod tests {
         let path = make_line_path();
         let result = perturb_path_data(
             &path, 42, 0, 0, false, false,
-            0.0, 0.0, 0.0, 1.0, 4, 2.0, 0.5,
+            0.0, 0.0, 0.0, 1.0, 4, 2.0,
         );
         assert_eq!(path.verbs.len(), result.verbs.len());
         // With amount=0, uniform radial gives zero displacement.
@@ -507,10 +460,9 @@ mod tests {
     #[test]
     fn anchors_only_drags_handles() {
         let path = make_cubic_path();
-        // handle_scale=0 → exact follow (offset preserved).
         let result = perturb_path_data(
             &path, 42, 0, 0, false, false,
-            10.0, 0.0, 0.0, 1.0, 4, 2.0, 0.0,
+            10.0, 0.0, 0.0, 1.0, 4, 2.0,
         );
         // In anchors-only mode, handles should be dragged by the same delta as their anchor.
         // Check that ctrl1 offset from anchor is preserved.
@@ -537,7 +489,7 @@ mod tests {
         let path = make_cubic_path();
         let result = perturb_path_data(
             &path, 42, 0, 1, false, false,
-            10.0, 0.0, 0.0, 1.0, 4, 2.0, 0.5,
+            10.0, 0.0, 0.0, 1.0, 4, 2.0,
         );
         // Anchors should be unchanged.
         if let (PathVerb::MoveTo(a), PathVerb::MoveTo(b)) = (&path.verbs[0], &result.verbs[0]) {
@@ -557,7 +509,7 @@ mod tests {
         let path = make_line_path();
         let result = perturb_path_data(
             &path, 42, 2, 0, false, false,
-            10.0, 0.0, 0.0, 1.0, 4, 2.0, 0.5,
+            10.0, 0.0, 0.0, 1.0, 4, 2.0,
         );
         // Just check it produced a result with the same number of verbs.
         assert_eq!(path.verbs.len(), result.verbs.len());
@@ -568,7 +520,7 @@ mod tests {
         let path = make_line_path();
         let result = perturb_path_data(
             &path, 42, 0, 0, true, false,
-            0.0, 10.0, 5.0, 1.0, 4, 2.0, 0.5,
+            0.0, 10.0, 5.0, 1.0, 4, 2.0,
         );
         assert_eq!(path.verbs.len(), result.verbs.len());
     }
@@ -580,7 +532,7 @@ mod tests {
             ys: vec![0.0, 10.0, 20.0],
         };
         let data = NodeData::Points(Arc::new(batch));
-        let result = perturb_points(&data, 42, 0, 0, false, false, 5.0, 0.0, 0.0, 1.0, 4, 2.0, 0.5);
+        let result = perturb_points(&data, 42, 0, 0, false, false, 5.0, 0.0, 0.0, 1.0, 4, 2.0);
         if let NodeData::Points(pts) = &result {
             assert_eq!(pts.len(), 3);
         } else {
@@ -593,7 +545,7 @@ mod tests {
         let path = make_cubic_path();
         let result = perturb_path_data(
             &path, 42, 0, 1, false, true,
-            10.0, 0.0, 0.0, 1.0, 4, 2.0, 0.5,
+            10.0, 0.0, 0.0, 1.0, 4, 2.0,
         );
         // Anchors should be unchanged (handles-only mode).
         if let (PathVerb::MoveTo(a), PathVerb::MoveTo(b)) = (&path.verbs[0], &result.verbs[0]) {
@@ -621,10 +573,10 @@ mod tests {
     }
 
     #[test]
-    fn coherent_handles_preserve_tangent_direction() {
+    fn anchors_mode_handles_preserve_tangent_direction() {
         // A smooth curve: MoveTo(0,0) → CubicTo with handles collinear through anchor (100,0).
-        // After Anchors mode with handle_scale>0, the handles at (100,0) must remain
-        // collinear through the perturbed anchor (i.e., tangent direction preserved).
+        // After Anchors mode, the handles at (100,0) must remain collinear through
+        // the perturbed anchor (i.e., tangent direction preserved).
         let path = PathData {
             verbs: vec![
                 PathVerb::MoveTo(Point { x: 0.0, y: 0.0 }),
@@ -644,7 +596,7 @@ mod tests {
 
         let result = perturb_path_data(
             &path, 42, 0, 0, false, false,
-            20.0, 0.0, 0.0, 1.0, 4, 2.0, 0.7,
+            20.0, 0.0, 0.0, 1.0, 4, 2.0,
         );
 
         // Extract the middle anchor (100,0) and its two handles.
@@ -695,10 +647,10 @@ mod tests {
             closed: true,
         };
 
-        // Perturb with Uniform method, Anchors target with handle_scale.
+        // Perturb with Uniform method, Anchors target.
         let result = perturb_path_data(
             &path, 42, 0, 0, false, false,
-            20.0, 0.0, 0.0, 1.0, 4, 2.0, 0.5,
+            20.0, 0.0, 0.0, 1.0, 4, 2.0,
         );
 
         // The perturbed MoveTo and the last CubicTo's "to" must match exactly.

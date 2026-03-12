@@ -24,7 +24,6 @@ Two new nodes that share a noise evaluation module:
 | 0: Anchors Only | Perturbed | Dragged by same delta (offset preserved) |
 | 1: Handles Only | Unchanged | Perturbed independently |
 | 2: Both | Perturbed | Perturbed independently (separate seed offsets) |
-| 3: Anchors + Coherent | Perturbed | Perturbed with delta scaled by `handle_scale` |
 
 ### Preserve Smoothness (modes 1, 2, 3)
 

@@ -656,7 +656,6 @@ Displaces points in geometry (paths, shapes, point batches) by random or noise-b
 | frequency    | Scalar | 1.0     | when method = Noise       | Noise frequency                                 |
 | octaves      | Int    | 4       | when method = Noise       | Number of FBM octaves                           |
 | lacunarity   | Scalar | 2.0     | when method = Noise       | Frequency multiplier between octaves            |
-| handle_scale | Scalar | 0.5     | when target = Anchors          | Handle length deformation scale (0 = exact follow) |
 
 **Outputs:**
 
@@ -675,7 +674,7 @@ Displaces points in geometry (paths, shapes, point batches) by random or noise-b
 
 **Handle Target Modes:**
 
-- **Anchors Only** — anchor points are perturbed; handles follow the anchor delta. The `handle_scale` port controls coherent length deformation: at 0 the handle offset is exactly preserved, at higher values handles aligned with the anchor motion get longer/shorter (preserving tangent direction).
+- **Anchors Only** — anchor points are perturbed; handles follow the anchor delta exactly, preserving their offset from the anchor.
 - **Handles Only** — anchors stay fixed; handles are perturbed independently.
 - **Both** — anchors and handles are each perturbed independently with separate random offsets.
 

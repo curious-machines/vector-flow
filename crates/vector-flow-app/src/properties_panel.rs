@@ -520,17 +520,14 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                 // 5: frequency (visible when method=Noise)
                 // 6: octaves (visible when method=Noise)
                 // 7: lacunarity (visible when method=Noise)
-                // 8: handle_scale (visible when target=0)
                 let is_noise = method == 2;
-                let is_coherent = target == 0;
-                if node.input_visibility.len() >= 9 {
+                if node.input_visibility.len() >= 8 {
                     node.input_visibility[2] = !per_axis;
                     node.input_visibility[3] = per_axis;
                     node.input_visibility[4] = per_axis;
                     node.input_visibility[5] = is_noise;
                     node.input_visibility[6] = is_noise;
                     node.input_visibility[7] = is_noise;
-                    node.input_visibility[8] = is_coherent;
                 }
 
                 node.touch();
