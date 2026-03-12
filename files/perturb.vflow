@@ -1,6 +1,67 @@
 {
   "graph": {
     "nodes": {
+      "8": {
+        "id": 8,
+        "name": "Point Grid",
+        "op": "PointGrid",
+        "inputs": [
+          {
+            "name": "columns",
+            "data_type": "Int",
+            "description": "Number of columns",
+            "default_value": {
+              "Int": 2
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "rows",
+            "data_type": "Int",
+            "description": "Number of rows",
+            "default_value": {
+              "Int": 1
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "spacing",
+            "data_type": "Scalar",
+            "description": "Distance between points",
+            "default_value": {
+              "Float": 225.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          320.15625,
+          -49.28125
+        ],
+        "generation": 12,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
       "7": {
         "id": 7,
         "name": "Set Style",
@@ -184,6 +245,127 @@
           true
         ]
       },
+      "17": {
+        "id": 17,
+        "name": "Perturb Points",
+        "op": {
+          "PerturbPoints": {
+            "method": 0,
+            "target": 2,
+            "per_axis": false,
+            "preserve_smoothness": true
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 25
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Perturbation amount (radial)",
+            "default_value": {
+              "Float": 16.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount_x",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in X",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "amount_y",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in Y",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "frequency",
+            "data_type": "Scalar",
+            "description": "Noise frequency",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "octaves",
+            "data_type": "Int",
+            "description": "Number of FBM octaves",
+            "default_value": {
+              "Int": 4
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "lacunarity",
+            "data_type": "Scalar",
+            "description": "Frequency multiplier between octaves",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -370.40994,
+          -120.020035
+        ],
+        "generation": 36,
+        "version": 1,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
       "4": {
         "id": 4,
         "name": "Circle",
@@ -237,78 +419,44 @@
           true
         ]
       },
-      "13": {
-        "id": 13,
-        "name": "Output: output",
+      "12": {
+        "id": 12,
+        "name": "Merge",
         "op": {
-          "GraphOutput": {
-            "name": "output",
-            "data_type": "Any",
-            "order": 0
+          "Merge": {
+            "keep_separate": false
           }
         },
         "inputs": [
           {
-            "name": "output",
+            "name": "a",
             "data_type": "Any",
-            "description": "",
+            "description": "First input",
             "default_value": null,
             "expression": null,
             "visible_by_default": true
-          }
-        ],
-        "outputs": [],
-        "position": [
-          465.77744,
-          75.07622
-        ],
-        "generation": 0,
-        "version": 0,
-        "input_visibility": [
-          true
-        ],
-        "output_visibility": []
-      },
-      "8": {
-        "id": 8,
-        "name": "Point Grid",
-        "op": "PointGrid",
-        "inputs": [
+          },
           {
-            "name": "columns",
-            "data_type": "Int",
-            "description": "Number of columns",
-            "default_value": {
-              "Int": 2
-            },
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
             "expression": null,
             "visible_by_default": true
           },
           {
-            "name": "rows",
-            "data_type": "Int",
-            "description": "Number of rows",
-            "default_value": {
-              "Int": 1
-            },
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "spacing",
-            "data_type": "Scalar",
-            "description": "Distance between points",
-            "default_value": {
-              "Float": 225.0
-            },
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
             "expression": null,
             "visible_by_default": true
           }
         ],
         "outputs": [
           {
-            "name": "points",
-            "data_type": "Points",
+            "name": "merged",
+            "data_type": "Any",
             "description": "",
             "default_value": null,
             "expression": null,
@@ -316,15 +464,136 @@
           }
         ],
         "position": [
-          320.15625,
-          -49.28125
+          58.612804,
+          -67.14939
         ],
-        "generation": 12,
+        "generation": 1,
         "version": 0,
         "input_visibility": [
           true,
           true,
           true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "16": {
+        "id": 16,
+        "name": "Perturb Points",
+        "op": {
+          "PerturbPoints": {
+            "method": 0,
+            "target": 0,
+            "per_axis": false,
+            "preserve_smoothness": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 3
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Perturbation amount (radial)",
+            "default_value": {
+              "Float": 20.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount_x",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in X",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "amount_y",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in Y",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "frequency",
+            "data_type": "Scalar",
+            "description": "Noise frequency",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "octaves",
+            "data_type": "Int",
+            "description": "Number of FBM octaves",
+            "default_value": {
+              "Int": 4
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "lacunarity",
+            "data_type": "Scalar",
+            "description": "Frequency multiplier between octaves",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -277.97256,
+          -98.856705
+        ],
+        "generation": 14,
+        "version": 1,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
         ],
         "output_visibility": [
           true
@@ -513,43 +782,19 @@
           true
         ]
       },
-      "12": {
-        "id": 12,
-        "name": "Merge",
+      "13": {
+        "id": 13,
+        "name": "Output: output",
         "op": {
-          "Merge": {
-            "keep_separate": false
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
           }
         },
         "inputs": [
           {
-            "name": "a",
-            "data_type": "Any",
-            "description": "First input",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "b",
-            "data_type": "Any",
-            "description": "Second input",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "c",
-            "data_type": "Any",
-            "description": "Input",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "merged",
+            "name": "output",
             "data_type": "Any",
             "description": "",
             "default_value": null,
@@ -557,152 +802,17 @@
             "visible_by_default": true
           }
         ],
+        "outputs": [],
         "position": [
-          58.612804,
-          -67.14939
+          465.77744,
+          75.07622
         ],
-        "generation": 1,
+        "generation": 0,
         "version": 0,
         "input_visibility": [
-          true,
-          true,
           true
         ],
-        "output_visibility": [
-          true
-        ]
-      },
-      "15": {
-        "id": 15,
-        "name": "Perturb Points",
-        "op": {
-          "PerturbPoints": {
-            "method": 0,
-            "target": 1,
-            "per_axis": false,
-            "preserve_smoothness": true
-          }
-        },
-        "inputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "Input geometry",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "seed",
-            "data_type": "Int",
-            "description": "Random seed",
-            "default_value": {
-              "Int": 60
-            },
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "amount",
-            "data_type": "Scalar",
-            "description": "Perturbation amount (radial)",
-            "default_value": {
-              "Float": 20.0
-            },
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "amount_x",
-            "data_type": "Scalar",
-            "description": "Perturbation amount in X",
-            "default_value": {
-              "Float": 1.0
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "amount_y",
-            "data_type": "Scalar",
-            "description": "Perturbation amount in Y",
-            "default_value": {
-              "Float": 1.0
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "frequency",
-            "data_type": "Scalar",
-            "description": "Noise frequency",
-            "default_value": {
-              "Float": 1.0
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "octaves",
-            "data_type": "Int",
-            "description": "Number of FBM octaves",
-            "default_value": {
-              "Int": 4
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "lacunarity",
-            "data_type": "Scalar",
-            "description": "Frequency multiplier between octaves",
-            "default_value": {
-              "Float": 2.0
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "handle_scale",
-            "data_type": "Scalar",
-            "description": "Handle length deformation scale (0 = exact follow)",
-            "default_value": {
-              "Float": 3.5
-            },
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          -378.82257,
-          -127.96947
-        ],
-        "generation": 2463,
-        "version": 1,
-        "input_visibility": [
-          true,
-          true,
-          true,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false
-        ],
-        "output_visibility": [
-          true
-        ]
+        "output_visibility": []
       },
       "1": {
         "id": 1,
@@ -762,138 +872,6 @@
         "input_visibility": [
           true,
           true,
-          true
-        ],
-        "output_visibility": [
-          true
-        ]
-      },
-      "14": {
-        "id": 14,
-        "name": "Perturb Points",
-        "op": {
-          "PerturbPoints": {
-            "method": 0,
-            "target": 0,
-            "per_axis": false,
-            "preserve_smoothness": false
-          }
-        },
-        "inputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "Input geometry",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "seed",
-            "data_type": "Int",
-            "description": "Random seed",
-            "default_value": {
-              "Int": 0
-            },
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "amount",
-            "data_type": "Scalar",
-            "description": "Perturbation amount (radial)",
-            "default_value": {
-              "Float": 16.0
-            },
-            "expression": null,
-            "visible_by_default": true
-          },
-          {
-            "name": "amount_x",
-            "data_type": "Scalar",
-            "description": "Perturbation amount in X",
-            "default_value": {
-              "Float": 1.0
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "amount_y",
-            "data_type": "Scalar",
-            "description": "Perturbation amount in Y",
-            "default_value": {
-              "Float": 1.0
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "frequency",
-            "data_type": "Scalar",
-            "description": "Noise frequency",
-            "default_value": {
-              "Float": 1.0
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "octaves",
-            "data_type": "Int",
-            "description": "Number of FBM octaves",
-            "default_value": {
-              "Int": 4
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "lacunarity",
-            "data_type": "Scalar",
-            "description": "Frequency multiplier between octaves",
-            "default_value": {
-              "Float": 2.0
-            },
-            "expression": null,
-            "visible_by_default": false
-          },
-          {
-            "name": "handle_scale",
-            "data_type": "Scalar",
-            "description": "Handle length deformation scale (0 = exact follow)",
-            "default_value": {
-              "Float": 0.5
-            },
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "geometry",
-            "data_type": "Any",
-            "description": "",
-            "default_value": null,
-            "expression": null,
-            "visible_by_default": true
-          }
-        ],
-        "position": [
-          -309.375,
-          -148.47562
-        ],
-        "generation": 164,
-        "version": 1,
-        "input_visibility": [
-          true,
-          true,
-          true,
-          false,
-          false,
-          false,
-          false,
-          false,
           true
         ],
         "output_visibility": [
@@ -1015,13 +993,13 @@
           "port": 0
         },
         "to": {
-          "node": 14,
+          "node": 16,
           "port": 0
         }
       },
       {
         "from": {
-          "node": 14,
+          "node": 16,
           "port": 0
         },
         "to": {
@@ -1035,13 +1013,13 @@
           "port": 0
         },
         "to": {
-          "node": 15,
+          "node": 17,
           "port": 0
         }
       },
       {
         "from": {
-          "node": 15,
+          "node": 17,
           "port": 0
         },
         "to": {
@@ -1050,8 +1028,8 @@
         }
       }
     ],
-    "next_id": 16,
-    "generation": 6101,
+    "next_id": 18,
+    "generation": 6823,
     "network_boxes": {},
     "next_box_id": 1
   },
@@ -1077,7 +1055,7 @@
       },
       "1": {
         "value": {
-          "core_id": 15,
+          "core_id": 17,
           "display_name": "Perturb Points",
           "color": [
             200,
@@ -1088,8 +1066,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -408.01923,
-          "y": 15.223181
+          "x": -405.65927,
+          "y": 15.381274
         },
         "open": true
       },
@@ -1131,7 +1109,7 @@
       },
       "4": {
         "value": {
-          "core_id": 14,
+          "core_id": 16,
           "display_name": "Perturb Points",
           "color": [
             200,
@@ -1142,8 +1120,8 @@
           "pinned": false
         },
         "pos": {
-          "x": -408.82257,
-          "y": -157.96947
+          "x": -400.40994,
+          "y": -150.02003
         },
         "open": true
       },
@@ -1241,22 +1219,22 @@
     "wires": [
       {
         "out_pin": {
-          "node": 1,
+          "node": 3,
           "output": 0
         },
         "in_pin": {
-          "node": 5,
+          "node": 1,
           "input": 0
         }
       },
       {
         "out_pin": {
-          "node": 6,
+          "node": 4,
           "output": 0
         },
         "in_pin": {
-          "node": 7,
-          "input": 1
+          "node": 2,
+          "input": 0
         }
       },
       {
@@ -1291,21 +1269,31 @@
       },
       {
         "out_pin": {
-          "node": 4,
+          "node": 6,
           "output": 0
         },
         "in_pin": {
-          "node": 2,
+          "node": 7,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
           "input": 0
         }
       },
       {
         "out_pin": {
-          "node": 3,
+          "node": 2,
           "output": 0
         },
         "in_pin": {
-          "node": 1,
+          "node": 8,
           "input": 0
         }
       },
@@ -1318,36 +1306,26 @@
           "node": 8,
           "input": 1
         }
-      },
-      {
-        "out_pin": {
-          "node": 2,
-          "output": 0
-        },
-        "in_pin": {
-          "node": 8,
-          "input": 0
-        }
       }
     ]
   },
   "view_state": {
     "graph_offset": [
-      -1.6230278,
-      3.917328
+      0.865005,
+      -0.96524763
     ],
     "graph_scale": 0.82,
     "canvas_center": [
       0.0,
       0.0
     ],
-    "canvas_zoom": 1.0564237
+    "canvas_zoom": 1.1206597
   },
   "window_geometry": {
     "x": 193.0,
-    "y": 345.5,
+    "y": 382.5,
     "width": 1280.0,
-    "height": 1175.5,
+    "height": 1212.5,
     "node_editor_height": 440.0,
     "properties_width": 250.0
   },

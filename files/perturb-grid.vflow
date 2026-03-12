@@ -1,0 +1,539 @@
+{
+  "graph": {
+    "nodes": {
+      "4": {
+        "id": 4,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [],
+        "position": [
+          430.875,
+          -4.84375
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true
+        ],
+        "output_visibility": []
+      },
+      "2": {
+        "id": 2,
+        "name": "Point Grid",
+        "op": "PointGrid",
+        "inputs": [
+          {
+            "name": "columns",
+            "data_type": "Int",
+            "description": "Number of columns",
+            "default_value": {
+              "Int": 20
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "rows",
+            "data_type": "Int",
+            "description": "Number of rows",
+            "default_value": {
+              "Int": 15
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "spacing",
+            "data_type": "Scalar",
+            "description": "Distance between points",
+            "default_value": {
+              "Float": 25.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -283.46875,
+          161.40625
+        ],
+        "generation": 17,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "3": {
+        "id": 3,
+        "name": "Set Fill",
+        "op": "SetFill",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "color",
+            "data_type": "Color",
+            "description": "Fill color (single or batch)",
+            "default_value": {
+              "Color": [
+                0.43892065,
+                0.03759817,
+                0.03759817,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          129.90625,
+          -78.125
+        ],
+        "generation": 136,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "1": {
+        "id": 1,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 10.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -347.6875,
+          -13.53125
+        ],
+        "generation": 2,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "5": {
+        "id": 5,
+        "name": "Perturb Points",
+        "op": {
+          "PerturbPoints": {
+            "method": 0,
+            "target": 0,
+            "per_axis": false,
+            "preserve_smoothness": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 40
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Perturbation amount (radial)",
+            "default_value": {
+              "Float": 3.4
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount_x",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in X",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "amount_y",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in Y",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "frequency",
+            "data_type": "Scalar",
+            "description": "Noise frequency",
+            "default_value": {
+              "Float": 10.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "octaves",
+            "data_type": "Int",
+            "description": "Number of FBM octaves",
+            "default_value": {
+              "Int": 8
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "lacunarity",
+            "data_type": "Scalar",
+            "description": "Frequency multiplier between octaves",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -224.84375,
+          35.8125
+        ],
+        "generation": 437,
+        "version": 1,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "output_visibility": [
+          true
+        ]
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 4,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 2,
+          "port": 0
+        },
+        "to": {
+          "node": 5,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 5,
+          "port": 0
+        },
+        "to": {
+          "node": 1,
+          "port": 1
+        }
+      }
+    ],
+    "next_id": 6,
+    "generation": 608,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -48.917847,
+          "y": -29.515747
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 2,
+          "display_name": "Point Grid",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -438.2683,
+          "y": -38.265747
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Set Fill",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 112.757385,
+          "y": -29.515747
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 4,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 321.43262,
+          "y": -22.265747
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 5,
+          "display_name": "Perturb Points",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -257.59308,
+          "y": -38.265747
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 0,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 3,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      0.0,
+      0.0
+    ],
+    "graph_scale": 1.0,
+    "canvas_center": [
+      0.0,
+      0.0
+    ],
+    "canvas_zoom": 1.0
+  },
+  "window_geometry": {
+    "x": 1024.0,
+    "y": 314.5,
+    "width": 1280.0,
+    "height": 964.5,
+    "node_editor_height": 241.96875,
+    "properties_width": 250.0
+  },
+  "settings": {
+    "canvas_width": 640,
+    "canvas_height": 480,
+    "background_color": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1.0
+    ],
+    "fps": 30.0
+  }
+}
