@@ -10,6 +10,7 @@ This document describes every node type available in Vector Flow, organized by c
   - [Circle](#circle)
   - [Line](#line)
   - [Load Image](#load-image)
+  - [Noise](#noise)
   - [Point Grid](#point-grid)
   - [Rectangle](#rectangle)
   - [Regular Polygon](#regular-polygon)
@@ -26,6 +27,7 @@ This document describes every node type available in Vector Flow, organized by c
   - [Path Boolean](#path-boolean)
   - [Path Intersection Points](#path-intersection-points)
   - [Path Offset](#path-offset)
+  - [Perturb Points](#perturb-points)
   - [Path Reverse](#path-reverse)
   - [Path Subdivide](#path-subdivide)
   - [Polygon from Points](#polygon-from-points)
@@ -220,6 +222,37 @@ Loads an image file from disk and outputs it as an Image.
 
 ```
 Example patch: Load Image ("logo.png", width: 200) -> Graph Output
+```
+
+---
+
+### Noise
+
+Samples an FBM (Fractal Brownian Motion) noise field at each point in a batch, producing one scalar value per point. Uses OpenSimplex noise.
+
+**Inputs:**
+
+| Name       | Type   | Default | Description                              |
+|------------|--------|---------|------------------------------------------|
+| points     | Points | --      | Input points to sample noise at          |
+| seed       | Int    | 0       | Random seed                              |
+| frequency  | Scalar | 1.0     | Noise frequency (higher = more detail)   |
+| octaves    | Int    | 4       | Number of FBM octaves (1–32)             |
+| lacunarity | Scalar | 2.0     | Frequency multiplier between octaves     |
+| amplitude  | Scalar | 1.0     | Output amplitude multiplier              |
+| offset_x   | Scalar | 0.0     | Offset in X before sampling              |
+| offset_y   | Scalar | 0.0     | Offset in Y before sampling              |
+
+**Outputs:**
+
+| Name   | Type    | Description                    |
+|--------|---------|--------------------------------|
+| values | Scalars | One noise value per input point |
+
+**Notes:** The noise field is continuous and deterministic for a given seed. The output range is approximately [-amplitude, +amplitude]. Lacunarity controls the frequency gap between successive octaves — higher values produce more rapid detail variation. Use offset_x/offset_y to pan through the noise field without moving the points.
+
+```
+Example patch: Point Grid -> Noise (frequency: 0.02, amplitude: 50) -> Pack Points (with original Y)
 ```
 
 ---
@@ -603,6 +636,53 @@ Expands or contracts a path by a given distance. Curves are flattened to line se
 
 ```
 Example patch: Circle (50) -> Path Offset (distance: 10) -> Set Stroke -> Graph Output
+```
+
+---
+
+### Perturb Points
+
+Displaces points in geometry (paths, shapes, point batches) by random or noise-based offsets. Provides fine control over how Bézier handles are treated.
+
+**Inputs:**
+
+| Name         | Type   | Default | Visibility               | Description                                     |
+|--------------|--------|---------|---------------------------|-------------------------------------------------|
+| geometry     | Any    | --      | always                    | Input geometry                                  |
+| seed         | Int    | 0       | always                    | Random seed                                     |
+| amount       | Scalar | 1.0     | when not per-axis         | Perturbation amount (radial)                    |
+| amount_x     | Scalar | 1.0     | when per-axis             | Perturbation amount in X                        |
+| amount_y     | Scalar | 1.0     | when per-axis             | Perturbation amount in Y                        |
+| frequency    | Scalar | 1.0     | when method = Noise       | Noise frequency                                 |
+| octaves      | Int    | 4       | when method = Noise       | Number of FBM octaves                           |
+| lacunarity   | Scalar | 2.0     | when method = Noise       | Frequency multiplier between octaves            |
+| handle_scale | Scalar | 0.5     | when target = Anchors          | Handle length deformation scale (0 = exact follow) |
+
+**Outputs:**
+
+| Name     | Type | Description       |
+|----------|------|-------------------|
+| geometry | Any  | Perturbed geometry |
+
+**Properties:**
+
+| Name                | Type      | Description                                              |
+|---------------------|-----------|----------------------------------------------------------|
+| Method              | Combobox  | Uniform, Gaussian, or Noise                              |
+| Target              | Combobox  | Anchors Only, Handles Only, Both                         |
+| Per-axis            | Checkbox  | Use separate X/Y amounts instead of radial               |
+| Preserve smoothness | Checkbox  | Constrains handle perturbation to length only (shown when target = Handles Only or Both) |
+
+**Handle Target Modes:**
+
+- **Anchors Only** — anchor points are perturbed; handles follow the anchor delta. The `handle_scale` port controls coherent length deformation: at 0 the handle offset is exactly preserved, at higher values handles aligned with the anchor motion get longer/shorter (preserving tangent direction).
+- **Handles Only** — anchors stay fixed; handles are perturbed independently.
+- **Both** — anchors and handles are each perturbed independently with separate random offsets.
+
+**Notes:** Accepts Path, Paths, Points, Shape, and Shapes input types. For Shapes, each shape's transform is baked before perturbation. When Preserve Smoothness is enabled, handle perturbation only changes the handle's distance from the anchor, not its direction — this keeps curves smooth while varying their amplitude.
+
+```
+Example patch: Circle (100) -> Perturb Points (method: Noise, amount: 20) -> Set Fill -> Graph Output
 ```
 
 ---

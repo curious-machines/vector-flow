@@ -1,7 +1,9 @@
 mod color_math;
 mod color_ops;
 mod generators;
+mod noise;
 pub(crate) mod path_ops;
+mod perturb;
 mod styling;
 pub(crate) mod svg_path;
 pub(crate) mod text;
@@ -135,6 +137,21 @@ impl ComputeBackend for CpuBackend {
                 let spacing = get_scalar(inputs, 2);
                 generators::point_grid(cols, rows, spacing)
             }
+            NodeOp::Noise => {
+                let points = get_points(inputs, 0);
+                let seed = get_int(inputs, 1) as u32;
+                let frequency = get_scalar(inputs, 2);
+                let octaves = get_int(inputs, 3).clamp(1, 32) as usize;
+                let lacunarity = get_scalar(inputs, 4);
+                let amplitude = get_scalar(inputs, 5);
+                let offset_x = get_scalar(inputs, 6);
+                let offset_y = get_scalar(inputs, 7);
+                let values = noise::sample_noise_batch(
+                    &points.xs, &points.ys,
+                    seed, frequency, octaves, lacunarity, amplitude, offset_x, offset_y,
+                );
+                NodeData::Scalars(Arc::new(values))
+            }
             NodeOp::ScatterPoints => {
                 let count = get_int(inputs, 0);
                 let width = get_scalar(inputs, 1);
@@ -250,6 +267,21 @@ impl ComputeBackend for CpuBackend {
                     outputs.data[1] = Some(NodeData::Int(count));
                 }
                 return Ok(());
+            }
+            NodeOp::PerturbPoints { method, target, per_axis, preserve_smoothness } => {
+                let geometry = get_any(inputs, 0);
+                let seed = get_int(inputs, 1);
+                let amount = get_scalar(inputs, 2);
+                let amount_x = get_scalar(inputs, 3);
+                let amount_y = get_scalar(inputs, 4);
+                let frequency = get_scalar(inputs, 5);
+                let octaves = get_int(inputs, 6);
+                let lacunarity = get_scalar(inputs, 7);
+                let handle_scale = get_scalar(inputs, 8);
+                perturb::perturb_points(
+                    &geometry, seed, *method, *target, *per_axis, *preserve_smoothness,
+                    amount, amount_x, amount_y, frequency, octaves, lacunarity, handle_scale,
+                )
             }
             NodeOp::ClosePath => {
                 let data = get_any(inputs, 0);

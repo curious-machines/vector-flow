@@ -170,6 +170,14 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
         _ => None,
     };
 
+    // Get PerturbPoints fields if applicable.
+    let perturb_info = match &node.op {
+        NodeOp::PerturbPoints { method, target, per_axis, preserve_smoothness } => {
+            Some((*method, *target, *per_axis, *preserve_smoothness))
+        }
+        _ => None,
+    };
+
     // Get Merge keep_separate flag if applicable.
     let merge_keep_separate = match &node.op {
         NodeOp::Merge { keep_separate } => Some(*keep_separate),
@@ -437,6 +445,96 @@ fn show_node_properties(ui: &mut Ui, graph: &mut Graph, core_id: CoreNodeId, nod
                     node.touch();
                     changed = true;
                 }
+            }
+        }
+        ui.separator();
+    }
+
+    // PerturbPoints controls.
+    if let Some((mut method, mut target, mut per_axis, mut preserve_smoothness)) = perturb_info {
+        let method_labels = ["Uniform", "Gaussian", "Noise"];
+        let target_labels = ["Anchors Only", "Handles Only", "Both"];
+
+        let current_method = method_labels.get(method as usize).unwrap_or(&"Uniform");
+        ui.horizontal(|ui| {
+            ui.label("Method");
+            egui::ComboBox::from_id_salt("perturb_method")
+                .selected_text(*current_method)
+                .width(120.0)
+                .show_ui(ui, |ui| {
+                    for (i, label) in method_labels.iter().enumerate() {
+                        if ui.selectable_label(method == i as i32, *label).clicked() {
+                            method = i as i32;
+                        }
+                    }
+                });
+        });
+
+        let current_target = target_labels.get(target as usize).unwrap_or(&"Anchors Only");
+        ui.horizontal(|ui| {
+            ui.label("Target");
+            egui::ComboBox::from_id_salt("perturb_target")
+                .selected_text(*current_target)
+                .width(180.0)
+                .show_ui(ui, |ui| {
+                    for (i, label) in target_labels.iter().enumerate() {
+                        if ui.selectable_label(target == i as i32, *label).clicked() {
+                            target = i as i32;
+                        }
+                    }
+                });
+        });
+
+        if ui.checkbox(&mut per_axis, "Per-axis").changed() {
+            // Will be handled below.
+        }
+
+        // Only show preserve smoothness when target involves independent handle perturbation.
+        if target == 1 || target == 2 {
+            ui.checkbox(&mut preserve_smoothness, "Preserve smoothness");
+        }
+
+        // Check if anything changed.
+        if perturb_info != Some((method, target, per_axis, preserve_smoothness)) {
+            if let Some(node) = graph.node_mut(core_id) {
+                if let NodeOp::PerturbPoints {
+                    method: ref mut m,
+                    target: ref mut t,
+                    per_axis: ref mut pa,
+                    preserve_smoothness: ref mut ps,
+                } = node.op
+                {
+                    *m = method;
+                    *t = target;
+                    *pa = per_axis;
+                    *ps = preserve_smoothness;
+                }
+
+                // Update port visibility based on mode selections.
+                // Port indices:
+                // 0: geometry (always visible)
+                // 1: seed (always visible)
+                // 2: amount (visible when !per_axis)
+                // 3: amount_x (visible when per_axis)
+                // 4: amount_y (visible when per_axis)
+                // 5: frequency (visible when method=Noise)
+                // 6: octaves (visible when method=Noise)
+                // 7: lacunarity (visible when method=Noise)
+                // 8: handle_scale (visible when target=0)
+                let is_noise = method == 2;
+                let is_coherent = target == 0;
+                if node.input_visibility.len() >= 9 {
+                    node.input_visibility[2] = !per_axis;
+                    node.input_visibility[3] = per_axis;
+                    node.input_visibility[4] = per_axis;
+                    node.input_visibility[5] = is_noise;
+                    node.input_visibility[6] = is_noise;
+                    node.input_visibility[7] = is_noise;
+                    node.input_visibility[8] = is_coherent;
+                }
+
+                node.touch();
+                changed = true;
             }
         }
         ui.separator();

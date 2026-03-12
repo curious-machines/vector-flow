@@ -1,0 +1,1365 @@
+{
+  "graph": {
+    "nodes": {
+      "7": {
+        "id": 7,
+        "name": "Set Style",
+        "op": {
+          "SetStyle": {
+            "dash_pattern": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "fill_color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.22544672,
+                0.08646948,
+                0.021515109,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "fill_opacity",
+            "data_type": "Scalar",
+            "description": "Fill opacity (0-1)",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "has_fill",
+            "data_type": "Bool",
+            "description": "Enable fill",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "stroke_color",
+            "data_type": "Color",
+            "description": "Stroke color",
+            "default_value": {
+              "Color": [
+                1.0,
+                0.98856,
+                0.98856,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "stroke_width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "stroke_opacity",
+            "data_type": "Scalar",
+            "description": "Stroke opacity (0-1)",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "has_stroke",
+            "data_type": "Bool",
+            "description": "Enable stroke",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          11.76709,
+          -112.4328
+        ],
+        "generation": 87,
+        "version": 2,
+        "input_visibility": [
+          true,
+          true,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "4": {
+        "id": 4,
+        "name": "Circle",
+        "op": "Circle",
+        "inputs": [
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Circle radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -288.4375,
+          38.5
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "13": {
+        "id": 13,
+        "name": "Output: output",
+        "op": {
+          "GraphOutput": {
+            "name": "output",
+            "data_type": "Any",
+            "order": 0
+          }
+        },
+        "inputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [],
+        "position": [
+          465.77744,
+          75.07622
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true
+        ],
+        "output_visibility": []
+      },
+      "8": {
+        "id": 8,
+        "name": "Point Grid",
+        "op": "PointGrid",
+        "inputs": [
+          {
+            "name": "columns",
+            "data_type": "Int",
+            "description": "Number of columns",
+            "default_value": {
+              "Int": 2
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "rows",
+            "data_type": "Int",
+            "description": "Number of rows",
+            "default_value": {
+              "Int": 1
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "spacing",
+            "data_type": "Scalar",
+            "description": "Distance between points",
+            "default_value": {
+              "Float": 225.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          320.15625,
+          -49.28125
+        ],
+        "generation": 12,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "3": {
+        "id": 3,
+        "name": "Set Style",
+        "op": {
+          "SetStyle": {
+            "dash_pattern": ""
+          }
+        },
+        "inputs": [
+          {
+            "name": "path",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "fill_color",
+            "data_type": "Color",
+            "description": "Fill color",
+            "default_value": {
+              "Color": [
+                0.22544672,
+                0.08646948,
+                0.021515109,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "fill_opacity",
+            "data_type": "Scalar",
+            "description": "Fill opacity (0-1)",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "has_fill",
+            "data_type": "Bool",
+            "description": "Enable fill",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "stroke_color",
+            "data_type": "Color",
+            "description": "Stroke color",
+            "default_value": {
+              "Color": [
+                1.0,
+                0.98856,
+                0.98856,
+                1.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "stroke_width",
+            "data_type": "Scalar",
+            "description": "Stroke width",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "stroke_opacity",
+            "data_type": "Scalar",
+            "description": "Stroke opacity (0-1)",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "has_stroke",
+            "data_type": "Bool",
+            "description": "Enable stroke",
+            "default_value": {
+              "Bool": true
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "cap",
+            "data_type": "Int",
+            "description": "End cap: 0=Butt, 1=Round, 2=Square",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "join",
+            "data_type": "Int",
+            "description": "Line join: 0=Miter, 1=Round, 2=Bevel",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "miter_limit",
+            "data_type": "Scalar",
+            "description": "Miter limit (only for Miter join)",
+            "default_value": {
+              "Float": 4.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "dash_offset",
+            "data_type": "Scalar",
+            "description": "Dash pattern offset",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "tolerance",
+            "data_type": "Scalar",
+            "description": "Curve flattening tolerance (0 = zoom-aware)",
+            "default_value": {
+              "Float": 0.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "output",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          90.5,
+          2.3125
+        ],
+        "generation": 87,
+        "version": 2,
+        "input_visibility": [
+          true,
+          true,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "12": {
+        "id": 12,
+        "name": "Merge",
+        "op": {
+          "Merge": {
+            "keep_separate": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "a",
+            "data_type": "Any",
+            "description": "First input",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "b",
+            "data_type": "Any",
+            "description": "Second input",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "c",
+            "data_type": "Any",
+            "description": "Input",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "merged",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          58.612804,
+          -67.14939
+        ],
+        "generation": 1,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "15": {
+        "id": 15,
+        "name": "Perturb Points",
+        "op": {
+          "PerturbPoints": {
+            "method": 0,
+            "target": 1,
+            "per_axis": false,
+            "preserve_smoothness": true
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 60
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Perturbation amount (radial)",
+            "default_value": {
+              "Float": 20.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount_x",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in X",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "amount_y",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in Y",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "frequency",
+            "data_type": "Scalar",
+            "description": "Noise frequency",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "octaves",
+            "data_type": "Int",
+            "description": "Number of FBM octaves",
+            "default_value": {
+              "Int": 4
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "lacunarity",
+            "data_type": "Scalar",
+            "description": "Frequency multiplier between octaves",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "handle_scale",
+            "data_type": "Scalar",
+            "description": "Handle length deformation scale (0 = exact follow)",
+            "default_value": {
+              "Float": 3.5
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -378.82257,
+          -127.96947
+        ],
+        "generation": 2463,
+        "version": 1,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "1": {
+        "id": 1,
+        "name": "Regular Polygon",
+        "op": "RegularPolygon",
+        "inputs": [
+          {
+            "name": "sides",
+            "data_type": "Int",
+            "description": "Number of sides",
+            "default_value": {
+              "Int": 6
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "radius",
+            "data_type": "Scalar",
+            "description": "Outer radius",
+            "default_value": {
+              "Float": 100.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "center",
+            "data_type": "Vec2",
+            "description": "Center position",
+            "default_value": {
+              "Vec2": [
+                0.0,
+                0.0
+              ]
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "data_type": "Path",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -293.90625,
+          -39.53125
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "14": {
+        "id": 14,
+        "name": "Perturb Points",
+        "op": {
+          "PerturbPoints": {
+            "method": 0,
+            "target": 0,
+            "per_axis": false,
+            "preserve_smoothness": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Input geometry",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "seed",
+            "data_type": "Int",
+            "description": "Random seed",
+            "default_value": {
+              "Int": 0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount",
+            "data_type": "Scalar",
+            "description": "Perturbation amount (radial)",
+            "default_value": {
+              "Float": 16.0
+            },
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "amount_x",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in X",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "amount_y",
+            "data_type": "Scalar",
+            "description": "Perturbation amount in Y",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "frequency",
+            "data_type": "Scalar",
+            "description": "Noise frequency",
+            "default_value": {
+              "Float": 1.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "octaves",
+            "data_type": "Int",
+            "description": "Number of FBM octaves",
+            "default_value": {
+              "Int": 4
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "lacunarity",
+            "data_type": "Scalar",
+            "description": "Frequency multiplier between octaves",
+            "default_value": {
+              "Float": 2.0
+            },
+            "expression": null,
+            "visible_by_default": false
+          },
+          {
+            "name": "handle_scale",
+            "data_type": "Scalar",
+            "description": "Handle length deformation scale (0 = exact follow)",
+            "default_value": {
+              "Float": 0.5
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          -309.375,
+          -148.47562
+        ],
+        "generation": 164,
+        "version": 1,
+        "input_visibility": [
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      },
+      "11": {
+        "id": 11,
+        "name": "Place at Points",
+        "op": "PlaceAtPoints",
+        "inputs": [
+          {
+            "name": "geometry",
+            "data_type": "Any",
+            "description": "Shapes to place (batch or single)",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "points",
+            "data_type": "Points",
+            "description": "Target points from Grid, Scatter Points, etc.",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          },
+          {
+            "name": "cycle",
+            "data_type": "Bool",
+            "description": "Cycle shorter list to match longer list length",
+            "default_value": {
+              "Bool": false
+            },
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "geometry",
+            "data_type": "Shapes",
+            "description": "",
+            "default_value": null,
+            "expression": null,
+            "visible_by_default": true
+          }
+        ],
+        "position": [
+          217.6067,
+          -113.2622
+        ],
+        "generation": 0,
+        "version": 0,
+        "input_visibility": [
+          true,
+          true,
+          true
+        ],
+        "output_visibility": [
+          true
+        ]
+      }
+    },
+    "edges": [
+      {
+        "from": {
+          "node": 3,
+          "port": 0
+        },
+        "to": {
+          "node": 12,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 7,
+          "port": 0
+        },
+        "to": {
+          "node": 12,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 12,
+          "port": 0
+        },
+        "to": {
+          "node": 11,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 8,
+          "port": 0
+        },
+        "to": {
+          "node": 11,
+          "port": 1
+        }
+      },
+      {
+        "from": {
+          "node": 11,
+          "port": 0
+        },
+        "to": {
+          "node": 13,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 1,
+          "port": 0
+        },
+        "to": {
+          "node": 14,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 14,
+          "port": 0
+        },
+        "to": {
+          "node": 3,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 4,
+          "port": 0
+        },
+        "to": {
+          "node": 15,
+          "port": 0
+        }
+      },
+      {
+        "from": {
+          "node": 15,
+          "port": 0
+        },
+        "to": {
+          "node": 7,
+          "port": 0
+        }
+      }
+    ],
+    "next_id": 16,
+    "generation": 6101,
+    "network_boxes": {},
+    "next_box_id": 1
+  },
+  "snarl": {
+    "nodes": {
+      "0": {
+        "value": {
+          "core_id": 1,
+          "display_name": "Regular Polygon",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -584.92194,
+          "y": -151.3368
+        },
+        "open": true
+      },
+      "1": {
+        "value": {
+          "core_id": 15,
+          "display_name": "Perturb Points",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -408.01923,
+          "y": 15.223181
+        },
+        "open": true
+      },
+      "2": {
+        "value": {
+          "core_id": 3,
+          "display_name": "Set Style",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -200.92516,
+          "y": -148.27797
+        },
+        "open": true
+      },
+      "3": {
+        "value": {
+          "core_id": 4,
+          "display_name": "Circle",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -565.94586,
+          "y": 26.35638
+        },
+        "open": true
+      },
+      "4": {
+        "value": {
+          "core_id": 14,
+          "display_name": "Perturb Points",
+          "color": [
+            200,
+            120,
+            60,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -408.82257,
+          "y": -157.96947
+        },
+        "open": true
+      },
+      "5": {
+        "value": {
+          "core_id": 7,
+          "display_name": "Set Style",
+          "color": [
+            180,
+            80,
+            180,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": -202.38414,
+          "y": 18.412106
+        },
+        "open": true
+      },
+      "6": {
+        "value": {
+          "core_id": 8,
+          "display_name": "Point Grid",
+          "color": [
+            80,
+            160,
+            80,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 12.296898,
+          "y": 38.246223
+        },
+        "open": true
+      },
+      "7": {
+        "value": {
+          "core_id": 11,
+          "display_name": "Place at Points",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 186.38557,
+          "y": -52.83342
+        },
+        "open": true
+      },
+      "8": {
+        "value": {
+          "core_id": 12,
+          "display_name": "Merge",
+          "color": [
+            140,
+            140,
+            140,
+            255
+          ],
+          "pinned": false
+        },
+        "pos": {
+          "x": 34.800446,
+          "y": -95.23853
+        },
+        "open": true
+      },
+      "9": {
+        "value": {
+          "core_id": 13,
+          "display_name": "Graph Output",
+          "color": [
+            200,
+            200,
+            80,
+            255
+          ],
+          "pinned": true
+        },
+        "pos": {
+          "x": 416.92654,
+          "y": -52.52924
+        },
+        "open": true
+      }
+    },
+    "wires": [
+      {
+        "out_pin": {
+          "node": 1,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 5,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 6,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 0,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 4,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 7,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 9,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 8,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 7,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 4,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 2,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 3,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 1,
+          "input": 0
+        }
+      },
+      {
+        "out_pin": {
+          "node": 5,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 1
+        }
+      },
+      {
+        "out_pin": {
+          "node": 2,
+          "output": 0
+        },
+        "in_pin": {
+          "node": 8,
+          "input": 0
+        }
+      }
+    ]
+  },
+  "view_state": {
+    "graph_offset": [
+      -1.6230278,
+      3.917328
+    ],
+    "graph_scale": 0.82,
+    "canvas_center": [
+      0.0,
+      0.0
+    ],
+    "canvas_zoom": 1.0564237
+  },
+  "window_geometry": {
+    "x": 193.0,
+    "y": 345.5,
+    "width": 1280.0,
+    "height": 1175.5,
+    "node_editor_height": 440.0,
+    "properties_width": 250.0
+  },
+  "settings": {
+    "canvas_width": 640,
+    "canvas_height": 480,
+    "background_color": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1.0
+    ],
+    "fps": 30.0
+  }
+}

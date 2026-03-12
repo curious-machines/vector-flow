@@ -134,9 +134,9 @@ The node editor is the main workspace for building your processing graph. Nodes 
 
 Right-click on the graph background to open the **Add Node** context menu. Nodes are organized into categories:
 
-- **Generators** — Arc, Circle, Rectangle, Regular Polygon, Line, Point Grid, Scatter Points, Load Image, SVG Path
+- **Generators** — Arc, Circle, Line, Load Image, Noise, Point Grid, Rectangle, Regular Polygon, Scatter Points, SVG Path
 - **Transforms** — Translate, Rotate, Scale, Apply Transform, Warp to Curve
-- **Path Ops** — Close Path, Path Boolean, Path Intersection Points, Path Offset, Path Reverse, Path Subdivide, Polygon from Points, Resample Path, Spline from Points, Split Path at T
+- **Path Ops** — Close Path, Path Boolean, Path Intersection Points, Path Offset, Perturb Points, Path Reverse, Path Subdivide, Polygon from Points, Resample Path, Spline from Points, Split Path at T
 - **Styling** — Set Fill, Set Stroke, Set Style, Stroke to Path
 - **Color** — Adjust Hue, Adjust Saturation, Adjust Lightness, Adjust Luminance, Adjust Alpha, Invert Color, Grayscale, Mix Colors, Color Parse
 - **Text** — Text, Text to Path

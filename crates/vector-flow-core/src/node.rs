@@ -92,6 +92,7 @@ pub enum NodeOp {
     Circle,
     Rectangle,
     Line,
+    Noise,
     ScatterPoints,
     // Transforms
     ApplyTransform,
@@ -106,6 +107,16 @@ pub enum NodeOp {
     PathOffset,
     PathSubdivide,
     PathReverse,
+    PerturbPoints {
+        #[serde(default)]
+        method: i32,
+        #[serde(default)]
+        target: i32,
+        #[serde(default)]
+        per_axis: bool,
+        #[serde(default)]
+        preserve_smoothness: bool,
+    },
     PolygonFromPoints,
     ResamplePath,
     SplineFromPoints,
@@ -212,6 +223,9 @@ impl NodeOp {
             | NodeOp::PathOffset
             | NodeOp::PathIntersectionPoints
             | NodeOp::SplitPathAtT => 1,
+
+            // Version 1: initial release.
+            NodeOp::Noise | NodeOp::PerturbPoints { .. } => 1,
 
             // All other built-in ops start at version 0. Bump individually when
             // a node's port layout or behavior changes.
@@ -543,6 +557,45 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn noise(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Noise".into(),
+            op: NodeOp::Noise,
+            inputs: vec![
+                PortDef::new("points", DataType::Points)
+                    .with_description("Input points to sample noise at"),
+                PortDef::new("seed", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Random seed"),
+                PortDef::new("frequency", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Noise frequency"),
+                PortDef::new("octaves", DataType::Int)
+                    .with_default(ParamValue::Int(4))
+                    .with_description("Number of FBM octaves"),
+                PortDef::new("lacunarity", DataType::Scalar)
+                    .with_default(ParamValue::Float(2.0))
+                    .with_description("Frequency multiplier between octaves"),
+                PortDef::new("amplitude", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Output amplitude multiplier"),
+                PortDef::new("offset_x", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Offset in X before sampling"),
+                PortDef::new("offset_y", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.0))
+                    .with_description("Offset in Y before sampling"),
+            ],
+            outputs: vec![PortDef::new("values", DataType::Scalars)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 1,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
@@ -1151,6 +1204,58 @@ impl NodeDef {
             position: [0.0, 0.0],
             generation: 0,
             version: 0,
+            input_visibility: Vec::new(),
+            output_visibility: Vec::new(),
+        }
+    }
+
+    pub fn perturb_points(id: NodeId) -> Self {
+        Self {
+            id,
+            name: "Perturb Points".into(),
+            op: NodeOp::PerturbPoints {
+                method: 0,
+                target: 0,
+                per_axis: false,
+                preserve_smoothness: false,
+            },
+            inputs: vec![
+                PortDef::new("geometry", DataType::Any)
+                    .with_description("Input geometry"),
+                PortDef::new("seed", DataType::Int)
+                    .with_default(ParamValue::Int(0))
+                    .with_description("Random seed"),
+                PortDef::new("amount", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Perturbation amount (radial)"),
+                PortDef::new("amount_x", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Perturbation amount in X")
+                    .hidden(),
+                PortDef::new("amount_y", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Perturbation amount in Y")
+                    .hidden(),
+                PortDef::new("frequency", DataType::Scalar)
+                    .with_default(ParamValue::Float(1.0))
+                    .with_description("Noise frequency")
+                    .hidden(),
+                PortDef::new("octaves", DataType::Int)
+                    .with_default(ParamValue::Int(4))
+                    .with_description("Number of FBM octaves")
+                    .hidden(),
+                PortDef::new("lacunarity", DataType::Scalar)
+                    .with_default(ParamValue::Float(2.0))
+                    .with_description("Frequency multiplier between octaves")
+                    .hidden(),
+                PortDef::new("handle_scale", DataType::Scalar)
+                    .with_default(ParamValue::Float(0.5))
+                    .with_description("Handle length deformation scale (0 = exact follow)"),
+            ],
+            outputs: vec![PortDef::new("geometry", DataType::Any)],
+            position: [0.0, 0.0],
+            generation: 0,
+            version: 1,
             input_visibility: Vec::new(),
             output_visibility: Vec::new(),
         }
