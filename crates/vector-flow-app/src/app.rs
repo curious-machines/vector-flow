@@ -2321,14 +2321,70 @@ impl eframe::App for VectorFlowApp {
         }
 
         // Request continuous repaints while playing or when the pointer is in the
-        // node editor. This ensures prev_pass widgets are always fresh, preventing
-        // the 1-frame-stale hit-test issue where quick hover+click on a pin would
-        // miss the pin widget and drag the node frame or background instead.
-        let pointer_in_editor = ctx.input(|i| {
-            i.pointer.hover_pos().is_some_and(|p| snarl_viewport.contains(p))
+        // node editor (or near the panel splitter). This ensures prev_pass widgets
+        // are always fresh, preventing the 1-frame-stale hit-test issue where quick
+        // hover+click on a pin or panel resize handle would miss the target.
+        let grab_radius = ctx.style().interaction.resize_grab_radius_side;
+        let interactive_rect = snarl_viewport.expand2(egui::vec2(0.0, grab_radius));
+        let pointer_in_interactive_area = ctx.input(|i| {
+            i.pointer.hover_pos().is_some_and(|p| interactive_rect.contains(p))
         });
-        if self.transport.playback == transport_panel::PlaybackState::Playing || pointer_in_editor {
+        if self.transport.playback == transport_panel::PlaybackState::Playing || pointer_in_interactive_area {
             ctx.request_repaint();
+        }
+
+        // Manual panel resize fallback: when the snarl background widget captures
+        // a drag that started near the panel splitter (bottom edge of the node
+        // editor), drive the panel resize ourselves by writing to PanelState.
+        // We lock in the drag using egui temp data so that once a splitter drag
+        // is detected, it persists until the pointer is released — even if the
+        // panel edge moves away from press_origin during fast drags.
+        if !graph_collapsed && !canvas_collapsed && snarl_viewport.is_positive() {
+            let splitter_drag_id = egui::Id::new("__splitter_fallback_drag");
+            let (press_origin, pointer_pos, is_dragging) = ctx.input(|i| {
+                (
+                    i.pointer.press_origin(),
+                    i.pointer.interact_pos(),
+                    i.pointer.is_decidedly_dragging(),
+                )
+            });
+
+            let was_splitter_drag = ctx.data(|d| d.get_temp::<bool>(splitter_drag_id).unwrap_or(false));
+
+            if !is_dragging {
+                // Clear lock when not dragging.
+                if was_splitter_drag {
+                    ctx.data_mut(|d| d.remove_temp::<bool>(splitter_drag_id));
+                }
+            } else {
+                // Check if this drag started near the splitter (only on first detection).
+                let is_splitter_drag = was_splitter_drag || press_origin.is_some_and(|origin| {
+                    let panel_id = egui::Id::new("node_editor_panel");
+                    // Use stored panel state to get the original bottom edge position,
+                    // which is stable even as we resize.
+                    let panel_bottom = ctx.data_mut(|d| {
+                        d.get_persisted::<egui::containers::panel::PanelState>(panel_id)
+                            .map(|s| s.rect.bottom())
+                    }).unwrap_or(snarl_viewport.bottom());
+                    (origin.y - panel_bottom).abs() <= grab_radius
+                });
+
+                if is_splitter_drag {
+                    ctx.data_mut(|d| d.insert_temp(splitter_drag_id, true));
+                    if let Some(pos) = pointer_pos {
+                        let panel_top = snarl_viewport.top();
+                        let new_height = (pos.y - panel_top).max(50.0);
+                        let panel_id = egui::Id::new("node_editor_panel");
+                        let panel_rect = egui::Rect::from_min_size(
+                            snarl_viewport.min,
+                            egui::vec2(snarl_viewport.width(), new_height),
+                        );
+                        let state = egui::containers::panel::PanelState { rect: panel_rect };
+                        ctx.data_mut(|d| d.insert_persisted(panel_id, state));
+                        ctx.request_repaint();
+                    }
+                }
+            }
         }
 
         // Undo: detect changes and auto-push undo entries.

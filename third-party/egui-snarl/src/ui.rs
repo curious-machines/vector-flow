@@ -604,6 +604,14 @@ struct Input {
     press_origin: Option<Pos2>,
     /// True when the pointer has moved far enough from press_origin to count as a drag.
     is_decidedly_dragging: bool,
+    /// True when the press started near the viewport edge (within the panel
+    /// resize grab radius). Suppresses all snarl drag interactions so the
+    /// panel splitter can claim the drag.
+    press_near_viewport_edge: bool,
+    /// True when a background drag was locked on a previous frame. Prevents
+    /// nodes from stealing the drag via the fallback path when they drift
+    /// over press_origin during a background pan.
+    bg_drag_locked: bool,
 }
 
 struct DrawNodeResponse {
@@ -672,7 +680,7 @@ impl<T> Snarl<T> {
         // Draw background pattern.
         let bg_frame = style.get_bg_frame(ui.style());
 
-        let input = ui.ctx().input(|i| Input {
+        let mut input = ui.ctx().input(|i| Input {
             zoom_delta: i.zoom_delta(),
             hover_pos: i.pointer.hover_pos(),
             interact_pos: i.pointer.interact_pos(),
@@ -680,6 +688,8 @@ impl<T> Snarl<T> {
             secondary_pressed: i.pointer.secondary_pressed(),
             press_origin: i.pointer.press_origin(),
             is_decidedly_dragging: i.pointer.is_decidedly_dragging(),
+            press_near_viewport_edge: false, // computed after viewport is known
+            bg_drag_locked: false, // set after bg_drag_lock is read from temp data
         });
 
         bg_frame.show(ui, |ui| {
@@ -695,10 +705,36 @@ impl<T> Snarl<T> {
             let mut snarl_state =
                 SnarlState::load(ui.ctx(), snarl_id, pivot, viewport, self, style);
 
-            // Clear the fallback drag lock when the pointer is not dragging.
+            // Clear drag locks when the pointer is not dragging.
             if !input.is_decidedly_dragging {
                 ui.ctx()
-                    .data_mut(|d| d.remove::<NodeId>(snarl_id.with("fallback_drag_node")));
+                    .data_mut(|d| {
+                        d.remove::<NodeId>(snarl_id.with("fallback_drag_node"));
+                        d.remove::<bool>(snarl_id.with("bg_drag_lock"));
+                        d.remove::<bool>(snarl_id.with("edge_drag_lock"));
+                    });
+            }
+
+            // Detect if the press started near the viewport edge (within the panel
+            // resize grab radius). If so, the user likely intended to drag the panel
+            // splitter, not the snarl background. Suppress all drag interactions
+            // (background pan, node drag, pin drag) to let the panel resize handle
+            // claim the interaction.
+            //
+            // Once detected, lock it in temp data so it persists for the entire
+            // drag — the viewport edge moves as the panel resizes, which would
+            // cause this check to flip false on subsequent frames.
+            let edge_drag_locked = ui.ctx()
+                .data(|d| d.get_temp::<bool>(snarl_id.with("edge_drag_lock")).unwrap_or(false));
+            input.press_near_viewport_edge = edge_drag_locked
+                || input.press_origin.is_some_and(|origin| {
+                    let margin = ui.style().interaction.resize_grab_radius_side;
+                    let inset = viewport.shrink(margin);
+                    !inset.contains(origin)
+                });
+            if input.press_near_viewport_edge && !edge_drag_locked {
+                ui.ctx()
+                    .data_mut(|d| d.insert_temp(snarl_id.with("edge_drag_lock"), true));
             }
 
             ui.style_mut().zoom(snarl_state.scale());
@@ -745,6 +781,12 @@ impl<T> Snarl<T> {
 
             let mut node_rects = Vec::new();
             let mut any_fallback_node_drag = false;
+
+            // Check if a background drag was locked on a previous frame.
+            // This prevents nodes from stealing the drag via the fallback
+            // path when they drift over press_origin during a background pan.
+            input.bg_drag_locked = ui.ctx()
+                .data(|d| d.get_temp::<bool>(snarl_id.with("bg_drag_lock")).unwrap_or(false));
 
             for node_idx in draw_order {
                 if !self.nodes.contains(node_idx.0) {
@@ -858,13 +900,15 @@ impl<T> Snarl<T> {
                 }
             }
 
-            if bg_r.drag_started_by(PointerButton::Primary) && input.modifiers.shift {
+            if bg_r.drag_started_by(PointerButton::Primary) && input.modifiers.shift
+                && !input.press_near_viewport_edge
+            {
                 let screen_pos = input.interact_pos.unwrap_or_else(|| viewport.center());
                 let graph_pos = snarl_state.screen_pos_to_graph(screen_pos, viewport);
                 snarl_state.start_rect_selection(graph_pos);
             }
 
-            if bg_r.dragged_by(PointerButton::Primary) {
+            if bg_r.dragged_by(PointerButton::Primary) && !input.press_near_viewport_edge {
                 if snarl_state.is_rect_selection() && input.hover_pos.is_some() {
                     let screen_pos = input.hover_pos.unwrap();
                     let graph_pos = snarl_state.screen_pos_to_graph(screen_pos, viewport);
@@ -873,6 +917,11 @@ impl<T> Snarl<T> {
                     // Only pan if no pin or node claimed the drag via
                     // current-frame geometry fallback.
                     snarl_state.pan(-bg_r.drag_delta());
+
+                    // Lock in the background drag so that nodes drifting over
+                    // press_origin during pan can't steal it via fallback.
+                    ui.ctx()
+                        .data_mut(|d| d.insert_temp(snarl_id.with("bg_drag_lock"), true));
                 }
             }
 
@@ -1193,7 +1242,9 @@ impl<T> Snarl<T> {
                 // egui's prev_pass-based hit test can miss small pin widgets
                 // when the pointer moves and presses in quick succession,
                 // causing the drag to go to the node frame instead.
-                let pin_drag_started = if has_fallback_drag {
+                let pin_drag_started = if input.press_near_viewport_edge {
+                    false // suppress all pin drags when press is near viewport edge
+                } else if has_fallback_drag {
                     // A node fallback drag is active or predicted. Only allow
                     // pin drag if egui's normal path detected it AND the
                     // current-frame pin rect confirms press_origin is actually
@@ -1351,7 +1402,9 @@ impl<T> Snarl<T> {
                     }
                 }
                 // Use current-frame geometry to detect drag starts on pins.
-                let pin_drag_started = if has_fallback_drag {
+                let pin_drag_started = if input.press_near_viewport_edge {
+                    false // suppress all pin drags when press is near viewport edge
+                } else if has_fallback_drag {
                     // A node fallback drag is active or predicted. Only allow
                     // pin drag if egui's normal path detected it AND the
                     // current-frame pin rect confirms press_origin is actually
@@ -1586,6 +1639,7 @@ impl<T> Snarl<T> {
         let node_frame_r = r.clone();
         let node_frame_dragged = !input.modifiers.shift
             && !input.modifiers.command
+            && !input.press_near_viewport_edge
             && r.dragged_by(PointerButton::Primary);
         // node_moved is set later, after pins are rendered, so we can
         // suppress it when a pin captures the drag via current-frame geometry.
@@ -1593,12 +1647,13 @@ impl<T> Snarl<T> {
         // Suppress pin fallbacks when this node is being dragged (normal or
         // fallback path) to prevent pins from stealing the drag as the node
         // moves and pin rects drift over press_origin.
-        let has_fallback_drag = locked_fallback_node.is_some()
-            || node_frame_dragged
-            || (!input.modifiers.shift
-                && !input.modifiers.command
-                && input.is_decidedly_dragging
-                && input.press_origin.is_some_and(|origin| node_frame_rect.contains(origin)));
+        let has_fallback_drag = !input.press_near_viewport_edge
+            && (locked_fallback_node.is_some()
+                || node_frame_dragged
+                || (!input.modifiers.shift
+                    && !input.modifiers.command
+                    && input.is_decidedly_dragging
+                    && input.press_origin.is_some_and(|origin| node_frame_rect.contains(origin))));
 
         if r.clicked_by(PointerButton::Primary) || r.dragged_by(PointerButton::Primary) {
             if input.modifiers.shift {
@@ -2205,7 +2260,10 @@ impl<T> Snarl<T> {
         // (the rect moves away from press_origin as the node is dragged).
         let mut fallback_node_drag = false;
 
-        if !node_frame_dragged && !snarl_state.has_new_wires() && input.is_decidedly_dragging {
+        if !node_frame_dragged && !snarl_state.has_new_wires() && input.is_decidedly_dragging
+            && !input.press_near_viewport_edge
+            && !input.bg_drag_locked
+        {
             if locked_fallback_node == Some(node) {
                 // This node was already claimed by the fallback — continue dragging it.
                 let drag_delta = ui.ctx().input(|i| i.pointer.delta());
