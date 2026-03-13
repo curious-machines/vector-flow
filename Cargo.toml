@@ -1,3 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["crates/vector-flow-core", "crates/vector-flow-dsl", "crates/vector-flow-compute", "crates/vector-flow-render", "crates/vector-flow-app"]
+
+[patch.crates-io]
+egui-snarl = { path = "third-party/egui-snarl" }

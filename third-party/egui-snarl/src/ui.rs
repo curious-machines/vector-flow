@@ -598,9 +598,12 @@ struct Input {
     hover_pos: Option<Pos2>,
     interact_pos: Option<Pos2>,
     zoom_delta: f32,
-    // primary_pressed: bool,
     secondary_pressed: bool,
     modifiers: Modifiers,
+    /// The position where the current press started (if any button is down).
+    press_origin: Option<Pos2>,
+    /// True when the pointer has moved far enough from press_origin to count as a drag.
+    is_decidedly_dragging: bool,
 }
 
 struct DrawNodeResponse {
@@ -609,6 +612,9 @@ struct DrawNodeResponse {
     drag_released: bool,
     pin_hovered: Option<AnyPin>,
     final_rect: Rect,
+    /// True when node drag was claimed via current-frame geometry fallback
+    /// (press_origin inside node_frame_rect but egui's prev_pass missed it).
+    fallback_node_drag: bool,
 }
 
 struct DrawPinsResponse {
@@ -671,8 +677,9 @@ impl<T> Snarl<T> {
             hover_pos: i.pointer.hover_pos(),
             interact_pos: i.pointer.interact_pos(),
             modifiers: i.modifiers,
-            // primary_pressed: i.pointer.primary_pressed(),
             secondary_pressed: i.pointer.secondary_pressed(),
+            press_origin: i.pointer.press_origin(),
+            is_decidedly_dragging: i.pointer.is_decidedly_dragging(),
         });
 
         bg_frame.show(ui, |ui| {
@@ -687,6 +694,12 @@ impl<T> Snarl<T> {
 
             let mut snarl_state =
                 SnarlState::load(ui.ctx(), snarl_id, pivot, viewport, self, style);
+
+            // Clear the fallback drag lock when the pointer is not dragging.
+            if !input.is_decidedly_dragging {
+                ui.ctx()
+                    .data_mut(|d| d.remove::<NodeId>(snarl_id.with("fallback_drag_node")));
+            }
 
             ui.style_mut().zoom(snarl_state.scale());
 
@@ -731,6 +744,7 @@ impl<T> Snarl<T> {
             let mut centers_weight = 0;
 
             let mut node_rects = Vec::new();
+            let mut any_fallback_node_drag = false;
 
             for node_idx in draw_order {
                 if !self.nodes.contains(node_idx.0) {
@@ -761,6 +775,7 @@ impl<T> Snarl<T> {
                         pin_hovered = Some(v);
                     }
                     drag_released |= response.drag_released;
+                    any_fallback_node_drag |= response.fallback_node_drag;
 
                     centers_sum += response.final_rect.center().to_vec2();
                     centers_weight += 1;
@@ -854,7 +869,9 @@ impl<T> Snarl<T> {
                     let screen_pos = input.hover_pos.unwrap();
                     let graph_pos = snarl_state.screen_pos_to_graph(screen_pos, viewport);
                     snarl_state.update_rect_selection(graph_pos);
-                } else {
+                } else if !snarl_state.has_new_wires() && !any_fallback_node_drag {
+                    // Only pan if no pin or node claimed the drag via
+                    // current-frame geometry fallback.
                     snarl_state.pan(-bg_r.drag_delta());
                 }
             }
@@ -1115,6 +1132,7 @@ impl<T> Snarl<T> {
         snarl_state: &mut SnarlState,
         input: &Input,
         input_positions: &mut HashMap<InPinId, PinResponse>,
+        has_fallback_drag: bool,
     ) -> DrawPinsResponse
     where
         V: SnarlViewer<T>,
@@ -1171,7 +1189,28 @@ impl<T> Snarl<T> {
                         }
                     }
                 }
-                if r.drag_started_by(PointerButton::Primary) {
+                // Use current-frame geometry to detect drag starts on pins.
+                // egui's prev_pass-based hit test can miss small pin widgets
+                // when the pointer moves and presses in quick succession,
+                // causing the drag to go to the node frame instead.
+                let pin_drag_started = if has_fallback_drag {
+                    // A node fallback drag is active or predicted. Only allow
+                    // pin drag if egui's normal path detected it AND the
+                    // current-frame pin rect confirms press_origin is actually
+                    // on the pin (not a stale prev_pass rect).
+                    r.drag_started_by(PointerButton::Primary)
+                        && input
+                            .press_origin
+                            .is_some_and(|origin| pin_rect.contains(origin))
+                } else {
+                    r.drag_started_by(PointerButton::Primary)
+                        || (!snarl_state.has_new_wires()
+                            && input.is_decidedly_dragging
+                            && input
+                                .press_origin
+                                .is_some_and(|origin| pin_rect.contains(origin)))
+                };
+                if pin_drag_started {
                     if input.modifiers.command {
                         snarl_state.start_new_wires_out(&in_pin.remotes);
                         if !input.modifiers.shift {
@@ -1254,6 +1293,7 @@ impl<T> Snarl<T> {
         snarl_state: &mut SnarlState,
         input: &Input,
         output_positions: &mut HashMap<OutPinId, PinResponse>,
+        has_fallback_drag: bool,
     ) -> DrawPinsResponse
     where
         V: SnarlViewer<T>,
@@ -1310,7 +1350,25 @@ impl<T> Snarl<T> {
                         }
                     }
                 }
-                if r.drag_started_by(PointerButton::Primary) {
+                // Use current-frame geometry to detect drag starts on pins.
+                let pin_drag_started = if has_fallback_drag {
+                    // A node fallback drag is active or predicted. Only allow
+                    // pin drag if egui's normal path detected it AND the
+                    // current-frame pin rect confirms press_origin is actually
+                    // on the pin (not a stale prev_pass rect).
+                    r.drag_started_by(PointerButton::Primary)
+                        && input
+                            .press_origin
+                            .is_some_and(|origin| pin_rect.contains(origin))
+                } else {
+                    r.drag_started_by(PointerButton::Primary)
+                        || (!snarl_state.has_new_wires()
+                            && input.is_decidedly_dragging
+                            && input
+                                .press_origin
+                                .is_some_and(|origin| pin_rect.contains(origin)))
+                };
+                if pin_drag_started {
                     if input.modifiers.command {
                         snarl_state.start_new_wires_in(&out_pin.remotes);
 
@@ -1456,6 +1514,12 @@ impl<T> Snarl<T> {
 
         let node_pos = snarl_state.graph_pos_to_screen(pos, viewport).round();
 
+        // Check if a node is already locked for fallback dragging.
+        // Pin fallbacks must not fire when a node drag is in progress.
+        let fallback_drag_key = snarl_id.with("fallback_drag_node");
+        let locked_fallback_node: Option<NodeId> =
+            ui.ctx().data(|d| d.get_temp(fallback_drag_key));
+
         // Generate persistent id for the node.
         let node_id = snarl_id.with(("snarl-node", node));
 
@@ -1519,12 +1583,22 @@ impl<T> Snarl<T> {
             Sense::click_and_drag(),
         );
 
-        if !input.modifiers.shift
+        let node_frame_r = r.clone();
+        let node_frame_dragged = !input.modifiers.shift
             && !input.modifiers.command
-            && r.dragged_by(PointerButton::Primary)
-        {
-            node_moved = Some((node, snarl_state.screen_vec_to_graph(r.drag_delta())));
-        }
+            && r.dragged_by(PointerButton::Primary);
+        // node_moved is set later, after pins are rendered, so we can
+        // suppress it when a pin captures the drag via current-frame geometry.
+
+        // Suppress pin fallbacks when this node is being dragged (normal or
+        // fallback path) to prevent pins from stealing the drag as the node
+        // moves and pin rects drift over press_origin.
+        let has_fallback_drag = locked_fallback_node.is_some()
+            || node_frame_dragged
+            || (!input.modifiers.shift
+                && !input.modifiers.command
+                && input.is_decidedly_dragging
+                && input.press_origin.is_some_and(|origin| node_frame_rect.contains(origin)));
 
         if r.clicked_by(PointerButton::Primary) || r.dragged_by(PointerButton::Primary) {
             if input.modifiers.shift {
@@ -1670,6 +1744,7 @@ impl<T> Snarl<T> {
                         snarl_state,
                         input,
                         input_positions,
+                        has_fallback_drag,
                     );
 
                     drag_released |= r.drag_released;
@@ -1704,6 +1779,7 @@ impl<T> Snarl<T> {
                         snarl_state,
                         input,
                         output_positions,
+                        has_fallback_drag,
                     );
 
                     drag_released |= r.drag_released;
@@ -1784,6 +1860,7 @@ impl<T> Snarl<T> {
                         snarl_state,
                         input,
                         input_positions,
+                        has_fallback_drag,
                     );
 
                     drag_released |= r.drag_released;
@@ -1855,6 +1932,7 @@ impl<T> Snarl<T> {
                         snarl_state,
                         input,
                         output_positions,
+                        has_fallback_drag,
                     );
 
                     drag_released |= r.drag_released;
@@ -1897,6 +1975,7 @@ impl<T> Snarl<T> {
                         snarl_state,
                         input,
                         output_positions,
+                        has_fallback_drag,
                     );
 
                     drag_released |= r.drag_released;
@@ -1968,6 +2047,7 @@ impl<T> Snarl<T> {
                         snarl_state,
                         input,
                         input_positions,
+                        has_fallback_drag,
                     );
 
                     drag_released |= r.drag_released;
@@ -2107,6 +2187,45 @@ impl<T> Snarl<T> {
             self,
         );
 
+        // Apply node frame drag only if no pin captured the drag via
+        // current-frame geometry (wire drag started by pin_drag_started fallback).
+        if node_frame_dragged && !snarl_state.has_new_wires() {
+            node_moved = Some((node, snarl_state.screen_vec_to_graph(node_frame_r.drag_delta())));
+        }
+
+        // Current-frame fallback for node dragging.
+        //
+        // When the user clicks on a node and immediately drags, egui's prev_pass
+        // hit-test may miss the node frame (1-frame-stale widget rects). The
+        // background widget gets the drag instead. We detect this by checking
+        // press_origin against the current-frame node_frame_rect.
+        //
+        // Once a node is claimed by this fallback, we "lock" it in egui temp
+        // storage so that subsequent frames continue dragging the same node
+        // (the rect moves away from press_origin as the node is dragged).
+        let mut fallback_node_drag = false;
+
+        if !node_frame_dragged && !snarl_state.has_new_wires() && input.is_decidedly_dragging {
+            if locked_fallback_node == Some(node) {
+                // This node was already claimed by the fallback — continue dragging it.
+                let drag_delta = ui.ctx().input(|i| i.pointer.delta());
+                node_moved = Some((node, snarl_state.screen_vec_to_graph(drag_delta)));
+                fallback_node_drag = true;
+            } else if locked_fallback_node.is_none()
+                && !input.modifiers.shift
+                && !input.modifiers.command
+                && input.press_origin.is_some_and(|origin| node_frame_rect.contains(origin))
+            {
+                // First frame: claim this node for the fallback drag.
+                let drag_delta = ui.ctx().input(|i| i.pointer.delta());
+                node_moved = Some((node, snarl_state.screen_vec_to_graph(drag_delta)));
+                node_to_top = Some(node);
+                fallback_node_drag = true;
+                ui.ctx()
+                    .data_mut(|d| d.insert_temp(fallback_drag_key, node));
+            }
+        }
+
         node_state.store(ui.ctx());
         Some(DrawNodeResponse {
             node_moved,
@@ -2114,6 +2233,7 @@ impl<T> Snarl<T> {
             drag_released,
             pin_hovered,
             final_rect,
+            fallback_node_drag,
         })
     }
 }

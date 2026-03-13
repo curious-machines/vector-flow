@@ -159,6 +159,7 @@ pub struct VectorFlowApp {
 
     /// Path to open after the unsaved-changes dialog resolves (for Open Recent).
     pending_open_path: Option<PathBuf>,
+
 }
 
 impl VectorFlowApp {
@@ -2319,8 +2320,14 @@ impl eframe::App for VectorFlowApp {
             canvas_panel::apply_camera_commands(render_state, &mut self.cam_state);
         }
 
-        // Request continuous repaints while playing.
-        if self.transport.playback == transport_panel::PlaybackState::Playing {
+        // Request continuous repaints while playing or when the pointer is in the
+        // node editor. This ensures prev_pass widgets are always fresh, preventing
+        // the 1-frame-stale hit-test issue where quick hover+click on a pin would
+        // miss the pin widget and drag the node frame or background instead.
+        let pointer_in_editor = ctx.input(|i| {
+            i.pointer.hover_pos().is_some_and(|p| snarl_viewport.contains(p))
+        });
+        if self.transport.playback == transport_panel::PlaybackState::Playing || pointer_in_editor {
             ctx.request_repaint();
         }
 
