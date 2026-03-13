@@ -5,3 +5,6 @@
 - Image info: stats, histogram, color counts (maybe), etc.
 - Need a path editor panel that allows us to edit paths and maybe even styling them resulting in a sub-graph to implements it. Ideally we can select a path and edit it. If it has styling info, that would come in too.
 - We should be able to attach a file to maybe SVG Path. The entire contents as path data. However, it would be nice to be able to have style info in that file as well so we could draw a serialized (flattened) equivalent of an SVG file, like what I used in the rasterizer project.
+
+- Support symmetries
+- Support image processing, include offset maps
