@@ -164,6 +164,12 @@ pub struct VectorFlowApp {
     /// Path to open after the unsaved-changes dialog resolves (for Open Recent).
     pending_open_path: Option<PathBuf>,
 
+    /// Whether the control point / handle overlay is enabled on the canvas.
+    show_control_points: bool,
+
+    /// Overlay data for the current frame (collected when show_control_points is true).
+    overlay_data: Option<crate::overlay::OverlayData>,
+
 }
 
 impl VectorFlowApp {
@@ -232,6 +238,8 @@ impl VectorFlowApp {
             pending_cli_load: file.map(|f| (f, 2)),
             recent_files: RecentFiles::load(),
             pending_open_path: None,
+            show_control_points: false,
+            overlay_data: None,
         };
         let fp = app.state_fingerprint();
         app.undo.sync_fingerprint(fp);
@@ -1045,6 +1053,7 @@ impl VectorFlowApp {
     fn update_scene(&mut self, selected_snarl_ids: &[SnarlNodeId]) {
         if self.last_eval.is_none() {
             self.prepared_scene = None;
+            self.overlay_data = None;
             return;
         }
 
@@ -1071,6 +1080,53 @@ impl VectorFlowApp {
         );
         self.prepared_scene = Some(Arc::new(scene));
         self.scene_cache_key = cache_key;
+
+        // Collect overlay data when the toggle is on.
+        self.overlay_data = if self.show_control_points {
+            self.collect_overlay(eval, selected_snarl_ids, &visible)
+        } else {
+            None
+        };
+    }
+
+    /// Determine which nodes should show control point overlays and collect
+    /// their path/point data.
+    ///
+    /// Rules:
+    /// - Selected nodes → show overlay for those nodes
+    /// - Nothing selected, nothing pinned → show for all visible nodes
+    /// - Pinned but not selected → no overlay (pinned is "final output" view)
+    fn collect_overlay(
+        &self,
+        eval: &EvalResult,
+        selected_snarl_ids: &[SnarlNodeId],
+        visible: &Option<HashSet<CoreNodeId>>,
+    ) -> Option<crate::overlay::OverlayData> {
+        let selected: HashSet<CoreNodeId> = selected_snarl_ids
+            .iter()
+            .filter_map(|sid| self.snarl.get_node(*sid).map(|n| n.core_id))
+            .collect();
+
+        if !selected.is_empty() {
+            // Show overlay for selected nodes only.
+            Some(crate::overlay::collect_overlay_data(eval, &selected))
+        } else {
+            // Check if there are pinned nodes.
+            let has_pinned = self.snarl.node_ids().any(|(_, n)| n.pinned);
+            if has_pinned {
+                // Pinned but nothing selected → no overlay.
+                None
+            } else {
+                // Nothing selected, nothing pinned → show for all visible.
+                match visible {
+                    Some(vis) => Some(crate::overlay::collect_overlay_data(eval, vis)),
+                    None => {
+                        let all: HashSet<_> = eval.outputs.keys().copied().collect();
+                        Some(crate::overlay::collect_overlay_data(eval, &all))
+                    }
+                }
+            }
+        }
     }
 
     /// Hash of the visible-node set for scene cache invalidation.
@@ -2319,6 +2375,13 @@ impl eframe::App for VectorFlowApp {
                                 self.cam_state.set_zoom = Some((zoom_pct / 100.0).clamp(0.01, 1000.0));
                             }
                             ui.separator();
+                            let cp_label = if self.show_control_points { "\u{25C9}" } else { "\u{25CB}" };
+                            if ui.button(cp_label).on_hover_text("Toggle control points overlay").clicked() {
+                                self.show_control_points = !self.show_control_points;
+                                // Force scene rebuild so overlay data is collected.
+                                self.scene_cache_key = (u64::MAX, u64::MAX, u64::MAX);
+                            }
+                            ui.separator();
                             if ui.button("▼").on_hover_text("Collapse canvas preview").clicked() {
                                 // Save current editor height before collapsing canvas (which expands editor).
                                 self.pre_collapse_editor_height = egui::containers::panel::PanelState::load(
@@ -2360,6 +2423,22 @@ impl eframe::App for VectorFlowApp {
                 canvas_panel::restore_camera(render_state, &mut self.cam_state, center, zoom);
             }
             canvas_panel::apply_camera_commands(render_state, &mut self.cam_state);
+        }
+
+        // 11. Draw control point overlay (after camera commands, so cam_state is current).
+        if let Some(ref overlay_data) = self.overlay_data {
+            let mut painter = ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Foreground,
+                egui::Id::new("control_points_overlay"),
+            ));
+            painter.set_clip_rect(canvas_rect);
+            crate::overlay::draw_overlay(
+                &painter,
+                overlay_data,
+                self.cam_state.current_center,
+                self.cam_state.current_zoom,
+                canvas_rect,
+            );
         }
 
         // Request continuous repaints while playing or when the pointer is in the
