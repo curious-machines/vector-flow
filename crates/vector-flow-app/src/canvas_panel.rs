@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use egui::Ui;
 use glam::Vec2;
 
@@ -58,7 +60,7 @@ pub struct CanvasBackground {
 /// so the caller can overlay toolbar buttons.
 pub fn show_canvas_panel(
     ui: &mut Ui,
-    scene: Option<PreparedScene>,
+    scene: Option<Arc<PreparedScene>>,
     cam_state: &mut CameraState,
     background: Option<&CanvasBackground>,
 ) -> egui::Rect {

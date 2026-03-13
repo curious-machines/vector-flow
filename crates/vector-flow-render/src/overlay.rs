@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use egui_wgpu::wgpu;
 
 use crate::batch::PreparedScene;
@@ -18,7 +20,7 @@ pub struct CanvasRenderResources {
 // ---------------------------------------------------------------------------
 
 pub struct CanvasCallback {
-    pub scene: Option<PreparedScene>,
+    pub scene: Option<Arc<PreparedScene>>,
 }
 
 impl egui_wgpu::CallbackTrait for CanvasCallback {
@@ -78,7 +80,7 @@ impl egui_wgpu::CallbackTrait for CanvasCallback {
 /// Create an egui `PaintCallback` that renders the canvas into the given rect.
 pub fn canvas_paint_callback(
     rect: egui::Rect,
-    scene: Option<PreparedScene>,
+    scene: Option<Arc<PreparedScene>>,
 ) -> egui::epaint::PaintCallback {
     egui_wgpu::Callback::new_paint_callback(rect, CanvasCallback { scene })
 }

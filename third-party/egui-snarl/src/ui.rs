@@ -788,6 +788,66 @@ impl<T> Snarl<T> {
             input.bg_drag_locked = ui.ctx()
                 .data(|d| d.get_temp::<bool>(snarl_id.with("bg_drag_lock")).unwrap_or(false));
 
+            // Pre-apply drag delta to eliminate 1-frame visual lag.
+            //
+            // In immediate-mode UI, node positions are normally updated after
+            // drawing (post-draw), so the rendered position is always one frame
+            // behind the cursor.  By detecting which node was being dragged on
+            // the *previous* frame (via `is_being_dragged`) and pre-applying
+            // this frame's pointer delta, the node visually tracks the cursor
+            // with zero lag from the second drag frame onward.
+            let mut pre_applied_drag = false;
+            if input.is_decidedly_dragging
+                && !input.press_near_viewport_edge
+                && !input.bg_drag_locked
+            {
+                let pointer_delta = ui.ctx().input(|i| i.pointer.delta());
+                if pointer_delta != Vec2::ZERO {
+                    // Find the node whose frame widget is being dragged.
+                    let mut dragged_node: Option<NodeId> = None;
+
+                    // Check normal frame-drag (egui tracks the dragged widget id).
+                    if !input.modifiers.shift && !input.modifiers.command {
+                        for &node_idx in &draw_order {
+                            if !self.nodes.contains(node_idx.0) {
+                                continue;
+                            }
+                            let frame_id = snarl_id
+                                .with(("snarl-node", node_idx))
+                                .with("frame");
+                            if ui.ctx().is_being_dragged(frame_id) {
+                                dragged_node = Some(node_idx);
+                                break;
+                            }
+                        }
+                    }
+
+                    // Check fallback drag (stored in temp data from prev frame).
+                    if dragged_node.is_none() {
+                        dragged_node = ui.ctx().data(|d| {
+                            d.get_temp::<NodeId>(snarl_id.with("fallback_drag_node"))
+                        });
+                    }
+
+                    if let Some(drag_node) = dragged_node {
+                        if self.nodes.contains(drag_node.0) {
+                            let graph_delta =
+                                snarl_state.screen_vec_to_graph(pointer_delta);
+                            if snarl_state.selected_nodes().contains(&drag_node) {
+                                for &sel in snarl_state.selected_nodes() {
+                                    if self.nodes.contains(sel.0) {
+                                        self.nodes[sel.0].pos += graph_delta;
+                                    }
+                                }
+                            } else {
+                                self.nodes[drag_node.0].pos += graph_delta;
+                            }
+                            pre_applied_drag = true;
+                        }
+                    }
+                }
+            }
+
             for node_idx in draw_order {
                 if !self.nodes.contains(node_idx.0) {
                     continue;
@@ -1147,14 +1207,18 @@ impl<T> Snarl<T> {
             if let Some((node, delta)) = node_moved {
                 if self.nodes.contains(node.0) {
                     ui.ctx().request_repaint();
-                    if snarl_state.selected_nodes().contains(&node) {
-                        for node in snarl_state.selected_nodes() {
+                    // Skip position update if we already pre-applied the
+                    // delta before drawing (lag-reduction path).
+                    if !pre_applied_drag {
+                        if snarl_state.selected_nodes().contains(&node) {
+                            for node in snarl_state.selected_nodes() {
+                                let node = &mut self.nodes[node.0];
+                                node.pos += delta;
+                            }
+                        } else {
                             let node = &mut self.nodes[node.0];
                             node.pos += delta;
                         }
-                    } else {
-                        let node = &mut self.nodes[node.0];
-                        node.pos += delta;
                     }
                 }
             }

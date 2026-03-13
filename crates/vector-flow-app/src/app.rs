@@ -84,8 +84,12 @@ pub struct VectorFlowApp {
     /// Last zoom-aware tolerance we evaluated at.
     last_eval_tolerance: f32,
 
-    /// Prepared scene for the canvas.
-    prepared_scene: Option<PreparedScene>,
+    /// Prepared scene for the canvas (Arc-wrapped for cheap sharing with render callback).
+    prepared_scene: Option<Arc<PreparedScene>>,
+
+    /// Cache key for `prepared_scene` to skip redundant re-preparation.
+    /// (eval_generation, zoom_tolerance_quantized, selection_hash)
+    scene_cache_key: (u64, u64, u64),
 
     /// Current project file path (None if unsaved).
     project_path: Option<PathBuf>,
@@ -201,6 +205,7 @@ impl VectorFlowApp {
             last_eval_frame: u64::MAX,
             last_eval_tolerance: f32::MAX,
             prepared_scene: None,
+            scene_cache_key: (u64::MAX, u64::MAX, u64::MAX),
             project_path: None,
             saved_fingerprint: 0,
             node_editor_ui_id: egui::Id::NULL,
@@ -934,6 +939,7 @@ impl VectorFlowApp {
         self.last_eval_frame = u64::MAX;
         self.last_eval_tolerance = f32::MAX;
         self.prepared_scene = None;
+        self.scene_cache_key = (u64::MAX, u64::MAX, u64::MAX);
         self.project_path = None;
         self.project_settings = ProjectSettings::default();
         self.image_export_dialog.initialized = false;
@@ -1019,6 +1025,7 @@ impl VectorFlowApp {
                 self.last_eval_frame = u64::MAX;
                 self.last_eval_tolerance = f32::MAX;
                 self.prepared_scene = None;
+                self.scene_cache_key = (u64::MAX, u64::MAX, u64::MAX);
                 self.project_path = Some(path.to_owned());
                 Self::restore_window_geometry(ctx, pf.window_geometry);
 
@@ -1036,21 +1043,56 @@ impl VectorFlowApp {
     }
 
     fn update_scene(&mut self, selected_snarl_ids: &[SnarlNodeId]) {
-        if let Some(ref eval) = self.last_eval {
-            let visible = self.visible_node_set(selected_snarl_ids);
-            let order = self.graph_output_order();
-            let collected = collect_scene_ordered(eval, visible.as_ref(), Some(&order));
-            let tolerance = 0.5 / self.cam_state.current_zoom.max(0.01);
-            let scene = prepare_scene_full_with_text(
-                &collected,
-                tolerance,
-                self.cam_state.current_zoom,
-                1.0, // pixels_per_point applied at render time
-            );
-            self.prepared_scene = Some(scene);
-        } else {
+        if self.last_eval.is_none() {
             self.prepared_scene = None;
+            return;
         }
+
+        // Build cache key: eval generation, quantized zoom tolerance, selection hash.
+        let zoom_tol = (self.cam_state.current_zoom.max(0.01) * 1000.0) as u64;
+        let sel_hash = self.selection_scene_hash(selected_snarl_ids);
+        let cache_key = (self.last_eval_gen, zoom_tol, sel_hash);
+
+        if cache_key == self.scene_cache_key && self.prepared_scene.is_some() {
+            // Scene inputs unchanged — reuse cached prepared_scene.
+            return;
+        }
+
+        let eval = self.last_eval.as_ref().unwrap();
+        let visible = self.visible_node_set(selected_snarl_ids);
+        let order = self.graph_output_order();
+        let collected = collect_scene_ordered(eval, visible.as_ref(), Some(&order));
+        let tolerance = 0.5 / self.cam_state.current_zoom.max(0.01);
+        let scene = prepare_scene_full_with_text(
+            &collected,
+            tolerance,
+            self.cam_state.current_zoom,
+            1.0, // pixels_per_point applied at render time
+        );
+        self.prepared_scene = Some(Arc::new(scene));
+        self.scene_cache_key = cache_key;
+    }
+
+    /// Hash of the visible-node set for scene cache invalidation.
+    fn selection_scene_hash(&self, selected_snarl_ids: &[SnarlNodeId]) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        // Hash selected node core IDs (sorted for stability).
+        let mut ids: Vec<u64> = selected_snarl_ids
+            .iter()
+            .filter_map(|sid| self.snarl.get_node(*sid).map(|n| n.core_id.0))
+            .collect();
+        ids.sort_unstable();
+        ids.hash(&mut hasher);
+        // Hash pinned node core IDs.
+        let mut pinned: Vec<u64> = self
+            .snarl
+            .node_ids()
+            .filter_map(|(_, n)| if n.pinned { Some(n.core_id.0) } else { None })
+            .collect();
+        pinned.sort_unstable();
+        pinned.hash(&mut hasher);
+        hasher.finish()
     }
 
     // ── Export helpers ─────────────────────────────────────────────────
@@ -1074,7 +1116,7 @@ impl VectorFlowApp {
                     batches: Vec::new(),
                     image_batches: Vec::new(),
                 };
-                let scene = self.prepared_scene.as_ref().unwrap_or(&empty_scene);
+                let scene = self.prepared_scene.as_deref().unwrap_or(&empty_scene);
                 match export::export_canvas_image(
                     &render_state.device,
                     &render_state.queue,
@@ -2244,7 +2286,7 @@ impl eframe::App for VectorFlowApp {
             egui::CentralPanel::default().show(ctx, |ui| {
                 canvas_rect = canvas_panel::show_canvas_panel(
                     ui,
-                    self.prepared_scene.take(),
+                    self.prepared_scene.clone(),
                     &mut self.cam_state,
                     Some(&canvas_bg),
                 );
